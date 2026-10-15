@@ -1,3 +1,8 @@
 .claude/
 .DS_Store
 *.qpr
+.vercel
+.env*
+.agents/
+skills-lock.json
+node_modules/

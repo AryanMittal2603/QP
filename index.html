@@ -140,7 +140,7 @@ td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39
   <div class="logo" id="logo">UPESSC</div>
   <div class="htitle">
     <div class="t1">Uttar Pradesh Education Service Selection Commission</div>
-    <div class="t2">Question Paper Randomization System · Offline Stand-alone Console</div>
+    <div class="t2">Question Paper Randomization System</div>
   </div>
   <div class="hmeta">
     <div class="clock" id="clock">--</div>
@@ -207,6 +207,23 @@ function toast(msg, ms = 2600) { const t = document.createElement('div'); t.clas
 function bind(root, actions) { root.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => { const f = actions[el.dataset.act]; if (f) { e.stopPropagation(); f(el.dataset, e); } })); }
 const swMini = c => `<span class="sw-mini" style="--c:${c.hex}"><i></i>${esc(c.name)}${c.set ? ` <span class="muted">(${esc(c.set)})</span>` : ''}</span>`;
 
+/* ---------- Server API (Vercel + Neon). Unavailable when opened as a local file or offline. ---------- */
+const HAS_SERVER = location.protocol.startsWith('http');
+async function api(path, { method = 'GET', body, token } = {}) {
+  if (!HAS_SERVER) { const e = new Error('Server not available (page opened as a local file).'); e.network = true; throw e; }
+  const t = token !== undefined ? token : session && session.token;
+  let r;
+  try { r = await fetch('/api/' + path, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: body ? JSON.stringify(body) : undefined }); }
+  catch { const e = new Error('Server not reachable. Check the internet connection.'); e.network = true; throw e; }
+  const j = await r.json().catch(() => ({ error: 'Unexpected server response.' }));
+  if (!r.ok) {
+    if (r.status === 401 && session && session.role === 'admin' && path !== 'admin/login') { setSession(null); renderAdminAuth(); }
+    const e = new Error(j.error || 'Request failed.'); e.status = r.status; throw e;
+  }
+  return j;
+}
+async function apiOrAlert(path, opts) { try { return await api(path, opts); } catch (e) { await alertModal('Action failed', `<p style="white-space:pre-line">${esc(e.message)}</p>`); return null; } }
+
 /* =========================================================
    IndexedDB storage
    ========================================================= */
@@ -272,8 +289,7 @@ function appendLog(scope, event, details = {}, opts = {}) {
   };
   const p = logQueue.then(run); logQueue = p.catch(() => {}); return p;
 }
-async function verifyChain(scope) {
-  const entries = (await idb.all(scope + '_log')).sort((a, b) => a.seq - b.seq);
+async function verifyEntries(entries) {
   const issues = []; let prev = 'GENESIS';
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
@@ -283,6 +299,11 @@ async function verifyChain(scope) {
     if (await sha256(stable(rest)) !== hash) issues.push(`Entry #${e.seq} has been altered`);
     prev = hash;
   }
+  return { ok: !issues.length, issues, count: entries.length, head: prev };
+}
+async function verifyChain(scope) {
+  const entries = (await idb.all(scope + '_log')).sort((a, b) => a.seq - b.seq);
+  const base = await verifyEntries(entries), issues = base.issues, prev = base.head;
   const head = await idb.get('meta', scope + '_head');
   const last = entries[entries.length - 1];
   if (head && (!last || head.seq !== last.seq || head.hash !== last.hash)) issues.push('Latest log entries are missing (chain head mismatch)');
@@ -327,8 +348,11 @@ function tickClock() {
   const n = $('#net'); n.className = 'net ' + (navigator.onLine ? 'on' : 'off'); n.textContent = navigator.onLine ? 'Network: CONNECTED' : 'Offline ✓';
 }
 setInterval(tickClock, 1000);
-window.addEventListener('online', async () => { tickClock(); if (session) { await appendLog(session.role, 'NETWORK_CONNECTED_WARNING', { note: 'Browser reports network connectivity during session' }); renderBanners(); } });
-window.addEventListener('offline', async () => { tickClock(); if (session) { await appendLog(session.role, 'NETWORK_DISCONNECTED', {}); renderBanners(); } });
+window.addEventListener('online', async () => {
+  tickClock();
+  if (session && session.role === 'client') { await appendLog('client', 'NETWORK_CONNECTED', { note: 'Randomization disabled while connected; syncing results' }); renderBanners(); if (!busy) renderClient(); syncNow(true); }
+});
+window.addEventListener('offline', async () => { tickClock(); if (session && session.role === 'client') { await appendLog('client', 'NETWORK_DISCONNECTED', {}); renderBanners(); if (!busy) renderClient(); } });
 setInterval(async () => {
   if (session && session.role === 'client') {
     await checkClock('periodic');
@@ -339,6 +363,7 @@ setInterval(async () => {
 async function renderHeader() {
   const key = session && session.role === 'admin' ? 'admin_logo' : 'logo';
   logoData = (await idb.get('meta', key)) || (await idb.get('meta', 'logo')) || (await idb.get('meta', 'admin_logo')) || null;
+  if (session && session.role === 'admin' && HAS_SERVER) api('admin/settings').then(async r => { if (r.logo !== logoData) { r.logo ? await idb.put('meta', r.logo, 'admin_logo') : await idb.del('meta', 'admin_logo'); if (r.logo !== logoData) renderHeader(); } }).catch(() => {});
   $('#logo').innerHTML = logoData ? `<img src="${logoData}" alt="UPESSC">` : 'UPESSC';
   $('#who').textContent = session ? `· ${session.role === 'admin' ? 'Admin' : 'Randomization'}: ${session.user}` : '';
   renderBanners();
@@ -347,7 +372,7 @@ async function renderBanners() {
   const b = [];
   if (session) {
     const scope = session.role;
-    if (navigator.onLine) b.push(['warn', '⚠ The browser reports a network connection. Randomization must be performed on a stand-alone PC with network disconnected. This has been logged.']);
+    if (scope === 'client' && navigator.onLine) b.push(['warn', '⚠ Network is CONNECTED. Exams have been downloaded. Disconnect the network (cable / Wi-Fi) to enable randomization. Results sync automatically when the PC is back online.']);
     const ck = await idb.get('meta', scope + '_clock');
     if (ck && ck.flags) b.push(['bad', `⚠ System clock was detected moving backwards ${ck.flags} time(s). Each occurrence is flagged in the audit log.`]);
     if (integrityIssue && scope === 'client') b.push(['bad', '⛔ Audit integrity check failed: ' + integrityIssue + '. See Audit Log tab.']);
@@ -435,31 +460,34 @@ function readColours(el) {
    ========================================================= */
 function renderLanding() {
   app.innerHTML = `<div class="mode-cards">
-    <div class="card click" data-act="admin"><div class="ic">🛠️</div><h3>Admin Console</h3><p class="muted">Create exams, shifts, subjects and colour-coded QP sets. Export an encrypted exam package for the stand-alone PC.</p><button class="btn">Open Admin Console</button></div>
-    <div class="card click" data-act="client"><div class="ic">🎲</div><h3>Randomization Console</h3><p class="muted">Import exam package and perform the 5-iteration randomization on the stand-alone, offline PC.</p><button class="btn primary">Open Randomization Console</button></div>
+    <div class="card click" data-act="admin"><div class="ic">🛠️</div><h3>Admin Console</h3><p class="muted">Online. Create exams, shifts, subjects and colour-coded QP sets. Publish them to the Randomization Console and view synced results.</p><button class="btn">Open Admin Console</button></div>
+    <div class="card click" data-act="client"><div class="ic">🎲</div><h3>Randomization Console</h3><p class="muted">Log in online once to download published exams. Then disconnect the network and perform the 5-iteration randomization offline.</p><button class="btn primary">Open Randomization Console</button></div>
   </div>
-  <p class="muted sm" style="text-align:center">All data stays in this browser on this PC. Export the audit log after every randomization session and keep it on secure media.</p>`;
+  <p class="muted sm" style="text-align:center">Randomization runs fully offline. Every draw is stored in this browser's hash-chained audit log and synced to the server when the PC is back online. Also export the audit log after every session and keep it on secure media.</p>`;
   bind(app, { admin: renderAdminAuth, client: renderClientAuth });
 }
 
 /* =========================================================
-   ADMIN CONSOLE
+   ADMIN CONSOLE (online — data lives in Vercel / Neon Postgres)
    ========================================================= */
 async function renderAdminAuth() {
-  const auth = await idb.get('meta', 'admin_auth');
-  if (!auth) {
-    app.innerHTML = `<div class="auth card"><div class="eyebrow">Admin Console</div><h3>First-time administrator setup</h3><p class="muted sm">Create the administrator account for this PC.</p>
-      <form class="form" id="sf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password (min 8 characters)</span><input name="p" type="password"></label>
+  if (!HAS_SERVER) { app.innerHTML = `<div class="auth card"><h3>Admin Console needs the server</h3><p class="muted">Open the hosted portal URL to use the Admin Console. This local copy only supports the offline Randomization Console.</p><div class="actions"><button class="btn" data-act="back">Back</button></div></div>`; bind(app, { back: renderLanding }); return; }
+  let st;
+  try { st = await api('status', { token: null }); }
+  catch (e) { app.innerHTML = `<div class="auth card"><h3>Server not reachable</h3><p class="muted">${esc(e.message)}</p><div class="actions"><button class="btn" data-act="back">Back</button><button class="btn primary" data-act="retry">Retry</button></div></div>`; bind(app, { back: renderLanding, retry: renderAdminAuth }); return; }
+  if (!st.adminExists) {
+    app.innerHTML = `<div class="auth card"><div class="eyebrow">Admin Console</div><h3>First-time administrator setup</h3><p class="muted sm">Enter the one-time setup key configured on the server, then create the administrator account.</p>
+      <form class="form" id="sf"><label class="fld"><span>Setup key</span><input name="k" type="password" autocomplete="off"></label><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password (min 8 characters)</span><input name="p" type="password"></label>
       <label class="fld"><span>Confirm password</span><input name="p2" type="password"></label><div class="err" hidden></div>
       <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Create administrator</button></div></form></div>`;
     bind(app, { back: renderLanding });
-    $('#sf').u.focus();
+    $('#sf').k.focus();
     $('#sf').onsubmit = async ev => {
       ev.preventDefault(); const f = ev.target, u = f.u.value.trim(), p = f.p.value, er = f.querySelector('.err');
-      const msg = !u ? 'Username is required.' : p.length < 8 ? 'Password must be at least 8 characters.' : p !== f.p2.value ? 'Passwords do not match.' : null;
+      const msg = !f.k.value ? 'Setup key is required.' : !u ? 'Username is required.' : p.length < 8 ? 'Password must be at least 8 characters.' : p !== f.p2.value ? 'Passwords do not match.' : null;
       if (msg) { er.textContent = msg; er.hidden = false; return; }
-      await idb.put('meta', await makeCred(u, p), 'admin_auth');
-      await appendLog('admin', 'ADMIN_ACCOUNT_CREATED', { username: u, installId: await installId() }, { actor: u });
+      try { await api('setup', { method: 'POST', token: null, body: { setupKey: f.k.value, username: u, password: p } }); }
+      catch (e) { er.textContent = e.message; er.hidden = false; return; }
       toast('Administrator created. Please log in.'); renderAdminAuth();
     };
     return;
@@ -470,31 +498,30 @@ async function renderAdminAuth() {
   bind(app, { back: renderLanding });
   $('#lf').u.focus();
   $('#lf').onsubmit = async e => {
-    e.preventDefault(); const f = e.target, u = f.u.value.trim(), p = f.p.value;
-    if (u === auth.username && await hashPw(p, auth.salt) === auth.hash) {
-      setSession({ role: 'admin', user: u });
-      await checkClock('admin-login', 'admin');
-      await appendLog('admin', 'ADMIN_LOGIN', { clockReading: new Date().toISOString(), networkOnline: navigator.onLine });
-      renderAdmin();
-    } else {
-      await appendLog('admin', 'ADMIN_LOGIN_FAILED', { attemptedUsername: u }, { actor: u || 'unknown' });
-      const er = f.querySelector('.err'); er.textContent = 'Invalid username or password.'; er.hidden = false;
-    }
+    e.preventDefault(); const f = e.target, er = f.querySelector('.err'), btn = f.querySelector('.btn.primary'); btn.disabled = true;
+    try {
+      const r = await api('admin/login', { method: 'POST', token: null, body: { username: f.u.value.trim(), password: f.p.value, clientClock: new Date().toISOString() } });
+      setSession({ role: 'admin', user: r.user, token: r.token }); renderAdmin();
+    } catch (err) { er.textContent = err.message; er.hidden = false; btn.disabled = false; }
   };
 }
 
 const astate = { tab: 'exams', examId: null };
 async function renderAdmin() {
-  const tabs = [['exams', 'Exams'], ['settings', 'Settings'], ['audit', 'Audit Log']];
-  app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${astate.tab === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
+  const tabs = [['exams', 'Exams'], ['results', 'Results & Sync'], ['settings', 'Settings'], ['audit', 'Audit Log']];
+  app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${astate.tab === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="logout">Log out</button></div><div id="view"><div class="muted">Loading…</div></div>`;
   bind(app, { tab: d => { astate.tab = d.k; astate.examId = null; renderAdmin(); }, logout: logout });
   const v = $('#view');
-  if (astate.tab === 'exams') return astate.examId ? renderExamEditor(v) : renderExamList(v);
-  if (astate.tab === 'settings') return renderAdminSettings(v);
-  if (astate.tab === 'audit') return renderAudit(v, 'admin');
+  try {
+    if (astate.tab === 'exams') return await (astate.examId ? renderExamEditor(v) : renderExamList(v));
+    if (astate.tab === 'results') return await renderResults(v);
+    if (astate.tab === 'settings') return await renderAdminSettings(v);
+    if (astate.tab === 'audit') return await renderAudit(v, 'admin');
+  } catch (e) { if (session) v.innerHTML = `<div class="notice warn">${esc(e.message)}</div>`; }
 }
 async function logout() {
-  await appendLog(session.role, 'LOGOUT', {});
+  if (session.role === 'admin') { try { await api('admin/logout', { method: 'POST' }); } catch {} }
+  else await appendLog('client', 'LOGOUT', {});
   setSession(null); cstate.view = 'exams'; astate.examId = null; renderLanding();
 }
 
@@ -508,34 +535,37 @@ function subjectValidate(v) {
   const names = v.colours.map(c => c.name.toLowerCase()); if (new Set(names).size !== names.length) return 'Colour names must be unique within the subject.';
   return null;
 }
+const publishBadge = e => e.publishedAt ? `<span class="badge b-open">Published v${e.publishedVersion}</span>${e.changedSincePublish ? ' <span class="badge b-prog">changed since publish</span>' : ''}` : '<span class="badge b-closed">Not published</span>';
 
 async function renderExamList(v) {
-  const exams = (await idb.all('admin_exams')).sort((a, b) => b.createdAt - a.createdAt);
+  const exams = await api('admin/exams');
   v.innerHTML = `<div class="toolbar"><h2>Exams</h2><div class="sp"></div><button class="btn primary" data-act="new">+ Create exam</button></div>
     ${exams.length ? `<div class="grid-cards">${exams.map(e => `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3>
       <div class="muted">${e.shifts.length} shift(s) · ${e.shifts.reduce((n, s) => n + s.subjects.length, 0)} subject entries</div>
-      <div class="sm" style="margin-top:6px">${e.exportVersion ? `<span class="badge b-open">Package v${e.exportVersion}</span> <span class="muted">exported ${fmtTs(e.lastExportedAt)}</span>${e.updatedAt > e.lastExportedAt ? ' <span class="badge b-prog">changed since export</span>' : ''}` : '<span class="badge b-closed">Not exported</span>'}</div></div>`).join('')}</div>`
+      <div class="sm" style="margin-top:6px">${publishBadge(e)}</div></div>`).join('')}</div>`
       : `<div class="empty">No exams yet. Create the first exam to begin.</div>`}`;
   bind(v, {
     new: async () => {
       const r = await formModal('Create exam', examFields()); if (!r) return;
-      const e = { id: uid(), name: r.name, code: r.code, description: r.description, createdAt: Date.now(), updatedAt: Date.now(), shifts: [], exportVersion: 0 };
-      await idb.put('admin_exams', e); await appendLog('admin', 'EXAM_CREATED', { examId: e.id, name: e.name, code: e.code });
-      astate.examId = e.id; renderAdmin();
+      const e = { id: uid(), name: r.name, code: r.code, description: r.description, createdAt: Date.now(), shifts: [] };
+      if (await apiOrAlert('admin/exams', { method: 'PUT', body: { exam: e, event: 'EXAM_CREATED', details: { name: e.name } } })) { astate.examId = e.id; renderAdmin(); }
     },
     open: d => { astate.examId = d.id; renderAdmin(); }
   });
 }
 
-async function saveExam(e, event, details) { e.updatedAt = Date.now(); await idb.put('admin_exams', e); await appendLog('admin', event, { examId: e.id, examCode: e.code, ...details }); renderAdmin(); }
+async function saveExam(e, event, details) { await apiOrAlert('admin/exams', { method: 'PUT', body: { exam: e, event, details } }); renderAdmin(); }
 
 async function renderExamEditor(v) {
-  const e = await idb.get('admin_exams', astate.examId);
+  const e = (await api('admin/exams')).find(x => x.id === astate.examId);
   if (!e) { astate.examId = null; return renderAdmin(); }
   const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← All exams</button><div class="sp"></div><button class="btn primary" data-act="export">⬇ Export package for stand-alone PC</button></div>
+  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← All exams</button><div class="sp"></div>
+      ${e.publishedAt ? '<button class="btn sm danger" data-act="unpublish">Unpublish</button>' : ''}
+      <button class="btn" data-act="export" title="Encrypted .qpr file for a PC that cannot go online at all">⬇ Offline package (.qpr)</button>
+      <button class="btn primary" data-act="publish">⬆ ${e.publishedAt ? 'Re-publish' : 'Publish'} to Randomization Console</button></div>
   <div class="card"><div class="row"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2>${e.description ? `<div class="muted">${esc(e.description)}</div>` : ''}
-    <div class="muted sm" style="margin-top:4px">Created ${fmtTs(e.createdAt)} · Last updated ${fmtTs(e.updatedAt)} · ${e.exportVersion ? `Package v${e.exportVersion} exported ${fmtTs(e.lastExportedAt)}` : 'Not yet exported'}</div></div>
+    <div class="muted sm" style="margin-top:4px">Created ${fmtTs(e.createdAt)} · Last updated ${fmtTs(e.updatedAt)} · ${publishBadge(e)}${e.publishedAt ? ` <span class="muted">at ${fmtTs(e.publishedAt)}</span>` : ''}</div></div>
     <div><button class="btn sm" data-act="editExam">Edit</button> <button class="btn sm danger" data-act="delExam">Delete</button></div></div></div>
   <div class="toolbar" style="margin-top:20px"><h3 style="margin:0">Shifts</h3><div class="sp"></div><button class="btn primary sm" data-act="addShift">+ Add shift</button></div>
   ${shifts.length ? shifts.map(s => `<div class="card"><div class="row"><div class="grow"><h4>${esc(s.name)}</h4><div class="muted sm">📅 ${fmtDate(s.date)} · Randomization window ${s.start} – ${s.end}</div></div>
@@ -544,13 +574,14 @@ async function renderExamEditor(v) {
         ${s.subjects.map(sb => `<tr><td><b>${esc(sb.name)}</b></td><td>${esc(sb.code || '—')}</td><td><div class="swatches">${sb.colours.map(swMini).join('')}</div></td>
         <td style="text-align:right"><button class="btn sm" data-act="editSub" data-s="${s.id}" data-b="${sb.id}">Edit</button> <button class="btn sm danger" data-act="delSub" data-s="${s.id}" data-b="${sb.id}">Delete</button></td></tr>`).join('')}</tbody></table>`
       : `<div class="muted sm" style="margin-top:10px">No subjects yet.</div>`}</div>`).join('')
-    : `<div class="empty">No shifts yet. Add a shift, then add subjects and their colour-coded sets.</div>`}`;
+    : `<div class="empty">No shifts yet. Add a shift, then add subjects and their colour-coded sets.</div>`}
+  <p class="muted sm">Changes are saved to the server immediately. The Randomization Console only receives an exam after it is <b>published</b>. Re-publish after changes. Shifts where randomization has already started are never overwritten on the client PC.</p>`;
   const S = id => e.shifts.find(x => x.id === id);
   bind(v, {
     back: () => { astate.examId = null; renderAdmin(); },
     editExam: async () => { const r = await formModal('Edit exam', examFields(e)); if (!r) return; Object.assign(e, r); saveExam(e, 'EXAM_UPDATED', { name: r.name, code: r.code }); },
-    delExam: async () => { if (!await confirmModal('Delete exam?', `<p>Delete <b>${esc(e.name)}</b> and all its shifts and subjects from this Admin Console? Packages already exported are not affected.</p>`, 'Delete', 'danger')) return;
-      await idb.del('admin_exams', e.id); await appendLog('admin', 'EXAM_DELETED', { examId: e.id, name: e.name, code: e.code }); astate.examId = null; renderAdmin(); },
+    delExam: async () => { if (!await confirmModal('Delete exam?', `<p>Delete <b>${esc(e.name)}</b>? It will no longer be sent to the Randomization Console. Synced results remain in the database.</p>`, 'Delete', 'danger')) return;
+      if (await apiOrAlert('admin/exams?id=' + encodeURIComponent(e.id), { method: 'DELETE' })) { astate.examId = null; renderAdmin(); } },
     addShift: async () => { const r = await formModal('Add shift', shiftFields(), { validate: shiftValidate }); if (!r) return; const s = { id: uid(), ...r, subjects: [] }; e.shifts.push(s); saveExam(e, 'SHIFT_CREATED', { shiftId: s.id, ...r }); },
     editShift: async d => { const s = S(d.s); const r = await formModal('Edit shift', shiftFields(s), { validate: shiftValidate }); if (!r) return; Object.assign(s, r); saveExam(e, 'SHIFT_UPDATED', { shiftId: s.id, ...r }); },
     dupShift: async d => { const s = S(d.s); const r = await formModal('Duplicate shift (copies all subjects & colour sets)', shiftFields({ ...s, name: s.name + ' (copy)' }), { validate: shiftValidate }); if (!r) return;
@@ -560,53 +591,87 @@ async function renderExamEditor(v) {
       const sb = { id: uid(), ...r }; s.subjects.push(sb); saveExam(e, 'SUBJECT_CREATED', { shiftId: s.id, subjectId: sb.id, name: sb.name, code: sb.code, colours: sb.colours }); },
     editSub: async d => { const s = S(d.s), sb = s.subjects.find(x => x.id === d.b); const r = await formModal(`Edit subject — ${s.name}`, subjectFields(sb), { validate: subjectValidate }); if (!r) return; Object.assign(sb, r); saveExam(e, 'SUBJECT_UPDATED', { shiftId: s.id, subjectId: sb.id, name: sb.name, code: sb.code, colours: sb.colours }); },
     delSub: async d => { const s = S(d.s), sb = s.subjects.find(x => x.id === d.b); if (!await confirmModal('Delete subject?', `<p>Delete <b>${esc(sb.name)}</b> from ${esc(s.name)}?</p>`, 'Delete', 'danger')) return; s.subjects = s.subjects.filter(x => x.id !== sb.id); saveExam(e, 'SUBJECT_DELETED', { shiftId: s.id, subjectId: sb.id, name: sb.name }); },
+    publish: async () => {
+      if (!await confirmModal(`${e.publishedAt ? 'Re-publish' : 'Publish'} exam?`, `<p><b>${esc(e.name)}</b> will be downloaded by the Randomization Console at its next online login.</p>`, 'Publish')) return;
+      const r = await apiOrAlert('admin/publish', { method: 'POST', body: { id: e.id } }); if (r) { toast(`Published v${r.publishedVersion}`); renderAdmin(); } },
+    unpublish: async () => { if (!await confirmModal('Unpublish exam?', '<p>The exam will no longer be sent to the Randomization Console at login. Copies already downloaded on a client PC are not removed.</p>', 'Unpublish', 'danger')) return;
+      if (await apiOrAlert('admin/unpublish', { method: 'POST', body: { id: e.id } })) renderAdmin(); },
     export: () => exportPackage(e)
   });
 }
 
+/* Offline backup path: publishes, then downloads the same version as an encrypted file */
 async function exportPackage(e) {
-  const problems = [];
-  if (!e.shifts.length) problems.push('Add at least one shift.');
-  e.shifts.forEach(s => { if (!s.subjects.length) problems.push(`${s.name}: add at least one subject.`); s.subjects.forEach(sb => { if (sb.colours.length < 2) problems.push(`${s.name} / ${sb.name}: needs at least 2 colour sets.`); }); });
-  const cred = await idb.get('meta', 'client_cred');
-  if (!cred) problems.push('Set the Randomization Console login in Settings first.');
-  if (problems.length) return alertModal('Cannot export yet', `<ul>${problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`);
-  const r = await formModal('Export encrypted exam package', [{ name: 'pw', label: `Password of Randomization login "${cred.username}"`, type: 'password', required: true, hint: 'The package is encrypted (AES-256-GCM) with this password. The same password is needed to import it on the stand-alone PC.' }],
-    { submitLabel: 'Encrypt & download', validate: async v2 => (await hashPw(v2.pw, cred.salt)) === cred.hash ? null : 'Password does not match the configured Randomization login.' });
+  const { clientCred: cred, logo } = await api('admin/settings');
+  if (!cred) return alertModal('Cannot export yet', '<p>Set the Randomization Console login in Settings first.</p>');
+  const r = await formModal('Download encrypted offline package', [{ name: 'pw', label: `Password of Randomization login "${cred.username}"`, type: 'password', required: true, hint: 'Use this only for a PC that cannot go online even once. The exam is published, and the same version is encrypted (AES-256-GCM) with this password.' }],
+    { submitLabel: 'Publish, encrypt & download', validate: async v2 => (await hashPw(v2.pw, cred.salt)) === cred.hash ? null : 'Password does not match the configured Randomization login.' });
   if (!r) return;
-  const version = (e.exportVersion || 0) + 1;
-  const { exportVersion, lastExportedAt, ...examData } = e;
-  const payload = { format: 'UPESSC-QPR-PAYLOAD', version: 1, packageVersion: version, exportedAt: new Date().toISOString(), exportedBy: session.user, adminInstallId: await installId(),
-    client: { username: cred.username, salt: cred.salt, hash: cred.hash }, logo: (await idb.get('meta', 'admin_logo')) || null, exam: examData };
+  const pub = await apiOrAlert('admin/publish', { method: 'POST', body: { id: e.id } }); if (!pub) return;
+  const version = pub.publishedVersion;
+  const { publishedVersion, publishedAt, changedSincePublish, ...examData } = e;
+  const payload = { format: 'UPESSC-QPR-PAYLOAD', version: 1, packageVersion: version, exportedAt: new Date().toISOString(), exportedBy: session.user, adminInstallId: 'server',
+    client: cred, logo: logo || null, exam: examData };
   const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await aesKey(r.pw, salt), enc.encode(JSON.stringify(payload)));
   const data = b64(ct);
   const pkg = { format: 'UPESSC-QPR-PACKAGE', version: 1, examCode: e.code, packageVersion: version, createdAt: payload.exportedAt, kdf: { name: 'PBKDF2-SHA256', iterations: ITER }, cipher: 'AES-256-GCM', salt: b64(salt), iv: b64(iv), data, sha256: await sha256(data) };
   download(`UPESSC_${safeName(e.code)}_package_v${version}_${stamp()}.qpr`, JSON.stringify(pkg));
-  e.exportVersion = version; e.lastExportedAt = Date.now(); await idb.put('admin_exams', e);
-  await appendLog('admin', 'PACKAGE_EXPORTED', { examId: e.id, examCode: e.code, packageVersion: version, packageSha256: pkg.sha256, shifts: e.shifts.map(s => ({ id: s.id, name: s.name, date: s.date, window: `${s.start}-${s.end}`, subjects: s.subjects.length })) });
+  await api('admin/package-logged', { method: 'POST', body: { examId: e.id, examCode: e.code, packageVersion: version, packageSha256: pkg.sha256 } }).catch(() => {});
   toast(`Package v${version} downloaded`); renderAdmin();
 }
 
 async function renderAdminSettings(v) {
-  const cred = await idb.get('meta', 'client_cred'), logo = await idb.get('meta', 'admin_logo'), auth = await idb.get('meta', 'admin_auth');
-  v.innerHTML = `<div class="card"><div class="row"><div class="grow"><h3>Randomization Console login</h3><p class="muted sm">The single head-client login used on the stand-alone PC. It is embedded (hashed) in every exported package, and its password encrypts the package.</p>
+  const { clientCred: cred, logo } = await api('admin/settings');
+  v.innerHTML = `<div class="card"><div class="row"><div class="grow"><h3>Randomization Console login</h3><p class="muted sm">The single head-client login used on the stand-alone PC. The PC logs in online once to download published exams; after that it works offline with the same login.</p>
       <div>${cred ? `Current username: <b>${esc(cred.username)}</b>` : '<span class="badge b-prog">Not configured</span>'}</div></div><div><button class="btn primary" data-act="cred">${cred ? 'Change' : 'Set'} login</button></div></div></div>
-    <div class="card"><div class="row"><div class="grow"><h3>Commission logo</h3><p class="muted sm">Upload the official UPESSC logo (PNG/JPG, max 500 KB). It is shown in the header and included in exported packages.</p>
+    <div class="card"><div class="row"><div class="grow"><h3>Commission logo</h3><p class="muted sm">Upload the official UPESSC logo (PNG/JPG/SVG, max 500 KB). It appears in the header of both consoles.</p>
       ${logo ? `<img src="${logo}" style="height:70px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff">` : '<span class="muted">No logo uploaded.</span>'}</div>
       <div><button class="btn" data-act="logo">Upload logo</button> ${logo ? '<button class="btn danger" data-act="rmlogo">Remove</button>' : ''}</div></div></div>
-    <div class="card"><div class="row"><div class="grow"><h3>Administrator password</h3><p class="muted sm">Logged in as <b>${esc(auth.username)}</b>.</p></div><div><button class="btn" data-act="pw">Change password</button></div></div></div>`;
+    <div class="card"><div class="row"><div class="grow"><h3>Administrator password</h3><p class="muted sm">Logged in as <b>${esc(session.user)}</b>.</p></div><div><button class="btn" data-act="pw">Change password</button></div></div></div>`;
   bind(v, {
     cred: async () => { const r = await formModal('Randomization Console login', [{ name: 'u', label: 'Username', value: cred && cred.username, required: true }, { name: 'p', label: 'Password (min 8 characters)', type: 'password', required: true }, { name: 'p2', label: 'Confirm password', type: 'password', required: true }],
         { validate: x => x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : null }); if (!r) return;
-      await idb.put('meta', await makeCred(r.u, r.p), 'client_cred'); await appendLog('admin', 'CLIENT_CREDENTIALS_SET', { username: r.u }); toast('Login saved. Re-export packages so they carry the new login.'); renderAdmin(); },
+      if (await apiOrAlert('admin/client-cred', { method: 'POST', body: { username: r.u, password: r.p } })) { toast('Login saved. The client PC picks it up at its next online login.'); renderAdmin(); } },
     logo: async () => { const r = await formModal('Upload logo', [{ name: 'f', label: 'Logo image', type: 'file', accept: 'image/png,image/jpeg,image/svg+xml', required: true }], { validate: x => x.f.size > 512000 ? 'Image must be 500 KB or smaller.' : !/^image\//.test(x.f.type) ? 'Choose an image file.' : null }); if (!r) return;
       const data = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(r.f); });
-      await idb.put('meta', data, 'admin_logo'); await appendLog('admin', 'LOGO_UPDATED', { file: r.f.name, bytes: r.f.size, sha256: await sha256(data) }); renderHeader(); renderAdmin(); },
-    rmlogo: async () => { await idb.del('meta', 'admin_logo'); await appendLog('admin', 'LOGO_REMOVED', {}); renderHeader(); renderAdmin(); },
+      if (await apiOrAlert('admin/logo', { method: 'POST', body: { logo: data } })) { await idb.put('meta', data, 'admin_logo'); renderHeader(); renderAdmin(); } },
+    rmlogo: async () => { if (await apiOrAlert('admin/logo', { method: 'POST', body: { logo: null } })) { await idb.del('meta', 'admin_logo'); renderHeader(); renderAdmin(); } },
     pw: async () => { const r = await formModal('Change admin password', [{ name: 'o', label: 'Current password', type: 'password', required: true }, { name: 'p', label: 'New password (min 8)', type: 'password', required: true }, { name: 'p2', label: 'Confirm new password', type: 'password', required: true }],
-        { validate: async x => (await hashPw(x.o, auth.salt)) !== auth.hash ? 'Current password is incorrect.' : x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : null }); if (!r) return;
-      await idb.put('meta', await makeCred(auth.username, r.p), 'admin_auth'); await appendLog('admin', 'ADMIN_PASSWORD_CHANGED', {}); toast('Password changed'); }
+        { validate: async x => x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : (await api('admin/password', { method: 'POST', body: { old: x.o, password: x.p } }).then(() => null, err => err.message)) }); if (!r) return;
+      toast('Password changed'); }
+  });
+}
+
+/* ---------- Results synced from Randomization Console(s) ---------- */
+async function renderResults(v) {
+  const r = await api('admin/results');
+  const D = new Map(r.draws.map(d => [d.key, d]));
+  const examsWithDraws = r.exams.filter(e => r.draws.some(d => d.examId === e.id));
+  v.innerHTML = `<div class="toolbar"><h2>Results & Sync</h2><div class="sp"></div><button class="btn" data-act="reload">↻ Refresh</button><button class="btn primary" data-act="csv">⬇ Results CSV</button></div>
+    <div class="card"><h3>Randomization PCs</h3>${r.syncs.length ? `<table class="tbl"><thead><tr><th>PC install ID</th><th>User</th><th>Last sync</th><th>Audit entries</th><th>Chain</th><th></th></tr></thead><tbody>
+      ${r.syncs.map(s => `<tr><td class="mono">${esc(s.install_id)}</td><td>${esc(s.actor)}</td><td>${fmtTs(new Date(s.last_sync).getTime())}</td><td>${s.entries}</td><td>${s.chain_ok ? '<span class="badge b-open">✔ intact</span>' : `<span class="badge" style="background:var(--badbg);color:var(--bad)">⛔ ${esc((s.issues || [])[0] || 'broken')}</span>`}</td>
+      <td><button class="btn sm" data-act="clog" data-id="${esc(s.install_id)}">⬇ Audit log</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No Randomization PC has synced yet. A PC syncs automatically when it comes back online after randomization.</p>'}</div>
+    ${r.conflicts.length ? `<div class="card" style="border-color:#f3c3be"><h3 style="color:var(--bad)">⚠ Sync conflicts</h3><table class="tbl"><thead><tr><th>Time</th><th>PC</th><th>Type</th><th>Detail</th></tr></thead><tbody>
+      ${r.conflicts.map(c => `<tr><td>${fmtTs(new Date(c.created_at).getTime())}</td><td class="mono">${esc(c.install_id)}</td><td><b>${esc(c.kind)}</b></td><td class="mono">${esc(JSON.stringify(c.detail))}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${examsWithDraws.length ? examsWithDraws.map(e => e.shifts.filter(s => r.draws.some(d => d.shiftId === s.id)).map(s => `<div class="card"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h3>${esc(s.name)} <span class="muted sm">${fmtDate(s.date)} · ${s.start}–${s.end}</span></h3>
+      <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject</th>${ATTEMPT_LABELS.map((l, i) => `<th class="${i === ATTEMPTS - 1 ? 'final' : ''}">${l}</th>`).join('')}</tr></thead><tbody>
+      ${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b> <span class="muted sm">${esc(sb.code || '')}</span></td>${[1, 2, 3, 4, 5].map(a => { const d = D.get(dkey(e.id, s.id, sb.id, a));
+        return d ? `<td class="${a === ATTEMPTS ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTs(d.ts)}</div></td>` : `<td class="${a === ATTEMPTS ? 'final' : ''}" style="color:#b3b9c5">—</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div></div>`).join('')).join('') : '<div class="empty">No randomization results synced yet.</div>'}`;
+  bind(v, {
+    reload: () => renderAdmin(),
+    csv: () => {
+      const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ATTEMPT_LABELS.flatMap(l => [l, l + ' time']), 'Status', 'PC install ID']];
+      r.exams.forEach(e => e.shifts.forEach(s => s.subjects.forEach(sb => {
+        const cells = []; let n = 0, pc = '';
+        for (let a = 1; a <= ATTEMPTS; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
+        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, n === ATTEMPTS ? 'FINAL LOCKED' : `In progress (${n}/5)`, pc]);
+      })));
+      download(`UPESSC_QPR_SERVER_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
+    },
+    clog: async d => { const x = await apiOrAlert('admin/client-audit?installId=' + encodeURIComponent(d.id)); if (!x) return;
+      download(`UPESSC_QPR_CLIENT_AUDIT_${safeName(d.id)}_${stamp()}.json`, JSON.stringify({ format: 'UPESSC-QPR-AUDIT', console: 'client', installId: d.id, exportedAt: new Date().toISOString(), exportedBy: session.user, verification: x.verification, entries: x.entries }, null, 2)); }
   });
 }
 
@@ -616,35 +681,43 @@ async function renderAdminSettings(v) {
 function detailSummary(d) {
   return Object.entries(d).map(([k, v]) => `<b>${esc(k)}</b>: ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}`).join(' · ');
 }
+async function getAudit(scope) {
+  if (scope === 'client') return verifyChain('client');
+  const { entries } = await api('admin/audit');
+  const r = await verifyEntries(entries);   // re-verified in the browser, independent of the server's own check
+  return { ...r, entries };
+}
 async function renderAudit(v, scope) {
-  const r = await verifyChain(scope);
+  const r = await getAudit(scope);
   const entries = [...r.entries].reverse();
+  const where = scope === 'admin' ? 'Stored on the server (Neon Postgres). ' : 'Stored in this browser and synced to the server whenever the PC is online. ';
   v.innerHTML = `<div class="toolbar"><h2>Audit Log</h2><div class="sp"></div>
       <button class="btn" data-act="verify">✔ Verify integrity</button>
       <button class="btn primary" data-act="json">⬇ Export audit log (JSON)</button>
       <button class="btn" data-act="csv">⬇ Export audit log (CSV)</button>
       ${scope === 'client' ? '<button class="btn" data-act="res">⬇ Export results (CSV)</button>' : ''}</div>
+    <p class="muted sm">${where}</p>
     <div class="notice ${r.ok ? 'ok' : 'warn'}">${r.ok ? `✔ Hash chain intact — ${r.count} entries. Chain head: <span class="mono">${r.head.slice(0, 32)}…</span>` : `⛔ Integrity problems found:<ul>${r.issues.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`}</div>
-    <div class="card" style="padding:0;overflow:auto"><table class="tbl log-table" style="margin:0"><thead><tr><th>#</th><th>Time (PC clock)</th><th>User</th><th>Event</th><th>Details</th><th>Hash</th></tr></thead>
-    <tbody>${entries.slice(0, 500).map(e => `<tr><td>${e.seq}</td><td class="mono">${esc(e.localTime)}</td><td>${esc(e.actor)}</td><td><b>${esc(e.event)}</b></td><td class="det">${detailSummary(e.details)}</td><td class="mono" title="${e.hash}">${e.hash.slice(0, 12)}…</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No entries.</td></tr>'}</tbody></table></div>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl log-table" style="margin:0"><thead><tr><th>#</th><th>Time</th><th>User</th><th>Event</th><th>Details</th><th>Hash</th></tr></thead>
+    <tbody>${entries.slice(0, 500).map(e => `<tr><td>${e.seq}</td><td class="mono">${esc(fmtTs(e.ts))}</td><td>${esc(e.actor)}</td><td><b>${esc(e.event)}</b></td><td class="det">${detailSummary(e.details)}</td><td class="mono" title="${e.hash}">${e.hash.slice(0, 12)}…</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No entries.</td></tr>'}</tbody></table></div>
     ${entries.length > 500 ? '<p class="muted sm">Showing latest 500 entries. Export for the full log.</p>' : ''}`;
   bind(v, {
-    verify: async () => { const x = await verifyChain(scope); await appendLog(scope, 'AUDIT_VERIFIED', { ok: x.ok, entries: x.count, issues: x.issues }); if (scope === 'client') integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); toast(x.ok ? 'Integrity verified ✔' : 'Integrity problems found'); renderAudit(v, scope); },
+    verify: async () => { const x = await getAudit(scope); if (scope === 'client') { await appendLog('client', 'AUDIT_VERIFIED', { ok: x.ok, entries: x.count, issues: x.issues }); integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); } toast(x.ok ? 'Integrity verified ✔' : 'Integrity problems found'); renderAudit(v, scope); },
     json: () => exportAudit(scope, 'json'), csv: () => exportAudit(scope, 'csv'), res: exportResults
   });
 }
 async function exportAudit(scope, kind) {
-  await appendLog(scope, 'AUDIT_EXPORTED', { format: kind });
-  const r = await verifyChain(scope);
+  if (scope === 'client') await appendLog(scope, 'AUDIT_EXPORTED', { format: kind });
+  const r = await getAudit(scope);
   const name = `UPESSC_QPR_${scope === 'admin' ? 'ADMIN' : 'RANDOMIZATION'}_AUDIT_${stamp()}`;
   if (kind === 'json') {
-    const out = { format: 'UPESSC-QPR-AUDIT', console: scope, system: 'UPESSC Question Paper Randomization System', exportedAt: new Date().toISOString(), exportedBy: session.user, installId: await installId(),
+    const out = { format: 'UPESSC-QPR-AUDIT', console: scope, system: 'UPESSC Question Paper Randomization System', exportedAt: new Date().toISOString(), exportedBy: session.user, installId: scope === 'client' ? await installId() : 'server',
       verification: { ok: r.ok, issues: r.issues, entries: r.count, chainHead: r.head, method: 'hash = SHA-256(canonical JSON of entry without "hash", keys sorted); prevHash links each entry to the previous one, first prevHash = "GENESIS"' },
       entries: r.entries };
     if (scope === 'client') { out.draws = await idb.all('draws'); out.exams = await idb.all('client_exams'); }
     download(name + '.json', JSON.stringify(out, null, 2));
   } else {
-    download(name + '.csv', toCsv([['Seq', 'Local time', 'ISO time', 'User', 'Event', 'Details', 'Prev hash', 'Hash'], ...r.entries.map(e => [e.seq, e.localTime, e.time, e.actor, e.event, JSON.stringify(e.details), e.prevHash, e.hash])]), 'text/csv');
+    download(name + '.csv', toCsv([['Seq', 'Local time', 'ISO time', 'User', 'Event', 'Details', 'Prev hash', 'Hash'], ...r.entries.map(e => [e.seq, fmtTs(e.ts), e.time, e.actor, e.event, JSON.stringify(e.details), e.prevHash, e.hash])]), 'text/csv');
   }
 }
 async function exportResults() {
@@ -676,31 +749,82 @@ function stateBadge(s, prog) {
 
 async function renderClientAuth() {
   const auth = await idb.get('meta', 'client_auth');
-  app.innerHTML = `<div class="auth card"><div class="eyebrow">Randomization Console</div>
-    ${auth ? `<h3>Login</h3><form class="form" id="lf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password</span><input name="p" type="password"></label><div class="err" hidden></div>
+  app.innerHTML = `<div class="auth card"><div class="eyebrow">Randomization Console</div><h3>Login</h3>
+    <p class="muted sm">${navigator.onLine && HAS_SERVER ? 'Online: logging in downloads all published exams to this PC. Disconnect the network afterwards to randomize.' : auth ? 'Offline: you can log in with the credentials cached at the last online login.' : 'This PC has never logged in online. Connect to the internet for the first login, or import an offline package.'}</p>
+    <form class="form" id="lf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password</span><input name="p" type="password"></label><div class="err" hidden></div>
       <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Log in</button></div></form>
-      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn sm" data-act="imp">⬆ Import / update exam package</button>`
-    : `<h3>No exam package imported</h3><p class="muted">Import the encrypted exam package (.qpr) prepared in the Admin Console. You need the Randomization login password.</p>
-      <div class="actions"><button class="btn ghost" data-act="back">Back</button><button class="btn primary" data-act="imp">⬆ Import exam package</button></div>`}</div>`;
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn sm" data-act="imp">⬆ Import offline package (.qpr)</button></div>`;
   bind(app, { back: renderLanding, imp: async () => { if (await importPackageFlow()) renderClientAuth(); } });
-  const f = $('#lf'); if (!f) return;
-  f.u.focus();
+  const f = $('#lf'); f.u.focus();
   f.onsubmit = async e => {
-    e.preventDefault(); const u = f.u.value.trim(), p = f.p.value; const a = await idb.get('meta', 'client_auth');
-    if (u === a.username && await hashPw(p, a.salt) === a.hash) {
-      setSession({ role: 'client', user: u });
-      await checkClock('login');
-      await appendLog('client', 'CLIENT_LOGIN', { clockReading: new Date().toISOString(), localClock: fmtTs(Date.now()), timezoneOffsetMinutes: new Date().getTimezoneOffset(), networkOnline: navigator.onLine, userAgent: navigator.userAgent });
-      if (navigator.onLine) await appendLog('client', 'NETWORK_CONNECTED_WARNING', { note: 'Network connectivity detected at login' });
-      const x = await verifyChain('client');
-      integrityIssue = x.ok ? null : x.issues[0];
-      if (!x.ok) await appendLog('client', 'INTEGRITY_CHECK_FAILED', { issues: x.issues });
-      cstate.view = 'exams'; renderHeader(); renderClient();
-    } else {
-      await appendLog('client', 'CLIENT_LOGIN_FAILED', { attemptedUsername: u }, { actor: u || 'unknown' });
-      const er = f.querySelector('.err'); er.textContent = 'Invalid username or password.'; er.hidden = false;
+    e.preventDefault(); const u = f.u.value.trim(), p = f.p.value, er = f.querySelector('.err'), btn = f.querySelector('.btn.primary');
+    const showErr = m => { er.textContent = m; er.hidden = false; btn.disabled = false; };
+    btn.disabled = true;
+    let online = null;
+    try { online = await api('client/login', { method: 'POST', token: null, body: { username: u, password: p, installId: await installId(), clientClock: new Date().toISOString() } }); }
+    catch (err) {
+      if (!err.network) { await appendLog('client', 'CLIENT_LOGIN_FAILED', { attemptedUsername: u, mode: 'online', reason: err.message }, { actor: u || 'unknown' }); return showErr(err.message); }
     }
+    let mode = 'online';
+    if (online) {
+      await idb.put('meta', online.cred, 'client_auth');
+      await idb.put('meta', online.token, 'client_token');
+      online.logo ? await idb.put('meta', online.logo, 'logo') : await idb.del('meta', 'logo');
+    } else {
+      mode = 'offline';
+      const a = await idb.get('meta', 'client_auth');
+      if (!a) return showErr('Server not reachable and this PC has no cached login. Connect to the internet for the first login, or import an offline package.');
+      if (!(u === a.username && await hashPw(p, a.salt) === a.hash)) { await appendLog('client', 'CLIENT_LOGIN_FAILED', { attemptedUsername: u, mode }, { actor: u || 'unknown' }); return showErr('Invalid username or password.'); }
+    }
+    setSession({ role: 'client', user: u });
+    await checkClock('login');
+    await appendLog('client', 'CLIENT_LOGIN', { mode, clockReading: new Date().toISOString(), localClock: fmtTs(Date.now()), serverClock: online ? new Date(online.serverTime).toISOString() : null,
+      clockDriftSeconds: online ? Math.round((Date.now() - online.serverTime) / 1000) : null, timezoneOffsetMinutes: new Date().getTimezoneOffset(), networkOnline: navigator.onLine, installId: await installId(), userAgent: navigator.userAgent });
+    if (online) {
+      const summary = [];
+      for (const ex of online.exams) { const m = await mergeExam(ex, { packageVersion: ex.packageVersion, exportedAt: ex.exportedAt, source: 'online' }); summary.push({ code: ex.code, version: ex.packageVersion, ...m }); }
+      await appendLog('client', 'EXAMS_DOWNLOADED', { count: online.exams.length, exams: summary });
+      if (Math.abs(Date.now() - online.serverTime) > 120000) await appendLog('client', 'CLOCK_DRIFT_FLAG', { pcClock: new Date().toISOString(), serverClock: new Date(online.serverTime).toISOString(), driftSeconds: Math.round((Date.now() - online.serverTime) / 1000) });
+    }
+    const x = await verifyChain('client');
+    integrityIssue = x.ok ? null : x.issues[0];
+    if (!x.ok) await appendLog('client', 'INTEGRITY_CHECK_FAILED', { issues: x.issues });
+    cstate.view = 'exams'; renderHeader(); renderClient();
+    if (online) syncNow(true);
   };
+}
+
+/* Merge a downloaded/imported exam. Shifts where randomization has started are never replaced. */
+async function mergeExam(ex, meta) {
+  const existing = await idb.get('client_exams', ex.id);
+  if (existing && existing.packageVersion > meta.packageVersion) return { skipped: `newer v${existing.packageVersion} already present` };
+  const drawn = new Set((await idb.all('draws')).filter(d => d.examId === ex.id).map(d => d.shiftId));
+  const kept = [], updated = [];
+  const shifts = ex.shifts.map(s => { const old = existing && existing.shifts.find(o => o.id === s.id); if (old && drawn.has(s.id)) { kept.push(old.name); return old; } updated.push(s.name); return s; });
+  if (existing) existing.shifts.forEach(o => { if (drawn.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); kept.push(o.name); } });
+  const { packageVersion, exportedAt, ...doc } = ex;
+  await idb.put('client_exams', { ...doc, shifts, ...meta, importedAt: Date.now() });
+  return { shiftsUpdated: updated, shiftsKeptLocked: kept };
+}
+
+/* Upload the local audit chain + draws to the server (append-only on the server side) */
+let syncing = false;
+async function syncNow(auto = false) {
+  if (syncing || !HAS_SERVER || !navigator.onLine) { if (!auto) toast(navigator.onLine ? 'Sync already running' : 'Offline — results will sync when the PC is back online'); return; }
+  const token = await idb.get('meta', 'client_token');
+  if (!token) { if (!auto) toast('Log in online once to enable sync'); return; }
+  syncing = true;
+  try {
+    const entries = (await idb.all('client_log')).sort((a, b) => a.seq - b.seq), draws = await idb.all('draws');
+    const r = await api('client/sync', { method: 'POST', token, body: { installId: await installId(), entries, draws } });
+    await idb.put('meta', { at: Date.now(), upToSeq: entries.length ? entries[entries.length - 1].seq : 0, draws: r.draws, ok: r.ok, conflicts: r.conflicts }, 'last_sync');
+    await appendLog('client', 'SYNC_COMPLETED', { upToSeq: entries.length ? entries[entries.length - 1].seq : 0, entries: r.entries, draws: r.draws, serverChainOk: r.chainOk, conflicts: r.conflicts });
+    if (!auto || !r.ok) toast(r.ok ? `Synced ✔ ${r.draws} draw(s), ${r.entries} log entries` : 'Synced with conflicts. See server results.');
+  } catch (err) {
+    await appendLog('client', 'SYNC_FAILED', { reason: err.message });
+    if (!auto) toast('Sync failed: ' + err.message);
+    if (err.status === 401) await idb.del('meta', 'client_token');
+  } finally { syncing = false; if (session && session.role === 'client' && !busy && !$('#modalRoot').children.length) renderClient(); }
 }
 
 async function decryptPackage(file, pw) {
@@ -715,25 +839,20 @@ async function decryptPackage(file, pw) {
 }
 async function importPackageFlow() {
   let res;
-  const r = await formModal('Import exam package', [{ name: 'file', label: 'Package file (.qpr)', type: 'file', accept: '.qpr', required: true }, { name: 'pw', label: 'Randomization login password', type: 'password', required: true }],
+  const r = await formModal('Import offline exam package', [{ name: 'file', label: 'Package file (.qpr)', type: 'file', accept: '.qpr', required: true }, { name: 'pw', label: 'Randomization login password', type: 'password', required: true }],
     { submitLabel: 'Decrypt & import', validate: async v => { try { res = await decryptPackage(v.file, v.pw); } catch (err) { await appendLog('client', 'PACKAGE_IMPORT_FAILED', { file: v.file.name, reason: err.message }); return err.message; }
       const ex = await idb.get('client_exams', res.payload.exam.id);
-      if (ex && ex.packageVersion > res.payload.packageVersion) return `A newer version (v${ex.packageVersion}) of this exam is already imported.`;
+      if (ex && ex.packageVersion > res.payload.packageVersion) return `A newer version (v${ex.packageVersion}) of this exam is already on this PC.`;
       return null; } });
   if (!r) return false;
   const { pkg, payload } = res, ex = payload.exam;
-  const existing = await idb.get('client_exams', ex.id);
-  const drawn = new Set((await idb.all('draws')).filter(d => d.examId === ex.id).map(d => d.shiftId));
-  const kept = [], updated = [];
-  const shifts = ex.shifts.map(s => { const old = existing && existing.shifts.find(o => o.id === s.id); if (old && drawn.has(s.id)) { kept.push(old.name); return old; } updated.push(s.name); return s; });
-  if (existing) existing.shifts.forEach(o => { if (drawn.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); kept.push(o.name); } });
-  await idb.put('client_exams', { ...ex, shifts, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, importedAt: Date.now(), exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, adminInstallId: payload.adminInstallId });
+  const m = await mergeExam(ex, { packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, source: 'package' });
   await idb.put('meta', payload.client, 'client_auth');
   if (payload.logo) await idb.put('meta', payload.logo, 'logo');
-  await appendLog('client', 'PACKAGE_IMPORTED', { file: r.file.name, examId: ex.id, examName: ex.name, examCode: ex.code, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, adminInstallId: payload.adminInstallId, shiftsUpdated: updated, shiftsKeptLocked: kept, clientUsername: payload.client.username },
+  await appendLog('client', 'PACKAGE_IMPORTED', { file: r.file.name, examId: ex.id, examName: ex.name, examCode: ex.code, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, ...m, clientUsername: payload.client.username },
     { actor: (session && session.user) || payload.client.username });
   renderHeader();
-  await alertModal('Package imported', `<p><b>${esc(ex.name)}</b> (${esc(ex.code)}) — package v${payload.packageVersion}</p><p>Shifts loaded: ${updated.length}${kept.length ? `<br>Shifts kept unchanged because randomization has already started: ${kept.map(esc).join(', ')}` : ''}</p>`);
+  await alertModal('Package imported', `<p><b>${esc(ex.name)}</b> (${esc(ex.code)}) — version ${payload.packageVersion}</p><p>Shifts loaded: ${m.shiftsUpdated.length}${m.shiftsKeptLocked.length ? `<br>Shifts kept unchanged because randomization has already started: ${m.shiftsKeptLocked.map(esc).join(', ')}` : ''}</p>`);
   return true;
 }
 
@@ -741,8 +860,14 @@ async function renderClient() {
   if (!session) return renderLanding();
   const tabs = [['exams', 'Exams'], ['audit', 'Audit Log']];
   const cur = cstate.view === 'audit' ? 'audit' : 'exams';
-  app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="imp">⬆ Import package</button> <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
-  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout, imp: async () => { if (await importPackageFlow()) renderClient(); } });
+  const ls = await idb.get('meta', 'last_sync');
+  const logs = await lastEntry('client_log');
+  const pending = logs && (!ls || logs.seq > ls.upToSeq + 1);
+  const syncInfo = ls ? `Last sync ${fmtTs(ls.at)}${pending ? ' · <b>unsynced changes</b>' : ' ✔'}` : 'Not yet synced';
+  app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div>
+    <span class="muted sm">${syncInfo}</span><button class="btn sm" data-act="sync" ${navigator.onLine && HAS_SERVER ? '' : 'disabled title="Connect to the internet to sync"'}>⟳ Sync now</button>
+    <button class="btn sm" data-act="imp">⬆ Import package</button> <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
+  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout, sync: () => syncNow(false), imp: async () => { if (await importPackageFlow()) renderClient(); } });
   const v = $('#view');
   if (cstate.view === 'audit') return renderAudit(v, 'client');
   if (cstate.view === 'exam') return renderClientExam(v);
@@ -777,9 +902,10 @@ async function renderClientExam(v) {
 async function renderShift(v) {
   const e = await idb.get('client_exams', cstate.examId); const s = e && e.shifts.find(x => x.id === cstate.shiftId);
   if (!s) { cstate.view = 'exams'; return renderClient(); }
-  const D = await drawMap(e.id), p = shiftProgress(e, s, D), w = windowState(s), canRoll = w === 'open' && !p.complete;
+  const D = await drawMap(e.id), p = shiftProgress(e, s, D), w = windowState(s), canRoll = w === 'open' && !p.complete && !navigator.onLine;
   let note;
   if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final sets have been selected. No further changes are possible.</div>`;
+  else if (w === 'open' && navigator.onLine) note = `<div class="notice warn">🔌 The randomization window is open, but this PC is CONNECTED to a network. Disconnect the network cable / Wi-Fi to enable the dice. Randomization is only allowed offline.</div>`;
   else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
   else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start}</b> on <b>${fmtDate(s.date)}</b> (PC clock).</div>`;
   else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
@@ -808,6 +934,7 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
   try {
     await checkClock('pre-draw');
     const e = await idb.get('client_exams', examId), s = e.shifts.find(x => x.id === shiftId), sb = s.subjects.find(x => x.id === subjectId);
+    if (navigator.onLine) { await appendLog('client', 'DRAW_BLOCKED_NETWORK_CONNECTED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Disconnect the network to randomize.'); return renderClient(); }
     if (windowState(s) !== 'open') { await appendLog('client', 'DRAW_BLOCKED_OUTSIDE_WINDOW', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Randomization window is not open (PC clock).'); return renderClient(); }
     const n = sb.colours.length;
     const ok = await confirmModal(`${sb.name} — ${ATTEMPT_LABELS[attempt - 1]}`,
@@ -825,7 +952,7 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     const rnd = secureRandomInt(n), colour = sb.colours[rnd.value];
     const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
       subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: ATTEMPT_LABELS[attempt - 1], pool: sb.colours.map(c => c.name + (c.set ? ` (${c.set})` : '')), poolSize: n,
-      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), isFinal: attempt === ATTEMPTS };
+      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), networkOnline: navigator.onLine, isFinal: attempt === ATTEMPTS };
     // Persist FIRST (draw + audit entry in one atomic transaction), then animate.
     const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex: rnd.value, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
     await animateRoll(e, s, sb, attempt, colour, entry);
@@ -835,7 +962,7 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
       const D2 = await drawMap(examId);
       if (shiftProgress(e, s, D2).complete) {
         await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => ({ subject: x.name, colour: D2.get(dkey(examId, shiftId, x.id, ATTEMPTS)).colour.name })) });
-        await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final set. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media.</p>`);
+        await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final set. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media. Results will sync to the server automatically when the PC is reconnected.</p>`);
       }
     }
   } catch (err) {
@@ -900,7 +1027,8 @@ function confetti(colours) {
   try { navigator.storage && navigator.storage.persist && await navigator.storage.persist(); } catch {}
   await installId();
   await renderHeader();
-  if (session && session.role === 'admin' && await idb.get('meta', 'admin_auth')) return renderAdmin();
+  if (HAS_SERVER && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  if (session && session.role === 'admin' && session.token) return renderAdmin();
   if (session && session.role === 'client' && await idb.get('meta', 'client_auth')) { await checkClock('reload'); const x = await verifyChain('client'); integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); return renderClient(); }
   setSession(null); renderLanding();
 })().catch(err => { app.innerHTML = `<div class="empty">Failed to start: ${esc(err.message)}</div>`; });
