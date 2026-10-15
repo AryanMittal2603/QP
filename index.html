@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UPESSC QP Randomization</title>
+<style>
+:root{
+  --navy:#0b2a5b; --navy2:#123a7a; --gold:#c9a227; --gold2:#e6c65a;
+  --bg:#f2f4f8; --card:#fff; --ink:#1b2333; --muted:#5b6578; --line:#dde2ea;
+  --ok:#067647; --okbg:#e7f6ee; --warn:#b54708; --warnbg:#fff4e5; --bad:#b42318; --badbg:#fdecea; --info:#1d4ed8; --infobg:#e8effd;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit}
+header{background:linear-gradient(90deg,var(--navy),var(--navy2));color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;border-bottom:4px solid var(--gold)}
+.logo{width:52px;height:52px;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden;flex:none;color:var(--navy);font-weight:800;font-size:12px;border:2px solid var(--gold)}
+.logo img{width:100%;height:100%;object-fit:contain}
+.htitle{flex:1;min-width:0}
+.htitle .t1{font-weight:700;font-size:17px;letter-spacing:.2px}
+.htitle .t2{font-size:12.5px;opacity:.85}
+.hmeta{text-align:right;font-size:12.5px;line-height:1.5}
+.hmeta .clock{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.net{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600}
+.net.off{background:#d1fadf;color:#05603a}.net.on{background:#fee4e2;color:#912018}
+#banners .banner{padding:9px 20px;font-weight:600;font-size:13px;border-bottom:1px solid rgba(0,0,0,.06)}
+.banner.bad{background:var(--badbg);color:var(--bad)}.banner.warn{background:var(--warnbg);color:var(--warn)}
+main{max-width:1280px;margin:0 auto;padding:20px}
+h2{margin:0;font-size:20px}h3{margin:0 0 4px;font-size:16px}h4{margin:0;font-size:15px}
+.muted{color:var(--muted)}.sm{font-size:12.5px}
+.eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card.click{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.card.click:hover{border-color:var(--navy2);box-shadow:0 4px 14px rgba(11,42,91,.10)}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.grid-cards .card{margin:0}
+.row{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.row>.grow{flex:1;min-width:200px}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.sp{flex:1}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:#f6f7fa}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}.btn.primary:hover{background:var(--navy2)}
+.btn.gold{background:linear-gradient(180deg,var(--gold2),var(--gold));border-color:#a8861b;color:#2a1f00}
+.btn.danger{color:var(--bad);border-color:#f3c3be}.btn.danger:hover{background:var(--badbg)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.tabs{display:flex;gap:6px;margin-bottom:18px;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tab{border:0;background:transparent;padding:8px 14px;border-radius:7px;font-weight:600;color:var(--muted);cursor:pointer}
+.tab.on{background:var(--navy);color:#fff}
+.empty{padding:40px;text-align:center;color:var(--muted);border:2px dashed var(--line);border-radius:10px;background:#fff}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11.5px;font-weight:700;letter-spacing:.2px}
+.b-open{background:var(--okbg);color:var(--ok)}.b-up{background:var(--infobg);color:var(--info)}.b-closed{background:#eef0f3;color:#475467}
+.b-lock{background:var(--navy);color:#fff}.b-prog{background:var(--warnbg);color:var(--warn)}
+table.tbl{width:100%;border-collapse:collapse;margin-top:10px}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:middle}
+.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:#f8f9fb}
+.swatches{display:flex;flex-wrap:wrap;gap:5px}
+.sw-mini{display:inline-flex;align-items:center;gap:5px;padding:2px 8px 2px 3px;border:1px solid var(--line);border-radius:12px;font-size:12px;background:#fff}
+.sw-mini i{width:14px;height:14px;border-radius:50%;background:var(--c);border:1px solid rgba(0,0,0,.2)}
+/* randomization grid */
+.rgrid-wrap{overflow-x:auto}
+table.rgrid{width:100%;border-collapse:separate;border-spacing:0;min-width:980px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.rgrid th{background:var(--navy);color:#fff;font-size:12.5px;padding:10px;text-align:center;font-weight:600}
+.rgrid th:first-child{text-align:left}
+.rgrid th.final{background:#8a6d0f}
+.rgrid td{border-top:1px solid var(--line);padding:10px;text-align:center;vertical-align:middle}
+.rgrid td.subj{text-align:left;min-width:220px}
+.rgrid td.final{background:#fffbea}
+.cell.pending{color:#b3b9c5}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:9px;border:1px solid var(--line);background:#fff;text-align:left}
+.chip .sw{width:26px;height:26px;border-radius:6px;background:var(--c);border:1px solid rgba(0,0,0,.2);flex:none}
+.chip b{display:block;font-size:13px}.chip small{display:block;color:var(--muted);font-size:11px}
+.chip svg{width:14px;height:14px;color:var(--muted)}
+td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39,.18)}
+.ts{font-size:11px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
+.notice{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-weight:500}
+.notice.ok{background:var(--okbg);color:var(--ok)}.notice.info{background:var(--infobg);color:var(--info)}.notice.warn{background:var(--warnbg);color:var(--warn)}.notice.lock{background:var(--navy);color:#fff}
+/* forms & modals */
+.overlay{position:fixed;inset:0;background:rgba(10,20,40,.55);display:grid;place-items:center;z-index:50;padding:20px;animation:fade .15s}
+@keyframes fade{from{opacity:0}}
+.modal{background:#fff;border-radius:12px;padding:22px;width:min(480px,100%);max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal.wide{width:min(720px,100%)}
+.form{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld>span{font-weight:600;font-size:13px}
+.fld input,.fld select,.fld textarea{padding:8px 10px;border:1px solid #c9d0db;border-radius:7px;background:#fff}
+.fld input:focus,.fld textarea:focus{outline:2px solid #9db7e8;border-color:var(--navy2)}
+.fld .hint{font-size:12px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.err{background:var(--badbg);color:var(--bad);padding:8px 12px;border-radius:7px;font-weight:600}
+.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.presets button{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 10px 3px 4px;cursor:pointer;font-size:12.5px}
+.presets button i{width:14px;height:14px;border-radius:50%;background:var(--c);border:1px solid rgba(0,0,0,.25)}
+.crow{display:grid;grid-template-columns:44px 1fr 120px 34px;gap:8px;align-items:center;margin-bottom:6px}
+.crow input[type=color]{width:44px;height:34px;padding:2px;border:1px solid #c9d0db;border-radius:7px}
+.crow input[type=text]{padding:7px 9px;border:1px solid #c9d0db;border-radius:7px}
+.crow button{border:1px solid #f3c3be;color:var(--bad);background:#fff;border-radius:7px;height:34px;cursor:pointer}
+.auth{max-width:420px;margin:40px auto}
+.mode-cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:860px;margin:30px auto}
+.mode-cards .card{padding:26px;text-align:center}
+.mode-cards .ic{font-size:40px;margin-bottom:6px}
+.log-table td{font-size:12.5px}
+.log-table td.det{max-width:520px;word-break:break-word;color:#344054}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 18px;border-radius:8px;z-index:90;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+/* dice */
+.roll-modal{text-align:center}
+.stage{height:250px;display:flex;align-items:flex-end;justify-content:center;perspective:800px;position:relative;margin:6px 0}
+.hop{margin-bottom:46px}
+.hop.go{animation:hop 3s cubic-bezier(.3,.1,.3,1) forwards}
+@keyframes hop{0%{transform:translateY(-150px)}22%{transform:translateY(0)}38%{transform:translateY(-70px)}54%{transform:translateY(0)}67%{transform:translateY(-26px)}78%{transform:translateY(0)}87%{transform:translateY(-8px)}100%{transform:translateY(0)}}
+.dshadow{position:absolute;bottom:26px;left:50%;width:120px;height:18px;margin-left:-60px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.35),transparent 70%)}
+.dice{width:120px;height:120px;position:relative;transform-style:preserve-3d;transition:transform 3s cubic-bezier(.15,.65,.2,1)}
+.face{position:absolute;inset:0;border-radius:20px;background:var(--c);border:3px solid rgba(0,0,0,.18);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:16px;box-shadow:inset 0 0 22px rgba(0,0,0,.22),inset 0 6px 10px rgba(255,255,255,.35)}
+.face i{display:block;margin:auto;width:17px;height:17px;border-radius:50%}
+.face i.p{background:var(--ink);box-shadow:inset 0 2px 3px rgba(0,0,0,.35)}
+.f1{transform:translateZ(60px)}.f2{transform:rotateY(180deg) translateZ(60px)}.f3{transform:rotateY(90deg) translateZ(60px)}
+.f4{transform:rotateY(-90deg) translateZ(60px)}.f5{transform:rotateX(90deg) translateZ(60px)}.f6{transform:rotateX(-90deg) translateZ(60px)}
+.rstatus{font-weight:700;color:var(--muted);letter-spacing:.5px;min-height:22px}
+.rstatus.rolling::after{content:"";animation:dots 1s steps(4) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.result{display:flex;align-items:center;gap:16px;justify-content:center;margin:10px auto 6px;padding:14px 20px;border-radius:12px;border:2px solid var(--c);max-width:420px;animation:glow 1.6s ease-in-out infinite;text-align:left}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 45%,transparent)}50%{box-shadow:0 0 28px 8px color-mix(in srgb,var(--c) 45%,transparent)}}
+.result .bsw{width:58px;height:58px;border-radius:12px;background:var(--c);border:2px solid rgba(0,0,0,.2);flex:none}
+.result .rname{font-size:28px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}
+.result.final{border-color:var(--gold);background:#fffbea}
+.finalbanner{font-weight:800;color:#8a6d0f;letter-spacing:2px;font-size:13px;margin-top:4px}
+.lockline{font-size:12.5px;color:var(--ok);font-weight:600;margin:8px 0 12px}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:80;display:none}
+@media (max-width:720px){.mode-cards,.two,.three{grid-template-columns:1fr}header{flex-wrap:wrap}.hmeta{text-align:left}}
+@media print{header,.tabs,.toolbar,.btn{display:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" id="logo">UPESSC</div>
+  <div class="htitle">
+    <div class="t1">Uttar Pradesh Education Service Selection Commission</div>
+    <div class="t2">Question Paper Randomization System · Offline Stand-alone Console</div>
+  </div>
+  <div class="hmeta">
+    <div class="clock" id="clock">--</div>
+    <div><span id="net" class="net off">Offline</span> <span id="who"></span></div>
+  </div>
+</header>
+<div id="banners"></div>
+<main id="app"></main>
+<div id="modalRoot"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+'use strict';
+/* =========================================================
+   Utilities
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const app = $('#app');
+const enc = new TextEncoder();
+const ITER = 150000;
+const ATTEMPTS = 5;
+const ATTEMPT_LABELS = ['1st Attempt', '2nd Attempt', '3rd Attempt', '4th Attempt', 'Final (5th)'];
+const PRESETS = [['Red','#d92d20'],['Blue','#1d4ed8'],['Green','#16a34a'],['Yellow','#facc15'],['Pink','#ec4899'],['Orange','#f97316'],['Purple','#7e22ce'],['White','#ffffff'],['Grey','#6b7280'],['Brown','#8b5a2b'],['Sky Blue','#38bdf8'],['Maroon','#7f1d1d']];
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+const uid = () => hex(crypto.getRandomValues(new Uint8Array(8)));
+function b64(buf) { const u = buf instanceof Uint8Array ? buf : new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function sha256(str) { return hex(await crypto.subtle.digest('SHA-256', enc.encode(str))); }
+function stable(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+  return '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
+}
+async function pbkdf2(pw, salt) {
+  const k = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+  return crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: ITER, hash: 'SHA-256' }, k, 256);
+}
+async function hashPw(pw, saltB64) { return b64(await pbkdf2(pw, unb64(saltB64))); }
+async function makeCred(username, pw) { const salt = b64(crypto.getRandomValues(new Uint8Array(16))); return { username, salt, hash: await hashPw(pw, salt) }; }
+async function aesKey(pw, salt) { return crypto.subtle.importKey('raw', await pbkdf2(pw, salt), 'AES-GCM', false, ['encrypt', 'decrypt']); }
+/* Unbiased cryptographic integer in [0, n) using rejection sampling */
+function secureRandomInt(n) {
+  const limit = Math.floor(0x100000000 / n) * n, a = new Uint32Array(1); let x, tries = 0;
+  do { crypto.getRandomValues(a); x = a[0]; tries++; } while (x >= limit);
+  return { value: x % n, raw: x, tries };
+}
+function fmtTs(t) { if (!t) return '—'; const d = new Date(t); return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+const fmtTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const fmtDate = s => { const [y, m, d] = s.split('-'); return `${d}-${m}-${y}`; };
+const stamp = () => { const d = new Date(); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`; };
+const safeName = s => String(s).replace(/[^A-Za-z0-9_-]+/g, '_');
+function ink(h) { const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (0.299*r + 0.587*g + 0.114*b) > 160 ? '#1b2333' : '#ffffff'; }
+function download(name, text, type = 'application/json') {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+function toast(msg, ms = 2600) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+function bind(root, actions) { root.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => { const f = actions[el.dataset.act]; if (f) { e.stopPropagation(); f(el.dataset, e); } })); }
+const swMini = c => `<span class="sw-mini" style="--c:${c.hex}"><i></i>${esc(c.name)}${c.set ? ` <span class="muted">(${esc(c.set)})</span>` : ''}</span>`;
+
+/* =========================================================
+   IndexedDB storage
+   ========================================================= */
+let db;
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('upessc_qpr_v1', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      d.createObjectStore('meta');
+      d.createObjectStore('admin_exams', { keyPath: 'id' });
+      d.createObjectStore('admin_log', { keyPath: 'seq' });
+      d.createObjectStore('client_exams', { keyPath: 'id' });
+      d.createObjectStore('draws', { keyPath: 'key' });
+      d.createObjectStore('client_log', { keyPath: 'seq' });
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+function reqP(store, mode, fn) {
+  return new Promise((res, rej) => {
+    const t = db.transaction(store, mode); const r = fn(t.objectStore(store)); let out;
+    if (r) r.onsuccess = () => { out = r.result; };
+    t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
+}
+const idb = {
+  get: (st, k) => reqP(st, 'readonly', s => s.get(k)),
+  all: st => reqP(st, 'readonly', s => s.getAll()),
+  put: (st, v, k) => reqP(st, 'readwrite', s => k === undefined ? s.put(v) : s.put(v, k)),
+  del: (st, k) => reqP(st, 'readwrite', s => s.delete(k)),
+};
+function lastEntry(store) {
+  return new Promise((res, rej) => { const r = db.transaction(store).objectStore(store).openCursor(null, 'prev'); r.onsuccess = () => res(r.result ? r.result.value : null); r.onerror = () => rej(r.error); });
+}
+
+/* =========================================================
+   Hash-chained audit log
+   Each entry: hash = SHA-256( stable-JSON(entry without "hash") ), prevHash links to previous entry.
+   ========================================================= */
+let logQueue = Promise.resolve();
+function appendLog(scope, event, details = {}, opts = {}) {
+  const run = async () => {
+    const store = scope + '_log';
+    const last = await lastEntry(store);
+    const now = Date.now();
+    const entry = {
+      seq: last ? last.seq + 1 : 1, ts: now, time: new Date(now).toISOString(), localTime: fmtTs(now),
+      actor: opts.actor || (session && session.user) || 'system', console: scope, event,
+      details: JSON.parse(JSON.stringify(details)), prevHash: last ? last.hash : 'GENESIS'
+    };
+    entry.hash = await sha256(stable(entry));
+    const extra = opts.extra ? opts.extra(entry) : null;
+    await new Promise((res, rej) => {
+      const stores = [store, 'meta']; if (extra) stores.push(extra.store);
+      const t = db.transaction(stores, 'readwrite');
+      t.objectStore(store).add(entry);
+      t.objectStore('meta').put({ seq: entry.seq, hash: entry.hash }, scope + '_head');
+      if (extra) t.objectStore(extra.store).add(extra.value);   // add() refuses to overwrite → immutability
+      t.oncomplete = res; t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('Transaction aborted'));
+    });
+    return entry;
+  };
+  const p = logQueue.then(run); logQueue = p.catch(() => {}); return p;
+}
+async function verifyChain(scope) {
+  const entries = (await idb.all(scope + '_log')).sort((a, b) => a.seq - b.seq);
+  const issues = []; let prev = 'GENESIS';
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (e.seq !== i + 1) issues.push(`Sequence gap at entry #${e.seq}`);
+    if (e.prevHash !== prev) issues.push(`Broken chain link at entry #${e.seq}`);
+    const { hash, ...rest } = e;
+    if (await sha256(stable(rest)) !== hash) issues.push(`Entry #${e.seq} has been altered`);
+    prev = hash;
+  }
+  const head = await idb.get('meta', scope + '_head');
+  const last = entries[entries.length - 1];
+  if (head && (!last || head.seq !== last.seq || head.hash !== last.hash)) issues.push('Latest log entries are missing (chain head mismatch)');
+  if (scope === 'client') {
+    const draws = await idb.all('draws'); const bySeq = new Map(entries.map(e => [e.seq, e]));
+    for (const d of draws) {
+      const e = bySeq.get(d.logSeq);
+      if (!e || e.event !== 'RANDOMIZATION_DRAW' || e.details.key !== d.key || e.details.colourIndex !== d.colourIndex || e.hash !== d.logHash) issues.push(`Draw ${d.subjectName} / ${ATTEMPT_LABELS[d.attempt-1]} does not match the audit log`);
+    }
+    const keys = new Set(draws.map(d => d.key));
+    entries.filter(e => e.event === 'RANDOMIZATION_DRAW' && !keys.has(e.details.key)).forEach(e => issues.push(`Draw record for log entry #${e.seq} is missing`));
+  }
+  return { ok: !issues.length, issues, count: entries.length, head: prev, entries };
+}
+
+/* =========================================================
+   Session, clock, network
+   ========================================================= */
+let session = JSON.parse(sessionStorage.getItem('qpr_session') || 'null');
+let busy = false;
+let logoData = null;
+let integrityIssue = null;
+function setSession(s) { session = s; if (s) sessionStorage.setItem('qpr_session', JSON.stringify(s)); else sessionStorage.removeItem('qpr_session'); renderHeader(); }
+async function installId() { let id = await idb.get('meta', 'install_id'); if (!id) { id = uid(); await idb.put('meta', id, 'install_id'); } return id; }
+
+/* PC clock is the source of truth; flag any backwards movement */
+async function checkClock(context, scope = 'client') {
+  const now = Date.now(); const key = scope + '_clock';
+  const m = (await idb.get('meta', key)) || { lastSeen: 0, flags: 0 };
+  let flagged = false;
+  if (m.lastSeen && now < m.lastSeen - 2000) {
+    flagged = true; m.flags = (m.flags || 0) + 1;
+    await appendLog(scope, 'CLOCK_BACKWARDS_FLAG', { context, currentClock: new Date(now).toISOString(), currentLocal: fmtTs(now), lastSeenClock: new Date(m.lastSeen).toISOString(), lastSeenLocal: fmtTs(m.lastSeen), backwardsBySeconds: Math.round((m.lastSeen - now) / 1000) });
+  }
+  m.lastSeen = Math.max(now, m.lastSeen || 0);
+  await idb.put('meta', m, key);
+  if (flagged) renderBanners();
+  return flagged;
+}
+function tickClock() {
+  $('#clock').textContent = fmtTs(Date.now());
+  const n = $('#net'); n.className = 'net ' + (navigator.onLine ? 'on' : 'off'); n.textContent = navigator.onLine ? 'Network: CONNECTED' : 'Offline ✓';
+}
+setInterval(tickClock, 1000);
+window.addEventListener('online', async () => { tickClock(); if (session) { await appendLog(session.role, 'NETWORK_CONNECTED_WARNING', { note: 'Browser reports network connectivity during session' }); renderBanners(); } });
+window.addEventListener('offline', async () => { tickClock(); if (session) { await appendLog(session.role, 'NETWORK_DISCONNECTED', {}); renderBanners(); } });
+setInterval(async () => {
+  if (session && session.role === 'client') {
+    await checkClock('periodic');
+    if (!busy && !$('#modalRoot').children.length && (cstate.view === 'shift' || cstate.view === 'exam')) renderClient();
+  }
+}, 20000);
+
+async function renderHeader() {
+  const key = session && session.role === 'admin' ? 'admin_logo' : 'logo';
+  logoData = (await idb.get('meta', key)) || (await idb.get('meta', 'logo')) || (await idb.get('meta', 'admin_logo')) || null;
+  $('#logo').innerHTML = logoData ? `<img src="${logoData}" alt="UPESSC">` : 'UPESSC';
+  $('#who').textContent = session ? `· ${session.role === 'admin' ? 'Admin' : 'Randomization'}: ${session.user}` : '';
+  renderBanners();
+}
+async function renderBanners() {
+  const b = [];
+  if (session) {
+    const scope = session.role;
+    if (navigator.onLine) b.push(['warn', '⚠ The browser reports a network connection. Randomization must be performed on a stand-alone PC with network disconnected. This has been logged.']);
+    const ck = await idb.get('meta', scope + '_clock');
+    if (ck && ck.flags) b.push(['bad', `⚠ System clock was detected moving backwards ${ck.flags} time(s). Each occurrence is flagged in the audit log.`]);
+    if (integrityIssue && scope === 'client') b.push(['bad', '⛔ Audit integrity check failed: ' + integrityIssue + '. See Audit Log tab.']);
+  }
+  $('#banners').innerHTML = b.map(([c, t]) => `<div class="banner ${c}">${esc(t)}</div>`).join('');
+}
+
+/* =========================================================
+   Modals & forms
+   ========================================================= */
+function openModal(html, { wide = false, dismissable = true, onDismiss, onMount } = {}) {
+  const wrap = document.createElement('div'); wrap.className = 'overlay';
+  wrap.innerHTML = `<div class="modal ${wide ? 'wide' : ''}">${html}</div>`;
+  $('#modalRoot').appendChild(wrap);
+  const close = () => wrap.remove();
+  if (dismissable) wrap.addEventListener('mousedown', e => { if (e.target === wrap) { close(); onDismiss && onDismiss(); } });
+  onMount && onMount(wrap.firstElementChild, close);
+  return close;
+}
+function alertModal(title, html) {
+  return new Promise(r => openModal(`<h3>${esc(title)}</h3><div style="margin:10px 0 16px">${html}</div><div class="actions"><button class="btn primary" data-ok>OK</button></div>`,
+    { onDismiss: r, onMount: (m, close) => { m.querySelector('[data-ok]').onclick = () => { close(); r(); }; } }));
+}
+function confirmModal(title, html, okLabel = 'Confirm', cls = 'primary') {
+  return new Promise(r => openModal(`<h3>${esc(title)}</h3><div style="margin:10px 0 16px">${html}</div><div class="actions"><button class="btn ghost" data-no>Cancel</button><button class="btn ${cls}" data-ok>${esc(okLabel)}</button></div>`,
+    { onDismiss: () => r(false), onMount: (m, close) => { m.querySelector('[data-no]').onclick = () => { close(); r(false); }; m.querySelector('[data-ok]').onclick = () => { close(); r(true); }; } }));
+}
+function fieldHtml(f) {
+  const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
+  if (f.type === 'colours') return `<div class="fld"><span>${esc(f.label)}</span>${hint}<div data-colours="${f.name}"></div></div>`;
+  if (f.type === 'textarea') return `<label class="fld"><span>${esc(f.label)}</span><textarea name="${f.name}" rows="2">${esc(f.value || '')}</textarea>${hint}</label>`;
+  return `<label class="fld"><span>${esc(f.label)}</span><input name="${f.name}" type="${f.type || 'text'}" ${f.accept ? `accept="${f.accept}"` : ''} value="${f.type === 'file' ? '' : esc(f.value || '')}" ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ''} autocomplete="off">${hint}</label>`;
+}
+function formModal(title, fields, { submitLabel = 'Save', validate, intro = '' } = {}) {
+  return new Promise(resolve => {
+    const groups = []; // allow {row:[...]} to place fields side by side
+    const html = `<h3>${esc(title)}</h3>${intro}<form class="form" novalidate>${fields.map(f => f.row ? `<div class="${f.row.length === 3 ? 'three' : 'two'}">${f.row.map(fieldHtml).join('')}</div>` : fieldHtml(f)).join('')}
+      <div class="err" hidden></div><div class="actions"><button type="button" class="btn ghost" data-cancel>Cancel</button><button class="btn primary" type="submit">${esc(submitLabel)}</button></div></form>`;
+    const flat = fields.flatMap(f => f.row || [f]);
+    openModal(html, {
+      wide: flat.some(f => f.type === 'colours'), onDismiss: () => resolve(null),
+      onMount: (m, close) => {
+        const form = m.querySelector('form'), errEl = m.querySelector('.err');
+        flat.filter(f => f.type === 'colours').forEach(f => mountColours(m.querySelector(`[data-colours="${f.name}"]`), f.value || []));
+        m.querySelector('[data-cancel]').onclick = () => { close(); resolve(null); };
+        const first = form.querySelector('input,textarea'); first && first.focus();
+        form.onsubmit = async e => {
+          e.preventDefault(); errEl.hidden = true;
+          const vals = {};
+          for (const f of flat) {
+            if (f.type === 'colours') vals[f.name] = readColours(m.querySelector(`[data-colours="${f.name}"]`));
+            else if (f.type === 'file') vals[f.name] = form.elements[f.name].files[0] || null;
+            else vals[f.name] = form.elements[f.name].value.trim();
+            if (f.required && !vals[f.name]) { errEl.textContent = `${f.label} is required.`; errEl.hidden = false; return; }
+          }
+          const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+          try { const msg = validate ? await validate(vals) : null; if (msg) { errEl.textContent = msg; errEl.hidden = false; btn.disabled = false; return; } }
+          catch (err) { errEl.textContent = err.message; errEl.hidden = false; btn.disabled = false; return; }
+          close(); resolve(vals);
+        };
+      }
+    });
+  });
+}
+function mountColours(el, initial) {
+  let rows = initial.map(c => ({ ...c }));
+  const nextSet = () => { const used = new Set(rows.map(r => r.set)); for (let i = 0; i < 26; i++) { const s = 'Set ' + String.fromCharCode(65 + i); if (!used.has(s)) return s; } return ''; };
+  const sync = () => { rows = readColours(el); };
+  const render = () => {
+    el.innerHTML = `<div class="presets">${PRESETS.map(([n, h]) => `<button type="button" data-p="${n}" style="--c:${h}"><i></i>${n}</button>`).join('')}<button type="button" data-custom>+ Custom</button></div>
+      ${rows.length ? `<div class="crow muted sm"><span>Colour</span><span>Colour name</span><span>Set code</span><span></span></div>` : '<div class="muted sm">Click a preset colour above to add question-paper sets.</div>'}
+      ${rows.map((r, i) => `<div class="crow"><input type="color" value="${r.hex}"><input type="text" data-n value="${esc(r.name)}" placeholder="e.g. Red"><input type="text" data-s value="${esc(r.set || '')}" placeholder="e.g. Set A"><button type="button" data-rm="${i}" title="Remove">✕</button></div>`).join('')}`;
+    el.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { sync(); const p = PRESETS.find(x => x[0] === b.dataset.p); if (rows.some(r => r.name.toLowerCase() === p[0].toLowerCase())) return toast(`${p[0]} is already added`); rows.push({ name: p[0], hex: p[1], set: nextSet() }); render(); });
+    el.querySelector('[data-custom]').onclick = () => { sync(); rows.push({ name: '', hex: '#888888', set: nextSet() }); render(); el.querySelectorAll('[data-n]')[rows.length - 1].focus(); };
+    el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { sync(); rows.splice(+b.dataset.rm, 1); render(); });
+  };
+  render();
+}
+function readColours(el) {
+  return [...el.querySelectorAll('.crow')].filter(r => r.querySelector('[type=color]')).map(r => ({ hex: r.querySelector('[type=color]').value, name: r.querySelector('[data-n]').value.trim(), set: r.querySelector('[data-s]').value.trim() }));
+}
+
+/* =========================================================
+   Landing
+   ========================================================= */
+function renderLanding() {
+  app.innerHTML = `<div class="mode-cards">
+    <div class="card click" data-act="admin"><div class="ic">🛠️</div><h3>Admin Console</h3><p class="muted">Create exams, shifts, subjects and colour-coded QP sets. Export an encrypted exam package for the stand-alone PC.</p><button class="btn">Open Admin Console</button></div>
+    <div class="card click" data-act="client"><div class="ic">🎲</div><h3>Randomization Console</h3><p class="muted">Import exam package and perform the 5-iteration randomization on the stand-alone, offline PC.</p><button class="btn primary">Open Randomization Console</button></div>
+  </div>
+  <p class="muted sm" style="text-align:center">All data stays in this browser on this PC. Export the audit log after every randomization session and keep it on secure media.</p>`;
+  bind(app, { admin: renderAdminAuth, client: renderClientAuth });
+}
+
+/* =========================================================
+   ADMIN CONSOLE
+   ========================================================= */
+async function renderAdminAuth() {
+  const auth = await idb.get('meta', 'admin_auth');
+  if (!auth) {
+    app.innerHTML = `<div class="auth card"><div class="eyebrow">Admin Console</div><h3>First-time administrator setup</h3><p class="muted sm">Create the administrator account for this PC.</p>
+      <form class="form" id="sf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password (min 8 characters)</span><input name="p" type="password"></label>
+      <label class="fld"><span>Confirm password</span><input name="p2" type="password"></label><div class="err" hidden></div>
+      <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Create administrator</button></div></form></div>`;
+    bind(app, { back: renderLanding });
+    $('#sf').u.focus();
+    $('#sf').onsubmit = async ev => {
+      ev.preventDefault(); const f = ev.target, u = f.u.value.trim(), p = f.p.value, er = f.querySelector('.err');
+      const msg = !u ? 'Username is required.' : p.length < 8 ? 'Password must be at least 8 characters.' : p !== f.p2.value ? 'Passwords do not match.' : null;
+      if (msg) { er.textContent = msg; er.hidden = false; return; }
+      await idb.put('meta', await makeCred(u, p), 'admin_auth');
+      await appendLog('admin', 'ADMIN_ACCOUNT_CREATED', { username: u, installId: await installId() }, { actor: u });
+      toast('Administrator created. Please log in.'); renderAdminAuth();
+    };
+    return;
+  }
+  app.innerHTML = `<div class="auth card"><div class="eyebrow">Admin Console</div><h3>Administrator login</h3>
+    <form class="form" id="lf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password</span><input name="p" type="password"></label><div class="err" hidden></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Log in</button></div></form></div>`;
+  bind(app, { back: renderLanding });
+  $('#lf').u.focus();
+  $('#lf').onsubmit = async e => {
+    e.preventDefault(); const f = e.target, u = f.u.value.trim(), p = f.p.value;
+    if (u === auth.username && await hashPw(p, auth.salt) === auth.hash) {
+      setSession({ role: 'admin', user: u });
+      await checkClock('admin-login', 'admin');
+      await appendLog('admin', 'ADMIN_LOGIN', { clockReading: new Date().toISOString(), networkOnline: navigator.onLine });
+      renderAdmin();
+    } else {
+      await appendLog('admin', 'ADMIN_LOGIN_FAILED', { attemptedUsername: u }, { actor: u || 'unknown' });
+      const er = f.querySelector('.err'); er.textContent = 'Invalid username or password.'; er.hidden = false;
+    }
+  };
+}
+
+const astate = { tab: 'exams', examId: null };
+async function renderAdmin() {
+  const tabs = [['exams', 'Exams'], ['settings', 'Settings'], ['audit', 'Audit Log']];
+  app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${astate.tab === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
+  bind(app, { tab: d => { astate.tab = d.k; astate.examId = null; renderAdmin(); }, logout: logout });
+  const v = $('#view');
+  if (astate.tab === 'exams') return astate.examId ? renderExamEditor(v) : renderExamList(v);
+  if (astate.tab === 'settings') return renderAdminSettings(v);
+  if (astate.tab === 'audit') return renderAudit(v, 'admin');
+}
+async function logout() {
+  await appendLog(session.role, 'LOGOUT', {});
+  setSession(null); cstate.view = 'exams'; astate.examId = null; renderLanding();
+}
+
+const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description }];
+const shiftFields = (s = {}) => [{ name: 'name', label: 'Shift name', value: s.name, required: true, placeholder: 'e.g. Shift 1 – Morning' }, { row: [{ name: 'date', label: 'Exam date', type: 'date', value: s.date, required: true }, { name: 'start', label: 'Randomization allowed from', type: 'time', value: s.start, required: true }, { name: 'end', label: 'Randomization allowed until', type: 'time', value: s.end, required: true }] }];
+const shiftValidate = v => v.end <= v.start ? 'The randomization end time must be after the start time.' : null;
+const subjectFields = (s = {}) => [{ row: [{ name: 'name', label: 'Subject name', value: s.name, required: true, placeholder: 'e.g. Mathematics' }, { name: 'code', label: 'Subject code', value: s.code, placeholder: 'e.g. MATH-01' }] }, { name: 'colours', label: 'Colour-coded QP sets for this subject', type: 'colours', value: s.colours || [], hint: 'Add every colour-coded question paper set supplied by the Commission for this subject (minimum 2).' }];
+function subjectValidate(v) {
+  if (v.colours.length < 2) return 'Add at least 2 colour-coded sets.';
+  if (v.colours.some(c => !c.name)) return 'Every colour needs a name.';
+  const names = v.colours.map(c => c.name.toLowerCase()); if (new Set(names).size !== names.length) return 'Colour names must be unique within the subject.';
+  return null;
+}
+
+async function renderExamList(v) {
+  const exams = (await idb.all('admin_exams')).sort((a, b) => b.createdAt - a.createdAt);
+  v.innerHTML = `<div class="toolbar"><h2>Exams</h2><div class="sp"></div><button class="btn primary" data-act="new">+ Create exam</button></div>
+    ${exams.length ? `<div class="grid-cards">${exams.map(e => `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3>
+      <div class="muted">${e.shifts.length} shift(s) · ${e.shifts.reduce((n, s) => n + s.subjects.length, 0)} subject entries</div>
+      <div class="sm" style="margin-top:6px">${e.exportVersion ? `<span class="badge b-open">Package v${e.exportVersion}</span> <span class="muted">exported ${fmtTs(e.lastExportedAt)}</span>${e.updatedAt > e.lastExportedAt ? ' <span class="badge b-prog">changed since export</span>' : ''}` : '<span class="badge b-closed">Not exported</span>'}</div></div>`).join('')}</div>`
+      : `<div class="empty">No exams yet. Create the first exam to begin.</div>`}`;
+  bind(v, {
+    new: async () => {
+      const r = await formModal('Create exam', examFields()); if (!r) return;
+      const e = { id: uid(), name: r.name, code: r.code, description: r.description, createdAt: Date.now(), updatedAt: Date.now(), shifts: [], exportVersion: 0 };
+      await idb.put('admin_exams', e); await appendLog('admin', 'EXAM_CREATED', { examId: e.id, name: e.name, code: e.code });
+      astate.examId = e.id; renderAdmin();
+    },
+    open: d => { astate.examId = d.id; renderAdmin(); }
+  });
+}
+
+async function saveExam(e, event, details) { e.updatedAt = Date.now(); await idb.put('admin_exams', e); await appendLog('admin', event, { examId: e.id, examCode: e.code, ...details }); renderAdmin(); }
+
+async function renderExamEditor(v) {
+  const e = await idb.get('admin_exams', astate.examId);
+  if (!e) { astate.examId = null; return renderAdmin(); }
+  const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← All exams</button><div class="sp"></div><button class="btn primary" data-act="export">⬇ Export package for stand-alone PC</button></div>
+  <div class="card"><div class="row"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2>${e.description ? `<div class="muted">${esc(e.description)}</div>` : ''}
+    <div class="muted sm" style="margin-top:4px">Created ${fmtTs(e.createdAt)} · Last updated ${fmtTs(e.updatedAt)} · ${e.exportVersion ? `Package v${e.exportVersion} exported ${fmtTs(e.lastExportedAt)}` : 'Not yet exported'}</div></div>
+    <div><button class="btn sm" data-act="editExam">Edit</button> <button class="btn sm danger" data-act="delExam">Delete</button></div></div></div>
+  <div class="toolbar" style="margin-top:20px"><h3 style="margin:0">Shifts</h3><div class="sp"></div><button class="btn primary sm" data-act="addShift">+ Add shift</button></div>
+  ${shifts.length ? shifts.map(s => `<div class="card"><div class="row"><div class="grow"><h4>${esc(s.name)}</h4><div class="muted sm">📅 ${fmtDate(s.date)} · Randomization window ${s.start} – ${s.end}</div></div>
+      <div><button class="btn sm primary" data-act="addSub" data-s="${s.id}">+ Subject</button> <button class="btn sm" data-act="editShift" data-s="${s.id}">Edit</button> <button class="btn sm" data-act="dupShift" data-s="${s.id}">Duplicate</button> <button class="btn sm danger" data-act="delShift" data-s="${s.id}">Delete</button></div></div>
+      ${s.subjects.length ? `<table class="tbl"><thead><tr><th>Subject</th><th>Code</th><th>Colour-coded QP sets</th><th style="width:150px"></th></tr></thead><tbody>
+        ${s.subjects.map(sb => `<tr><td><b>${esc(sb.name)}</b></td><td>${esc(sb.code || '—')}</td><td><div class="swatches">${sb.colours.map(swMini).join('')}</div></td>
+        <td style="text-align:right"><button class="btn sm" data-act="editSub" data-s="${s.id}" data-b="${sb.id}">Edit</button> <button class="btn sm danger" data-act="delSub" data-s="${s.id}" data-b="${sb.id}">Delete</button></td></tr>`).join('')}</tbody></table>`
+      : `<div class="muted sm" style="margin-top:10px">No subjects yet.</div>`}</div>`).join('')
+    : `<div class="empty">No shifts yet. Add a shift, then add subjects and their colour-coded sets.</div>`}`;
+  const S = id => e.shifts.find(x => x.id === id);
+  bind(v, {
+    back: () => { astate.examId = null; renderAdmin(); },
+    editExam: async () => { const r = await formModal('Edit exam', examFields(e)); if (!r) return; Object.assign(e, r); saveExam(e, 'EXAM_UPDATED', { name: r.name, code: r.code }); },
+    delExam: async () => { if (!await confirmModal('Delete exam?', `<p>Delete <b>${esc(e.name)}</b> and all its shifts and subjects from this Admin Console? Packages already exported are not affected.</p>`, 'Delete', 'danger')) return;
+      await idb.del('admin_exams', e.id); await appendLog('admin', 'EXAM_DELETED', { examId: e.id, name: e.name, code: e.code }); astate.examId = null; renderAdmin(); },
+    addShift: async () => { const r = await formModal('Add shift', shiftFields(), { validate: shiftValidate }); if (!r) return; const s = { id: uid(), ...r, subjects: [] }; e.shifts.push(s); saveExam(e, 'SHIFT_CREATED', { shiftId: s.id, ...r }); },
+    editShift: async d => { const s = S(d.s); const r = await formModal('Edit shift', shiftFields(s), { validate: shiftValidate }); if (!r) return; Object.assign(s, r); saveExam(e, 'SHIFT_UPDATED', { shiftId: s.id, ...r }); },
+    dupShift: async d => { const s = S(d.s); const r = await formModal('Duplicate shift (copies all subjects & colour sets)', shiftFields({ ...s, name: s.name + ' (copy)' }), { validate: shiftValidate }); if (!r) return;
+      const n = { id: uid(), ...r, subjects: s.subjects.map(sb => ({ ...sb, id: uid(), colours: sb.colours.map(c => ({ ...c })) })) }; e.shifts.push(n); saveExam(e, 'SHIFT_DUPLICATED', { fromShiftId: s.id, shiftId: n.id, ...r }); },
+    delShift: async d => { const s = S(d.s); if (!await confirmModal('Delete shift?', `<p>Delete <b>${esc(s.name)}</b> and its ${s.subjects.length} subject(s)?</p>`, 'Delete', 'danger')) return; e.shifts = e.shifts.filter(x => x.id !== s.id); saveExam(e, 'SHIFT_DELETED', { shiftId: s.id, name: s.name }); },
+    addSub: async d => { const s = S(d.s); const r = await formModal(`Add subject — ${s.name}`, subjectFields(), { validate: v2 => subjectValidate(v2) || (s.subjects.some(x => x.name.toLowerCase() === v2.name.toLowerCase()) ? 'This subject already exists in the shift.' : null) }); if (!r) return;
+      const sb = { id: uid(), ...r }; s.subjects.push(sb); saveExam(e, 'SUBJECT_CREATED', { shiftId: s.id, subjectId: sb.id, name: sb.name, code: sb.code, colours: sb.colours }); },
+    editSub: async d => { const s = S(d.s), sb = s.subjects.find(x => x.id === d.b); const r = await formModal(`Edit subject — ${s.name}`, subjectFields(sb), { validate: subjectValidate }); if (!r) return; Object.assign(sb, r); saveExam(e, 'SUBJECT_UPDATED', { shiftId: s.id, subjectId: sb.id, name: sb.name, code: sb.code, colours: sb.colours }); },
+    delSub: async d => { const s = S(d.s), sb = s.subjects.find(x => x.id === d.b); if (!await confirmModal('Delete subject?', `<p>Delete <b>${esc(sb.name)}</b> from ${esc(s.name)}?</p>`, 'Delete', 'danger')) return; s.subjects = s.subjects.filter(x => x.id !== sb.id); saveExam(e, 'SUBJECT_DELETED', { shiftId: s.id, subjectId: sb.id, name: sb.name }); },
+    export: () => exportPackage(e)
+  });
+}
+
+async function exportPackage(e) {
+  const problems = [];
+  if (!e.shifts.length) problems.push('Add at least one shift.');
+  e.shifts.forEach(s => { if (!s.subjects.length) problems.push(`${s.name}: add at least one subject.`); s.subjects.forEach(sb => { if (sb.colours.length < 2) problems.push(`${s.name} / ${sb.name}: needs at least 2 colour sets.`); }); });
+  const cred = await idb.get('meta', 'client_cred');
+  if (!cred) problems.push('Set the Randomization Console login in Settings first.');
+  if (problems.length) return alertModal('Cannot export yet', `<ul>${problems.map(p => `<li>${esc(p)}</li>`).join('')}</ul>`);
+  const r = await formModal('Export encrypted exam package', [{ name: 'pw', label: `Password of Randomization login "${cred.username}"`, type: 'password', required: true, hint: 'The package is encrypted (AES-256-GCM) with this password. The same password is needed to import it on the stand-alone PC.' }],
+    { submitLabel: 'Encrypt & download', validate: async v2 => (await hashPw(v2.pw, cred.salt)) === cred.hash ? null : 'Password does not match the configured Randomization login.' });
+  if (!r) return;
+  const version = (e.exportVersion || 0) + 1;
+  const { exportVersion, lastExportedAt, ...examData } = e;
+  const payload = { format: 'UPESSC-QPR-PAYLOAD', version: 1, packageVersion: version, exportedAt: new Date().toISOString(), exportedBy: session.user, adminInstallId: await installId(),
+    client: { username: cred.username, salt: cred.salt, hash: cred.hash }, logo: (await idb.get('meta', 'admin_logo')) || null, exam: examData };
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await aesKey(r.pw, salt), enc.encode(JSON.stringify(payload)));
+  const data = b64(ct);
+  const pkg = { format: 'UPESSC-QPR-PACKAGE', version: 1, examCode: e.code, packageVersion: version, createdAt: payload.exportedAt, kdf: { name: 'PBKDF2-SHA256', iterations: ITER }, cipher: 'AES-256-GCM', salt: b64(salt), iv: b64(iv), data, sha256: await sha256(data) };
+  download(`UPESSC_${safeName(e.code)}_package_v${version}_${stamp()}.qpr`, JSON.stringify(pkg));
+  e.exportVersion = version; e.lastExportedAt = Date.now(); await idb.put('admin_exams', e);
+  await appendLog('admin', 'PACKAGE_EXPORTED', { examId: e.id, examCode: e.code, packageVersion: version, packageSha256: pkg.sha256, shifts: e.shifts.map(s => ({ id: s.id, name: s.name, date: s.date, window: `${s.start}-${s.end}`, subjects: s.subjects.length })) });
+  toast(`Package v${version} downloaded`); renderAdmin();
+}
+
+async function renderAdminSettings(v) {
+  const cred = await idb.get('meta', 'client_cred'), logo = await idb.get('meta', 'admin_logo'), auth = await idb.get('meta', 'admin_auth');
+  v.innerHTML = `<div class="card"><div class="row"><div class="grow"><h3>Randomization Console login</h3><p class="muted sm">The single head-client login used on the stand-alone PC. It is embedded (hashed) in every exported package, and its password encrypts the package.</p>
+      <div>${cred ? `Current username: <b>${esc(cred.username)}</b>` : '<span class="badge b-prog">Not configured</span>'}</div></div><div><button class="btn primary" data-act="cred">${cred ? 'Change' : 'Set'} login</button></div></div></div>
+    <div class="card"><div class="row"><div class="grow"><h3>Commission logo</h3><p class="muted sm">Upload the official UPESSC logo (PNG/JPG, max 500 KB). It is shown in the header and included in exported packages.</p>
+      ${logo ? `<img src="${logo}" style="height:70px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff">` : '<span class="muted">No logo uploaded.</span>'}</div>
+      <div><button class="btn" data-act="logo">Upload logo</button> ${logo ? '<button class="btn danger" data-act="rmlogo">Remove</button>' : ''}</div></div></div>
+    <div class="card"><div class="row"><div class="grow"><h3>Administrator password</h3><p class="muted sm">Logged in as <b>${esc(auth.username)}</b>.</p></div><div><button class="btn" data-act="pw">Change password</button></div></div></div>`;
+  bind(v, {
+    cred: async () => { const r = await formModal('Randomization Console login', [{ name: 'u', label: 'Username', value: cred && cred.username, required: true }, { name: 'p', label: 'Password (min 8 characters)', type: 'password', required: true }, { name: 'p2', label: 'Confirm password', type: 'password', required: true }],
+        { validate: x => x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : null }); if (!r) return;
+      await idb.put('meta', await makeCred(r.u, r.p), 'client_cred'); await appendLog('admin', 'CLIENT_CREDENTIALS_SET', { username: r.u }); toast('Login saved. Re-export packages so they carry the new login.'); renderAdmin(); },
+    logo: async () => { const r = await formModal('Upload logo', [{ name: 'f', label: 'Logo image', type: 'file', accept: 'image/png,image/jpeg,image/svg+xml', required: true }], { validate: x => x.f.size > 512000 ? 'Image must be 500 KB or smaller.' : !/^image\//.test(x.f.type) ? 'Choose an image file.' : null }); if (!r) return;
+      const data = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(r.f); });
+      await idb.put('meta', data, 'admin_logo'); await appendLog('admin', 'LOGO_UPDATED', { file: r.f.name, bytes: r.f.size, sha256: await sha256(data) }); renderHeader(); renderAdmin(); },
+    rmlogo: async () => { await idb.del('meta', 'admin_logo'); await appendLog('admin', 'LOGO_REMOVED', {}); renderHeader(); renderAdmin(); },
+    pw: async () => { const r = await formModal('Change admin password', [{ name: 'o', label: 'Current password', type: 'password', required: true }, { name: 'p', label: 'New password (min 8)', type: 'password', required: true }, { name: 'p2', label: 'Confirm new password', type: 'password', required: true }],
+        { validate: async x => (await hashPw(x.o, auth.salt)) !== auth.hash ? 'Current password is incorrect.' : x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : null }); if (!r) return;
+      await idb.put('meta', await makeCred(auth.username, r.p), 'admin_auth'); await appendLog('admin', 'ADMIN_PASSWORD_CHANGED', {}); toast('Password changed'); }
+  });
+}
+
+/* =========================================================
+   Audit log view (shared)
+   ========================================================= */
+function detailSummary(d) {
+  return Object.entries(d).map(([k, v]) => `<b>${esc(k)}</b>: ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}`).join(' · ');
+}
+async function renderAudit(v, scope) {
+  const r = await verifyChain(scope);
+  const entries = [...r.entries].reverse();
+  v.innerHTML = `<div class="toolbar"><h2>Audit Log</h2><div class="sp"></div>
+      <button class="btn" data-act="verify">✔ Verify integrity</button>
+      <button class="btn primary" data-act="json">⬇ Export audit log (JSON)</button>
+      <button class="btn" data-act="csv">⬇ Export audit log (CSV)</button>
+      ${scope === 'client' ? '<button class="btn" data-act="res">⬇ Export results (CSV)</button>' : ''}</div>
+    <div class="notice ${r.ok ? 'ok' : 'warn'}">${r.ok ? `✔ Hash chain intact — ${r.count} entries. Chain head: <span class="mono">${r.head.slice(0, 32)}…</span>` : `⛔ Integrity problems found:<ul>${r.issues.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`}</div>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl log-table" style="margin:0"><thead><tr><th>#</th><th>Time (PC clock)</th><th>User</th><th>Event</th><th>Details</th><th>Hash</th></tr></thead>
+    <tbody>${entries.slice(0, 500).map(e => `<tr><td>${e.seq}</td><td class="mono">${esc(e.localTime)}</td><td>${esc(e.actor)}</td><td><b>${esc(e.event)}</b></td><td class="det">${detailSummary(e.details)}</td><td class="mono" title="${e.hash}">${e.hash.slice(0, 12)}…</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No entries.</td></tr>'}</tbody></table></div>
+    ${entries.length > 500 ? '<p class="muted sm">Showing latest 500 entries. Export for the full log.</p>' : ''}`;
+  bind(v, {
+    verify: async () => { const x = await verifyChain(scope); await appendLog(scope, 'AUDIT_VERIFIED', { ok: x.ok, entries: x.count, issues: x.issues }); if (scope === 'client') integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); toast(x.ok ? 'Integrity verified ✔' : 'Integrity problems found'); renderAudit(v, scope); },
+    json: () => exportAudit(scope, 'json'), csv: () => exportAudit(scope, 'csv'), res: exportResults
+  });
+}
+async function exportAudit(scope, kind) {
+  await appendLog(scope, 'AUDIT_EXPORTED', { format: kind });
+  const r = await verifyChain(scope);
+  const name = `UPESSC_QPR_${scope === 'admin' ? 'ADMIN' : 'RANDOMIZATION'}_AUDIT_${stamp()}`;
+  if (kind === 'json') {
+    const out = { format: 'UPESSC-QPR-AUDIT', console: scope, system: 'UPESSC Question Paper Randomization System', exportedAt: new Date().toISOString(), exportedBy: session.user, installId: await installId(),
+      verification: { ok: r.ok, issues: r.issues, entries: r.count, chainHead: r.head, method: 'hash = SHA-256(canonical JSON of entry without "hash", keys sorted); prevHash links each entry to the previous one, first prevHash = "GENESIS"' },
+      entries: r.entries };
+    if (scope === 'client') { out.draws = await idb.all('draws'); out.exams = await idb.all('client_exams'); }
+    download(name + '.json', JSON.stringify(out, null, 2));
+  } else {
+    download(name + '.csv', toCsv([['Seq', 'Local time', 'ISO time', 'User', 'Event', 'Details', 'Prev hash', 'Hash'], ...r.entries.map(e => [e.seq, e.localTime, e.time, e.actor, e.event, JSON.stringify(e.details), e.prevHash, e.hash])]), 'text/csv');
+  }
+}
+async function exportResults() {
+  const exams = await idb.all('client_exams'), draws = await idb.all('draws'); const D = new Map(draws.map(d => [d.key, d]));
+  const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ATTEMPT_LABELS.flatMap(l => [l, l + ' time']), 'Status']];
+  exams.forEach(e => e.shifts.forEach(s => s.subjects.forEach(sb => {
+    const cells = []; let n = 0;
+    for (let a = 1; a <= ATTEMPTS; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
+    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, n === ATTEMPTS ? 'FINAL LOCKED' : n ? `In progress (${n}/5)` : 'Not started']);
+  })));
+  await appendLog('client', 'RESULTS_EXPORTED', { rows: rows.length - 1 });
+  download(`UPESSC_QPR_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
+}
+
+/* =========================================================
+   RANDOMIZATION (CLIENT) CONSOLE
+   ========================================================= */
+const cstate = { view: 'exams', examId: null, shiftId: null };
+const dkey = (e, s, b, a) => `${e}|${s}|${b}|${a}`;
+function shiftWindow(s) { return { start: new Date(`${s.date}T${s.start}:00`).getTime(), end: new Date(`${s.date}T${s.end}:59.999`).getTime() }; }
+function windowState(s, now = Date.now()) { const w = shiftWindow(s); return now < w.start ? 'upcoming' : now > w.end ? 'closed' : 'open'; }
+async function drawMap(examId) { const m = new Map(); (await idb.all('draws')).filter(d => d.examId === examId).forEach(d => m.set(d.key, d)); return m; }
+function shiftProgress(e, s, D) { let done = 0, total = s.subjects.length * ATTEMPTS; s.subjects.forEach(sb => { for (let a = 1; a <= ATTEMPTS; a++) if (D.has(dkey(e.id, s.id, sb.id, a))) done++; }); return { done, total, complete: total > 0 && done === total }; }
+function stateBadge(s, prog) {
+  if (prog.complete) return '<span class="badge b-lock">🔒 LOCKED</span>';
+  const w = windowState(s);
+  return (w === 'open' ? '<span class="badge b-open">● Window open</span>' : w === 'upcoming' ? '<span class="badge b-up">Upcoming</span>' : '<span class="badge b-closed">Window closed</span>') + (prog.done ? ` <span class="badge b-prog">${prog.done}/${prog.total} draws</span>` : '');
+}
+
+async function renderClientAuth() {
+  const auth = await idb.get('meta', 'client_auth');
+  app.innerHTML = `<div class="auth card"><div class="eyebrow">Randomization Console</div>
+    ${auth ? `<h3>Login</h3><form class="form" id="lf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password</span><input name="p" type="password"></label><div class="err" hidden></div>
+      <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Log in</button></div></form>
+      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn sm" data-act="imp">⬆ Import / update exam package</button>`
+    : `<h3>No exam package imported</h3><p class="muted">Import the encrypted exam package (.qpr) prepared in the Admin Console. You need the Randomization login password.</p>
+      <div class="actions"><button class="btn ghost" data-act="back">Back</button><button class="btn primary" data-act="imp">⬆ Import exam package</button></div>`}</div>`;
+  bind(app, { back: renderLanding, imp: async () => { if (await importPackageFlow()) renderClientAuth(); } });
+  const f = $('#lf'); if (!f) return;
+  f.u.focus();
+  f.onsubmit = async e => {
+    e.preventDefault(); const u = f.u.value.trim(), p = f.p.value; const a = await idb.get('meta', 'client_auth');
+    if (u === a.username && await hashPw(p, a.salt) === a.hash) {
+      setSession({ role: 'client', user: u });
+      await checkClock('login');
+      await appendLog('client', 'CLIENT_LOGIN', { clockReading: new Date().toISOString(), localClock: fmtTs(Date.now()), timezoneOffsetMinutes: new Date().getTimezoneOffset(), networkOnline: navigator.onLine, userAgent: navigator.userAgent });
+      if (navigator.onLine) await appendLog('client', 'NETWORK_CONNECTED_WARNING', { note: 'Network connectivity detected at login' });
+      const x = await verifyChain('client');
+      integrityIssue = x.ok ? null : x.issues[0];
+      if (!x.ok) await appendLog('client', 'INTEGRITY_CHECK_FAILED', { issues: x.issues });
+      cstate.view = 'exams'; renderHeader(); renderClient();
+    } else {
+      await appendLog('client', 'CLIENT_LOGIN_FAILED', { attemptedUsername: u }, { actor: u || 'unknown' });
+      const er = f.querySelector('.err'); er.textContent = 'Invalid username or password.'; er.hidden = false;
+    }
+  };
+}
+
+async function decryptPackage(file, pw) {
+  let pkg; try { pkg = JSON.parse(await file.text()); } catch { throw new Error('This is not a valid exam package file.'); }
+  if (pkg.format !== 'UPESSC-QPR-PACKAGE') throw new Error('This is not a UPESSC exam package.');
+  if (await sha256(pkg.data) !== pkg.sha256) throw new Error('Package file is corrupted (checksum mismatch).');
+  let plain; try { plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(pkg.iv) }, await aesKey(pw, unb64(pkg.salt)), unb64(pkg.data)); }
+  catch { throw new Error('Wrong password, or the package has been modified.'); }
+  const payload = JSON.parse(new TextDecoder().decode(plain));
+  if (payload.format !== 'UPESSC-QPR-PAYLOAD') throw new Error('Unsupported package content.');
+  return { pkg, payload };
+}
+async function importPackageFlow() {
+  let res;
+  const r = await formModal('Import exam package', [{ name: 'file', label: 'Package file (.qpr)', type: 'file', accept: '.qpr', required: true }, { name: 'pw', label: 'Randomization login password', type: 'password', required: true }],
+    { submitLabel: 'Decrypt & import', validate: async v => { try { res = await decryptPackage(v.file, v.pw); } catch (err) { await appendLog('client', 'PACKAGE_IMPORT_FAILED', { file: v.file.name, reason: err.message }); return err.message; }
+      const ex = await idb.get('client_exams', res.payload.exam.id);
+      if (ex && ex.packageVersion > res.payload.packageVersion) return `A newer version (v${ex.packageVersion}) of this exam is already imported.`;
+      return null; } });
+  if (!r) return false;
+  const { pkg, payload } = res, ex = payload.exam;
+  const existing = await idb.get('client_exams', ex.id);
+  const drawn = new Set((await idb.all('draws')).filter(d => d.examId === ex.id).map(d => d.shiftId));
+  const kept = [], updated = [];
+  const shifts = ex.shifts.map(s => { const old = existing && existing.shifts.find(o => o.id === s.id); if (old && drawn.has(s.id)) { kept.push(old.name); return old; } updated.push(s.name); return s; });
+  if (existing) existing.shifts.forEach(o => { if (drawn.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); kept.push(o.name); } });
+  await idb.put('client_exams', { ...ex, shifts, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, importedAt: Date.now(), exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, adminInstallId: payload.adminInstallId });
+  await idb.put('meta', payload.client, 'client_auth');
+  if (payload.logo) await idb.put('meta', payload.logo, 'logo');
+  await appendLog('client', 'PACKAGE_IMPORTED', { file: r.file.name, examId: ex.id, examName: ex.name, examCode: ex.code, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, adminInstallId: payload.adminInstallId, shiftsUpdated: updated, shiftsKeptLocked: kept, clientUsername: payload.client.username },
+    { actor: (session && session.user) || payload.client.username });
+  renderHeader();
+  await alertModal('Package imported', `<p><b>${esc(ex.name)}</b> (${esc(ex.code)}) — package v${payload.packageVersion}</p><p>Shifts loaded: ${updated.length}${kept.length ? `<br>Shifts kept unchanged because randomization has already started: ${kept.map(esc).join(', ')}` : ''}</p>`);
+  return true;
+}
+
+async function renderClient() {
+  if (!session) return renderLanding();
+  const tabs = [['exams', 'Exams'], ['audit', 'Audit Log']];
+  const cur = cstate.view === 'audit' ? 'audit' : 'exams';
+  app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="imp">⬆ Import package</button> <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
+  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout, imp: async () => { if (await importPackageFlow()) renderClient(); } });
+  const v = $('#view');
+  if (cstate.view === 'audit') return renderAudit(v, 'client');
+  if (cstate.view === 'exam') return renderClientExam(v);
+  if (cstate.view === 'shift') return renderShift(v);
+  return renderClientExams(v);
+}
+
+async function renderClientExams(v) {
+  const exams = (await idb.all('client_exams')).filter(e => e.shifts.length).sort((a, b) => a.name.localeCompare(b.name));
+  const draws = await idb.all('draws');
+  v.innerHTML = `<div class="toolbar"><h2>Select exam</h2></div>${exams.length ? `<div class="grid-cards">${exams.map(e => {
+      const D = new Map(draws.filter(d => d.examId === e.id).map(d => [d.key, d]));
+      const open = e.shifts.filter(s => windowState(s) === 'open' && !shiftProgress(e, s, D).complete).length;
+      const locked = e.shifts.filter(s => shiftProgress(e, s, D).complete).length;
+      return `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3><div class="muted sm">${e.shifts.length} shift(s) · package v${e.packageVersion}</div>
+        <div style="margin-top:8px">${open ? `<span class="badge b-open">● ${open} shift(s) open now</span> ` : ''}${locked ? `<span class="badge b-lock">🔒 ${locked} locked</span>` : ''}${!open && !locked ? '<span class="badge b-closed">No window open now</span>' : ''}</div></div>`; }).join('')}</div>`
+    : '<div class="empty">No exams available. Import an exam package.</div>'}`;
+  bind(v, { open: async d => { cstate.view = 'exam'; cstate.examId = d.id; const e = exams.find(x => x.id === d.id); await appendLog('client', 'EXAM_SELECTED', { examId: e.id, examName: e.name, examCode: e.code }); renderClient(); } });
+}
+
+async function renderClientExam(v) {
+  const e = await idb.get('client_exams', cstate.examId); if (!e) { cstate.view = 'exams'; return renderClient(); }
+  const D = await drawMap(e.id);
+  const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Exams</button><div><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2></div></div>
+    <div class="grid-cards">${shifts.map(s => { const p = shiftProgress(e, s, D); return `<div class="card click" data-act="open" data-id="${s.id}"><h3>${esc(s.name)}</h3>
+      <div class="muted sm">📅 ${fmtDate(s.date)} · Window ${s.start} – ${s.end}</div><div class="muted sm">${s.subjects.length} subject(s)</div><div style="margin-top:8px">${stateBadge(s, p)}</div></div>`; }).join('')}</div>`;
+  bind(v, { back: () => { cstate.view = 'exams'; renderClient(); },
+    open: async d => { const s = e.shifts.find(x => x.id === d.id); cstate.view = 'shift'; cstate.shiftId = s.id; await appendLog('client', 'SHIFT_OPENED', { examId: e.id, examCode: e.code, shiftId: s.id, shiftName: s.name, windowState: windowState(s) }); renderClient(); } });
+}
+
+async function renderShift(v) {
+  const e = await idb.get('client_exams', cstate.examId); const s = e && e.shifts.find(x => x.id === cstate.shiftId);
+  if (!s) { cstate.view = 'exams'; return renderClient(); }
+  const D = await drawMap(e.id), p = shiftProgress(e, s, D), w = windowState(s), canRoll = w === 'open' && !p.complete;
+  let note;
+  if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final sets have been selected. No further changes are possible.</div>`;
+  else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
+  else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start}</b> on <b>${fmtDate(s.date)}</b> (PC clock).</div>`;
+  else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
+  const cell = (sb, a) => {
+    const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === ATTEMPTS ? 'final' : '';
+    if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
+    let next = 1; while (next <= ATTEMPTS && D.has(dkey(e.id, s.id, sb.id, next))) next++;
+    if (a === next) return `<td class="${fin}"><button class="btn ${a === ATTEMPTS ? 'gold' : 'primary'}" data-act="roll" data-b="${sb.id}" data-a="${a}" ${canRoll ? '' : 'disabled'}>🎲 ${a === ATTEMPTS ? 'Final roll' : 'Roll'}</button></td>`;
+    return `<td class="${fin} pending" style="color:#b3b9c5">—</td>`;
+  };
+  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Shifts</button><div class="grow"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h2>${esc(s.name)} <span style="font-size:13px">${stateBadge(s, p)}</span></h2></div><div class="sp"></div>
+      <button class="btn" data-act="audit">Audit log</button></div>
+    ${note}
+    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & QP colour sets</th>${ATTEMPT_LABELS.map((l, i) => `<th class="${i === ATTEMPTS - 1 ? 'final' : ''}">${l}</th>`).join('')}</tr></thead>
+    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${[1, 2, 3, 4, 5].map(a => cell(sb, a)).join('')}</tr>`).join('')}</tbody></table></div>
+    <p class="muted sm" style="margin-top:12px">Every draw uses the browser's cryptographic random number generator (crypto.getRandomValues) with unbiased rejection sampling. Each attempt is an independent draw from all sets of that subject. Results are written to the hash-chained audit log before the animation finishes, so a refresh or power cut cannot alter them.</p>`;
+  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a) });
+}
+
+/* ---------- the draw ---------- */
+const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
+const faceHtml = (i, c) => `<div class="face f${i}" style="--c:${c.hex};--ink:${ink(c.hex)}">${[1,2,3,4,5,6,7,8,9].map(p => `<i class="${PIPS[i].includes(p) ? 'p' : ''}"></i>`).join('')}</div>`;
+
+async function doDraw(examId, shiftId, subjectId, attempt) {
+  if (busy) return; busy = true;
+  try {
+    await checkClock('pre-draw');
+    const e = await idb.get('client_exams', examId), s = e.shifts.find(x => x.id === shiftId), sb = s.subjects.find(x => x.id === subjectId);
+    if (windowState(s) !== 'open') { await appendLog('client', 'DRAW_BLOCKED_OUTSIDE_WINDOW', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Randomization window is not open (PC clock).'); return renderClient(); }
+    const n = sb.colours.length;
+    const ok = await confirmModal(`${sb.name} — ${ATTEMPT_LABELS[attempt - 1]}`,
+      `<p>${esc(e.name)} · ${esc(s.name)}</p><p>Pool of ${n} colour-coded sets (each has a 1 in ${n} chance):</p><div class="swatches">${sb.colours.map(swMini).join('')}</div>
+       <p style="margin-top:12px"><b>${attempt === ATTEMPTS ? 'This is the FINAL draw. The selected colour becomes the question paper set for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
+      attempt === ATTEMPTS ? '🎲 Roll FINAL' : '🎲 Roll the dice', attempt === ATTEMPTS ? 'gold' : 'primary');
+    if (!ok) { await appendLog('client', 'DRAW_CANCELLED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); return; }
+
+    const key = dkey(examId, shiftId, subjectId, attempt);
+    const D = await drawMap(examId);
+    if (D.has(key)) { toast('This attempt is already locked.'); return renderClient(); }
+    for (let a = 1; a < attempt; a++) if (!D.has(dkey(examId, shiftId, subjectId, a))) { toast('Previous attempts must be completed first.'); return renderClient(); }
+
+    // ---- random selection ----
+    const rnd = secureRandomInt(n), colour = sb.colours[rnd.value];
+    const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
+      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: ATTEMPT_LABELS[attempt - 1], pool: sb.colours.map(c => c.name + (c.set ? ` (${c.set})` : '')), poolSize: n,
+      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), isFinal: attempt === ATTEMPTS };
+    // Persist FIRST (draw + audit entry in one atomic transaction), then animate.
+    const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex: rnd.value, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
+    await animateRoll(e, s, sb, attempt, colour, entry);
+
+    if (attempt === ATTEMPTS) {
+      await appendLog('client', 'SUBJECT_FINAL_LOCKED', { examCode: e.code, shiftName: s.name, subjectName: sb.name, finalColour: colour, drawSeq: entry.seq });
+      const D2 = await drawMap(examId);
+      if (shiftProgress(e, s, D2).complete) {
+        await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => ({ subject: x.name, colour: D2.get(dkey(examId, shiftId, x.id, ATTEMPTS)).colour.name })) });
+        await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final set. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media.</p>`);
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    await alertModal('Draw not recorded', `<p>${esc(err.message || err)}</p><p class="muted">No result was saved. If this attempt was already drawn it remains locked.</p>`);
+  } finally { busy = false; renderClient(); }
+}
+
+function animateRoll(e, s, sb, attempt, colour, entry) {
+  return new Promise(resolve => {
+    const others = sb.colours.filter(c => c !== colour).sort(() => Math.random() - .5);
+    const faces = [colour]; for (let i = 0; faces.length < 6; i++) faces.push(others.length ? others[i % others.length] : colour);
+    const isFinal = attempt === ATTEMPTS;
+    openModal(`<div class="roll-modal"><div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${ATTEMPT_LABELS[attempt - 1]}</h3>
+      <div class="stage"><div class="dshadow"></div><div class="hop"><div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div></div></div>
+      <div class="rstatus rolling">ROLLING</div><div class="rv"></div></div>`, {
+      dismissable: false,
+      onMount: (m, close) => {
+        const dice = m.querySelector('.dice'), hop = m.querySelector('.hop');
+        dice.style.transition = 'none';
+        dice.style.transform = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)';
+        void dice.offsetWidth;
+        requestAnimationFrame(() => {
+          dice.style.transition = '';
+          hop.classList.add('go');
+          const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
+          dice.style.transform = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
+        });
+        setTimeout(() => {
+          const st = m.querySelector('.rstatus'); st.classList.remove('rolling'); st.textContent = isFinal ? '' : 'RESULT';
+          m.querySelector('.rv').innerHTML = `${isFinal ? '<div class="finalbanner">★ FINAL QUESTION PAPER SET ★</div>' : ''}
+            <div class="result ${isFinal ? 'final' : ''}" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? 'Final selected set' : 'Selected set'}</div><div class="rname">${esc(colour.name)}</div><div class="muted sm">${esc(colour.set || '')}</div></div></div>
+            <div class="lockline">🔒 Locked & recorded — audit entry #${entry.seq} · ${fmtTs(entry.ts)} · hash ${entry.hash.slice(0, 16)}…</div>
+            <button class="btn primary" data-close>Close</button>`;
+          m.querySelector('[data-close]').onclick = () => { close(); resolve(); };
+          if (isFinal) confetti([colour.hex, '#c9a227', '#0b2a5b', '#e6c65a', ...sb.colours.map(c => c.hex)]);
+        }, 3150);
+      }
+    });
+  });
+}
+
+function confetti(colours) {
+  const c = $('#confetti'); c.width = innerWidth; c.height = innerHeight; c.style.display = 'block';
+  const ctx = c.getContext('2d');
+  const parts = Array.from({ length: 260 }, () => ({ x: innerWidth / 2 + (Math.random() - .5) * 240, y: innerHeight / 2 - 60, vx: (Math.random() - .5) * 18, vy: -Math.random() * 18 - 5, s: Math.random() * 8 + 5, r: Math.random() * 6, vr: (Math.random() - .5) * .35, c: colours[Math.floor(Math.random() * colours.length)] }));
+  const t0 = performance.now();
+  (function frame(t) {
+    ctx.clearRect(0, 0, c.width, c.height);
+    parts.forEach(p => { p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c; ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.strokeRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); });
+    if (t - t0 < 4500) requestAnimationFrame(frame); else { ctx.clearRect(0, 0, c.width, c.height); c.style.display = 'none'; }
+  })(t0);
+}
+
+/* =========================================================
+   Boot
+   ========================================================= */
+(async function boot() {
+  tickClock();
+  if (!window.indexedDB || !window.crypto || !crypto.subtle) { app.innerHTML = '<div class="empty">This browser does not support the required secure storage/cryptography. Please use the latest Google Chrome or Microsoft Edge.</div>'; return; }
+  db = await openDB();
+  try { navigator.storage && navigator.storage.persist && await navigator.storage.persist(); } catch {}
+  await installId();
+  await renderHeader();
+  if (session && session.role === 'admin' && await idb.get('meta', 'admin_auth')) return renderAdmin();
+  if (session && session.role === 'client' && await idb.get('meta', 'client_auth')) { await checkClock('reload'); const x = await verifyChain('client'); integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); return renderClient(); }
+  setSession(null); renderLanding();
+})().catch(err => { app.innerHTML = `<div class="empty">Failed to start: ${esc(err.message)}</div>`; });
+</script>
+</body>
+</html>
