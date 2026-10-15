@@ -3,3 +3,4 @@ skills-lock.json
 .claude
 *.qpr
 README.md
+credentials.local.txt

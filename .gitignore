@@ -6,3 +6,4 @@
 .agents/
 skills-lock.json
 node_modules/
+credentials.local.txt
