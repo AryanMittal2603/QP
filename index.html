@@ -799,17 +799,30 @@ async function renderClientAuth() {
   };
 }
 
-/* Merge a downloaded/imported exam. Shifts where randomization has started are never replaced. */
+/* Merge a downloaded/imported exam. In a shift where randomization has started, the time window and
+   every subject that already has a draw stay frozen; subjects without draws take the new version. */
 async function mergeExam(ex, meta) {
   const existing = await idb.get('client_exams', ex.id);
   if (existing && existing.packageVersion > meta.packageVersion) return { skipped: `newer v${existing.packageVersion} already present` };
-  const drawn = new Set((await idb.all('draws')).filter(d => d.examId === ex.id).map(d => d.shiftId));
-  const kept = [], updated = [];
-  const shifts = ex.shifts.map(s => { const old = existing && existing.shifts.find(o => o.id === s.id); if (old && drawn.has(s.id)) { kept.push(old.name); return old; } updated.push(s.name); return s; });
-  if (existing) existing.shifts.forEach(o => { if (drawn.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); kept.push(o.name); } });
+  const draws = (await idb.all('draws')).filter(d => d.examId === ex.id);
+  const startedShifts = new Set(draws.map(d => d.shiftId)), drawnSubjects = new Set(draws.map(d => d.shiftId + '|' + d.subjectId));
+  const updated = [], keptLocked = [];
+  const mergeShift = (s, old) => {
+    if (!old || !startedShifts.has(s.id)) { updated.push(s.name); return s; }
+    const subjects = s.subjects.map(b => {
+      const ob = old.subjects.find(x => x.id === b.id);
+      if (ob && drawnSubjects.has(s.id + '|' + b.id)) { keptLocked.push(`${old.name} / ${ob.name}`); return ob; }
+      updated.push(`${old.name} / ${b.name}`); return b;
+    });
+    old.subjects.forEach(ob => { if (drawnSubjects.has(s.id + '|' + ob.id) && !subjects.some(b => b.id === ob.id)) { subjects.push(ob); keptLocked.push(`${old.name} / ${ob.name}`); } });
+    if (s.date !== old.date || s.start !== old.start || s.end !== old.end) keptLocked.push(`${old.name} time window`);
+    return { ...s, name: old.name, date: old.date, start: old.start, end: old.end, subjects };
+  };
+  const shifts = ex.shifts.map(s => mergeShift(s, existing && existing.shifts.find(o => o.id === s.id)));
+  if (existing) existing.shifts.forEach(o => { if (startedShifts.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); keptLocked.push(o.name); } });
   const { packageVersion, exportedAt, ...doc } = ex;
   await idb.put('client_exams', { ...doc, shifts, ...meta, importedAt: Date.now() });
-  return { shiftsUpdated: updated, shiftsKeptLocked: kept };
+  return { updated, keptLocked };
 }
 
 /* Upload the local audit chain + draws to the server (append-only on the server side) */
@@ -857,7 +870,7 @@ async function importPackageFlow() {
   await appendLog('client', 'PACKAGE_IMPORTED', { file: r.file.name, examId: ex.id, examName: ex.name, examCode: ex.code, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, ...m, clientUsername: payload.client.username },
     { actor: (session && session.user) || payload.client.username });
   renderHeader();
-  await alertModal('Package imported', `<p><b>${esc(ex.name)}</b> (${esc(ex.code)}) — version ${payload.packageVersion}</p><p>Shifts loaded: ${m.shiftsUpdated.length}${m.shiftsKeptLocked.length ? `<br>Shifts kept unchanged because randomization has already started: ${m.shiftsKeptLocked.map(esc).join(', ')}` : ''}</p>`);
+  await alertModal('Package imported', `<p><b>${esc(ex.name)}</b> (${esc(ex.code)}) — version ${payload.packageVersion}</p><p>Updated: ${m.updated.map(esc).join(', ') || '—'}${m.keptLocked.length ? `<br>Kept unchanged because randomization has already started: ${m.keptLocked.map(esc).join(', ')}` : ''}</p>`);
   return true;
 }
 
