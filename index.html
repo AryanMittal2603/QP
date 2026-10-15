@@ -110,7 +110,7 @@ td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39
 /* dice */
 .roll-modal{text-align:center}
 .stage{height:250px;display:flex;align-items:flex-end;justify-content:center;perspective:800px;position:relative;margin:6px 0}
-.hop{margin-bottom:46px}
+.hop{margin-bottom:46px;transform-style:preserve-3d}
 .hop.go{animation:hop 3s cubic-bezier(.3,.1,.3,1) forwards}
 @keyframes hop{0%{transform:translateY(-150px)}22%{transform:translateY(0)}38%{transform:translateY(-70px)}54%{transform:translateY(0)}67%{transform:translateY(-26px)}78%{transform:translateY(0)}87%{transform:translateY(-8px)}100%{transform:translateY(0)}}
 .dshadow{position:absolute;bottom:26px;left:50%;width:120px;height:18px;margin-left:-60px;border-radius:50%;background:radial-gradient(rgba(0,0,0,.35),transparent 70%)}
@@ -120,6 +120,11 @@ td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39
 .face i.p{background:var(--ink);box-shadow:inset 0 2px 3px rgba(0,0,0,.35)}
 .f1{transform:translateZ(60px)}.f2{transform:rotateY(180deg) translateZ(60px)}.f3{transform:rotateY(90deg) translateZ(60px)}
 .f4{transform:rotateY(-90deg) translateZ(60px)}.f5{transform:rotateX(90deg) translateZ(60px)}.f6{transform:rotateX(-90deg) translateZ(60px)}
+.prism{width:170px;height:184px;position:relative;transform-style:preserve-3d;transition:transform 3s cubic-bezier(.15,.65,.2,1)}
+.pface{position:absolute;left:0;top:50%;width:170px;height:var(--h);margin-top:calc(var(--h) / -2);background:var(--c);color:var(--ink);backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:2px solid rgba(0,0,0,.2);border-radius:6px;box-shadow:inset 0 0 18px rgba(0,0,0,.22),inset 0 4px 8px rgba(255,255,255,.3);overflow:hidden}
+.pface small{font-size:.6em;font-weight:600;opacity:.8;text-transform:none}
+.dshadow.wide{width:190px;margin-left:-95px}
 .rstatus{font-weight:700;color:var(--muted);letter-spacing:.5px;min-height:22px}
 .rstatus.rolling::after{content:"";animation:dots 1s steps(4) infinite}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
@@ -973,23 +978,37 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
 
 function animateRoll(e, s, sb, attempt, colour, entry) {
   return new Promise(resolve => {
-    const others = sb.colours.filter(c => c !== colour).sort(() => Math.random() - .5);
-    const faces = [colour]; for (let i = 0; faces.length < 6; i++) faces.push(others.length ? others[i % others.length] : colour);
-    const isFinal = attempt === ATTEMPTS;
+    const N = sb.colours.length, isFinal = attempt === ATTEMPTS;
+    // Exactly 6 sets → classic Ludo cube (one face per colour). Any other count → N-sided rolling
+    // prism ("long dice"), so every colour of the subject is on exactly one face.
+    const useCube = N === 6;
+    let shape, from, to;
+    if (useCube) {
+      const faces = [colour, ...sb.colours.filter(c => c !== colour).sort(() => Math.random() - .5)];
+      shape = `<div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div>`;
+      const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
+      from = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)'; to = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
+    } else {
+      const R = 92, step = 360 / N, h = 2 * R * Math.sin(Math.PI / N), apo = R * Math.cos(Math.PI / N);
+      const fs = Math.max(11, Math.min(22, h * 0.32));
+      shape = `<div class="prism" style="--h:${h.toFixed(2)}px">${sb.colours.map((c, i) => `<div class="pface" style="--c:${c.hex};--ink:${ink(c.hex)};font-size:${fs}px;transform:rotateX(${(i * step).toFixed(3)}deg) translateZ(${apo.toFixed(2)}px)"><span>${esc(c.name)}</span>${c.set && h > 40 ? `<small>${esc(c.set)}</small>` : ''}</div>`).join('')}</div>`;
+      const k = sb.colours.indexOf(colour), turns = 4 + Math.floor(Math.random() * 3);
+      from = 'rotateX(0deg)'; to = `rotateX(${-(turns * 360 + k * step)}deg)`;
+    }
     openModal(`<div class="roll-modal"><div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${ATTEMPT_LABELS[attempt - 1]}</h3>
-      <div class="stage"><div class="dshadow"></div><div class="hop"><div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div></div></div>
+      <div class="stage"><div class="dshadow ${useCube ? '' : 'wide'}"></div><div class="hop">${shape}</div></div>
+      <div class="muted sm">${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per QP set</div>
       <div class="rstatus rolling">ROLLING</div><div class="rv"></div></div>`, {
       dismissable: false,
       onMount: (m, close) => {
-        const dice = m.querySelector('.dice'), hop = m.querySelector('.hop');
+        const dice = m.querySelector('.dice, .prism'), hop = m.querySelector('.hop');
         dice.style.transition = 'none';
-        dice.style.transform = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)';
+        dice.style.transform = from;
         void dice.offsetWidth;
         requestAnimationFrame(() => {
           dice.style.transition = '';
           hop.classList.add('go');
-          const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
-          dice.style.transform = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
+          dice.style.transform = to;
         });
         setTimeout(() => {
           const st = m.querySelector('.rstatus'); st.classList.remove('rolling'); st.textContent = isFinal ? '' : 'RESULT';
