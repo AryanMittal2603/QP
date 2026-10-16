@@ -5,7 +5,8 @@ import crypto from 'node:crypto';
 const sql = neon(process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_SECRET;
 const ITER = 150000;
-const ATTEMPTS = 5;
+const MAX_ATTEMPTS = 7;   // Mode A uses 5; Mode B lets the client lock 3–7 for the whole exam
+const FINAL_MODES = new Set(['fixed5', 'client']);
 
 /* ---------------- helpers ---------------- */
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -54,6 +55,7 @@ function ensureSchema() {
     await sql`create table if not exists client_audit (install_id text not null, seq int not null, entry jsonb not null, hash text not null, received_at timestamptz default now(), primary key (install_id, seq))`;
     await sql`create table if not exists draws (key text primary key, install_id text not null, exam_id text not null, shift_id text not null, subject_id text not null, attempt int not null, draw jsonb not null, log_hash text not null, received_at timestamptz default now())`;
     await sql`create table if not exists sync_status (install_id text primary key, actor text, last_sync timestamptz, entries int, chain_ok boolean, issues jsonb, head text)`;
+    await sql`create table if not exists final_choices (exam_id text primary key, install_id text not null, final_attempt int not null, log_hash text not null, choice jsonb not null, received_at timestamptz default now())`;
     await sql`create table if not exists sync_conflicts (id serial primary key, install_id text, kind text, detail jsonb, created_at timestamptz default now())`;
   })().catch(e => { schemaReady = null; throw e; });
   return schemaReady;
@@ -87,6 +89,7 @@ function verifyEntries(entries) {
 /* ---------------- validation ---------------- */
 function validateExam(doc) {
   if (!doc || !str(doc.id, 64) || !str(doc.name) || !str(doc.code, 60) || !Array.isArray(doc.shifts)) fail(400, 'Invalid exam document.');
+  if (doc.finalMode !== undefined && !FINAL_MODES.has(doc.finalMode)) fail(400, 'Invalid final selection mode.');
   for (const s of doc.shifts) {
     if (!str(s.id, 64) || !str(s.name) || !/^\d{4}-\d{2}-\d{2}$/.test(s.date) || !/^\d{2}:\d{2}$/.test(s.start) || !/^\d{2}:\d{2}$/.test(s.end) || s.end <= s.start || !Array.isArray(s.subjects)) fail(400, `Invalid shift "${s.name}".`);
     for (const b of s.subjects) {
@@ -139,8 +142,12 @@ const routes = {
     const { publishedVersion, publishedAt, changedSincePublish, ...doc } = exam || {};
     doc.updatedAt = Date.now();
     validateExam(doc);
-    const [ex] = await sql`select deleted from exams where id = ${doc.id}`;
+    const [ex] = await sql`select deleted, doc from exams where id = ${doc.id}`;
     if (ex && ex.deleted) fail(410, 'Exam was deleted.');
+    if (ex && (ex.doc.finalMode || 'fixed5') !== (doc.finalMode || 'fixed5')) {
+      const [{ n }] = await sql`select (select count(*) from draws where exam_id = ${doc.id}) + (select count(*) from final_choices where exam_id = ${doc.id}) as n`;
+      if (Number(n) > 0) fail(409, 'The final selection mode cannot be changed after randomization has started for this exam.');
+    }
     await sql`insert into exams (id, doc, updated_at) values (${doc.id}, ${JSON.stringify(doc)}::jsonb, now()) on conflict (id) do update set doc = excluded.doc, updated_at = now()`;
     await adminLog(user, event, { examId: doc.id, examCode: doc.code, ...(details || {}) });
     return { ok: true };
@@ -208,6 +215,7 @@ const routes = {
     syncs: await sql`select install_id, actor, last_sync, entries, chain_ok, issues, head from sync_status order by last_sync desc`,
     conflicts: await sql`select id, install_id, kind, detail, created_at from sync_conflicts order by id desc limit 200`,
     exams: (await sql`select doc from exams where not deleted`).map(r => r.doc),
+    choices: await sql`select exam_id, install_id, final_attempt, choice, received_at from final_choices`,
   }),
   'GET admin/client-audit': async ({ query }) => {
     const entries = (await sql`select entry from client_audit where install_id = ${query.installId} order by seq`).map(r => r.entry);
@@ -228,6 +236,7 @@ const routes = {
     const installId = str(body.installId, 64); if (!installId) fail(400, 'Missing install id.');
     const entries = Array.isArray(body.entries) ? body.entries.sort((a, b) => a.seq - b.seq) : [];
     const draws = Array.isArray(body.draws) ? body.draws : [];
+    const choices = Array.isArray(body.choices) ? body.choices : [];
     if (entries.length > 20000) fail(413, 'Too many entries.');
     const v = verifyEntries(entries);
     const conflicts = [];
@@ -243,7 +252,7 @@ const routes = {
     }
     // Draws are only accepted if they are backed by a matching, verified audit entry.
     const bySeq = new Map(entries.map(e => [e.seq, e]));
-    const valid = draws.filter(d => { const e = bySeq.get(d.logSeq); return e && e.event === 'RANDOMIZATION_DRAW' && e.hash === d.logHash && e.details.key === d.key && e.details.colourIndex === d.colourIndex && d.attempt >= 1 && d.attempt <= ATTEMPTS; });
+    const valid = draws.filter(d => { const e = bySeq.get(d.logSeq); return e && e.event === 'RANDOMIZATION_DRAW' && e.hash === d.logHash && e.details.key === d.key && e.details.colourIndex === d.colourIndex && d.attempt >= 1 && d.attempt <= MAX_ATTEMPTS; });
     if (valid.length !== draws.length) conflicts.push({ kind: 'UNVERIFIED_DRAWS_REJECTED', detail: { count: draws.length - valid.length } });
     if (valid.length) {
       await sql`insert into draws (key, install_id, exam_id, shift_id, subject_id, attempt, draw, log_hash)
@@ -251,10 +260,18 @@ const routes = {
       const stored = new Map((await sql`select key, install_id, log_hash from draws where key = any(${valid.map(d => d.key)})`).map(r => [r.key, r]));
       valid.forEach(d => { const s = stored.get(d.key); if (s.install_id !== installId || s.log_hash !== d.logHash) conflicts.push({ kind: 'DUPLICATE_DRAW_CONFLICT', detail: { key: d.key, subject: d.subjectName, attempt: d.attempt, acceptedFrom: s.install_id, rejectedFrom: installId } }); });
     }
+    // Final-iteration choices (Mode B) are accepted only when backed by a matching audit entry.
+    const okChoices = choices.filter(c => { const e = bySeq.get(c.logSeq); return e && e.event === 'FINAL_ITERATION_CHOSEN' && e.hash === c.logHash && e.details.examId === c.examId && e.details.finalAttempt === c.finalAttempt && c.finalAttempt >= 3 && c.finalAttempt <= MAX_ATTEMPTS; });
+    if (okChoices.length !== choices.length) conflicts.push({ kind: 'UNVERIFIED_CHOICES_REJECTED', detail: { count: choices.length - okChoices.length } });
+    for (const c of okChoices) {
+      await sql`insert into final_choices (exam_id, install_id, final_attempt, log_hash, choice) values (${c.examId}, ${installId}, ${c.finalAttempt}, ${c.logHash}, ${JSON.stringify(c)}::jsonb) on conflict (exam_id) do nothing`;
+      const [st] = await sql`select install_id, final_attempt, log_hash from final_choices where exam_id = ${c.examId}`;
+      if (st.log_hash !== c.logHash) conflicts.push({ kind: 'FINAL_CHOICE_CONFLICT', detail: { examId: c.examId, accepted: st.final_attempt, acceptedFrom: st.install_id, rejected: c.finalAttempt, rejectedFrom: installId } });
+    }
     for (const c of conflicts) await sql`insert into sync_conflicts (install_id, kind, detail) values (${installId}, ${c.kind}, ${JSON.stringify(c.detail)}::jsonb)`;
     await sql`insert into sync_status (install_id, actor, last_sync, entries, chain_ok, issues, head) values (${installId}, ${user}, now(), ${entries.length}, ${v.ok}, ${JSON.stringify(v.issues)}::jsonb, ${v.head})
       on conflict (install_id) do update set actor = excluded.actor, last_sync = now(), entries = excluded.entries, chain_ok = excluded.chain_ok, issues = excluded.issues, head = excluded.head`;
-    return { ok: v.ok && !conflicts.length, chainOk: v.ok, issues: v.issues, conflicts, entries: entries.length, draws: valid.length, syncedAt: Date.now() };
+    return { ok: v.ok && !conflicts.length, chainOk: v.ok, issues: v.issues, conflicts, entries: entries.length, draws: valid.length, choices: okChoices.length, syncedAt: Date.now() };
   },
 };
 

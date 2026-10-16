@@ -166,8 +166,12 @@ const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
 const enc = new TextEncoder();
 const ITER = 150000;
-const ATTEMPTS = 5;
-const ATTEMPT_LABELS = ['1st Attempt', '2nd Attempt', '3rd Attempt', '4th Attempt', 'Final (5th)'];
+const ATTEMPTS = 5;                 // Mode A: the 5th attempt is final
+const MIN_FINAL = 3, MAX_FINAL = 7;  // Mode B: client chooses the final iteration in this range, before any roll
+const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+const attemptLabel = (a, total) => a === total ? `Final (${ORD[a - 1]})` : `${ORD[a - 1]} Attempt`;
+const isClientMode = e => e && e.finalMode === 'client';
+const modeText = (e, total) => isClientMode(e) ? (total ? `Final iteration: ${ORD[total - 1]} (chosen by client, locked)` : `Final iteration: chosen by client (${MIN_FINAL}–${MAX_FINAL}) before the first roll`) : 'Final iteration: 5th (fixed)';
 const PRESETS = [['Red','#d92d20'],['Blue','#1d4ed8'],['Green','#16a34a'],['Yellow','#facc15'],['Pink','#ec4899'],['Orange','#f97316'],['Purple','#7e22ce'],['White','#ffffff'],['Grey','#6b7280'],['Brown','#8b5a2b'],['Sky Blue','#38bdf8'],['Maroon','#7f1d1d']];
 const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
@@ -235,17 +239,20 @@ async function apiOrAlert(path, opts) { try { return await api(path, opts); } ca
 let db;
 function openDB() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open('upessc_qpr_v1', 1);
-    r.onupgradeneeded = () => {
+    const r = indexedDB.open('upessc_qpr_v1', 2);
+    r.onupgradeneeded = ev => {
       const d = r.result;
-      d.createObjectStore('meta');
-      d.createObjectStore('admin_exams', { keyPath: 'id' });
-      d.createObjectStore('admin_log', { keyPath: 'seq' });
-      d.createObjectStore('client_exams', { keyPath: 'id' });
-      d.createObjectStore('draws', { keyPath: 'key' });
-      d.createObjectStore('client_log', { keyPath: 'seq' });
+      if (ev.oldVersion < 1) {
+        d.createObjectStore('meta');
+        d.createObjectStore('admin_exams', { keyPath: 'id' });
+        d.createObjectStore('admin_log', { keyPath: 'seq' });
+        d.createObjectStore('client_exams', { keyPath: 'id' });
+        d.createObjectStore('draws', { keyPath: 'key' });
+        d.createObjectStore('client_log', { keyPath: 'seq' });
+      }
+      if (ev.oldVersion < 2) d.createObjectStore('choices', { keyPath: 'examId' });   // locked final-iteration choice per exam
     };
-    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    r.onsuccess = () => { const d = r.result; d.onversionchange = () => d.close(); res(d); }; r.onerror = () => rej(r.error);
   });
 }
 function reqP(store, mode, fn) {
@@ -316,10 +323,17 @@ async function verifyChain(scope) {
     const draws = await idb.all('draws'); const bySeq = new Map(entries.map(e => [e.seq, e]));
     for (const d of draws) {
       const e = bySeq.get(d.logSeq);
-      if (!e || e.event !== 'RANDOMIZATION_DRAW' || e.details.key !== d.key || e.details.colourIndex !== d.colourIndex || e.hash !== d.logHash) issues.push(`Draw ${d.subjectName} / ${ATTEMPT_LABELS[d.attempt-1]} does not match the audit log`);
+      if (!e || e.event !== 'RANDOMIZATION_DRAW' || e.details.key !== d.key || e.details.colourIndex !== d.colourIndex || e.hash !== d.logHash) issues.push(`Draw ${d.subjectName} / ${ORD[d.attempt - 1]} attempt does not match the audit log`);
     }
     const keys = new Set(draws.map(d => d.key));
     entries.filter(e => e.event === 'RANDOMIZATION_DRAW' && !keys.has(e.details.key)).forEach(e => issues.push(`Draw record for log entry #${e.seq} is missing`));
+    const choices = await idb.all('choices');
+    for (const c of choices) {
+      const e = bySeq.get(c.logSeq);
+      if (!e || e.event !== 'FINAL_ITERATION_CHOSEN' || e.details.examId !== c.examId || e.details.finalAttempt !== c.finalAttempt || e.hash !== c.logHash) issues.push(`Final-iteration choice for ${c.examCode || c.examId} does not match the audit log`);
+    }
+    const cKeys = new Set(choices.map(c => c.examId));
+    entries.filter(e => e.event === 'FINAL_ITERATION_CHOSEN' && !cKeys.has(e.details.examId)).forEach(e => issues.push(`Final-iteration record for log entry #${e.seq} is missing`));
   }
   return { ok: !issues.length, issues, count: entries.length, head: prev, entries };
 }
@@ -408,6 +422,7 @@ function confirmModal(title, html, okLabel = 'Confirm', cls = 'primary') {
 function fieldHtml(f) {
   const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
   if (f.type === 'colours') return `<div class="fld"><span>${esc(f.label)}</span>${hint}<div data-colours="${f.name}"></div></div>`;
+  if (f.type === 'select') return `<label class="fld"><span>${esc(f.label)}</span><select name="${f.name}">${f.options.map(([v, l]) => `<option value="${esc(v)}" ${v === (f.value || f.options[0][0]) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>${hint}</label>`;
   if (f.type === 'textarea') return `<label class="fld"><span>${esc(f.label)}</span><textarea name="${f.name}" rows="2">${esc(f.value || '')}</textarea>${hint}</label>`;
   return `<label class="fld"><span>${esc(f.label)}</span><input name="${f.name}" type="${f.type || 'text'}" ${f.accept ? `accept="${f.accept}"` : ''} value="${f.type === 'file' ? '' : esc(f.value || '')}" ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ''} autocomplete="off">${hint}</label>`;
 }
@@ -530,7 +545,10 @@ async function logout() {
   setSession(null); cstate.view = 'exams'; astate.examId = null; renderLanding();
 }
 
-const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description }];
+const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description },
+  { name: 'finalMode', label: 'Final set selection', type: 'select', value: e.finalMode || 'fixed5',
+    options: [['fixed5', 'Default — the 5th attempt is the final set'], ['client', `Client chooses the final iteration (${MIN_FINAL}–${MAX_FINAL}) before the first roll`]],
+    hint: 'In client mode, the Randomization Console picks one number for the whole exam before any roll; it is then locked. The mode cannot be changed once randomization has started.' }];
 const shiftFields = (s = {}) => [{ name: 'name', label: 'Shift name', value: s.name, required: true, placeholder: 'e.g. Shift 1 – Morning' }, { row: [{ name: 'date', label: 'Exam date', type: 'date', value: s.date, required: true }, { name: 'start', label: 'Randomization allowed from', type: 'time', value: s.start, required: true }, { name: 'end', label: 'Randomization allowed until', type: 'time', value: s.end, required: true }] }];
 const shiftValidate = v => v.end <= v.start ? 'The randomization end time must be after the start time.' : null;
 const subjectFields = (s = {}) => [{ row: [{ name: 'name', label: 'Subject name', value: s.name, required: true, placeholder: 'e.g. Mathematics' }, { name: 'code', label: 'Subject code', value: s.code, placeholder: 'e.g. MATH-01' }] }, { name: 'colours', label: 'Colour-coded QP sets for this subject', type: 'colours', value: s.colours || [], hint: 'Add every colour-coded question paper set supplied by the Commission for this subject (minimum 2).' }];
@@ -547,12 +565,12 @@ async function renderExamList(v) {
   v.innerHTML = `<div class="toolbar"><h2>Exams</h2><div class="sp"></div><button class="btn primary" data-act="new">+ Create exam</button></div>
     ${exams.length ? `<div class="grid-cards">${exams.map(e => `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3>
       <div class="muted">${e.shifts.length} shift(s) · ${e.shifts.reduce((n, s) => n + s.subjects.length, 0)} subject entries</div>
-      <div class="sm" style="margin-top:6px">${publishBadge(e)}</div></div>`).join('')}</div>`
+      <div class="muted sm">${modeText(e)}</div><div class="sm" style="margin-top:6px">${publishBadge(e)}</div></div>`).join('')}</div>`
       : `<div class="empty">No exams yet. Create the first exam to begin.</div>`}`;
   bind(v, {
     new: async () => {
       const r = await formModal('Create exam', examFields()); if (!r) return;
-      const e = { id: uid(), name: r.name, code: r.code, description: r.description, createdAt: Date.now(), shifts: [] };
+      const e = { id: uid(), name: r.name, code: r.code, description: r.description, finalMode: r.finalMode, createdAt: Date.now(), shifts: [] };
       if (await apiOrAlert('admin/exams', { method: 'PUT', body: { exam: e, event: 'EXAM_CREATED', details: { name: e.name } } })) { astate.examId = e.id; renderAdmin(); }
     },
     open: d => { astate.examId = d.id; renderAdmin(); }
@@ -570,6 +588,7 @@ async function renderExamEditor(v) {
       <button class="btn" data-act="export" title="Encrypted .qpr file for a PC that cannot go online at all">⬇ Offline package (.qpr)</button>
       <button class="btn primary" data-act="publish">⬆ ${e.publishedAt ? 'Re-publish' : 'Publish'} to Randomization Console</button></div>
   <div class="card"><div class="row"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2>${e.description ? `<div class="muted">${esc(e.description)}</div>` : ''}
+    <div class="sm" style="margin-top:4px"><b>${modeText(e)}</b></div>
     <div class="muted sm" style="margin-top:4px">Created ${fmtTs(e.createdAt)} · Last updated ${fmtTs(e.updatedAt)} · ${publishBadge(e)}${e.publishedAt ? ` <span class="muted">at ${fmtTs(e.publishedAt)}</span>` : ''}</div></div>
     <div><button class="btn sm" data-act="editExam">Edit</button> <button class="btn sm danger" data-act="delExam">Delete</button></div></div></div>
   <div class="toolbar" style="margin-top:20px"><h3 style="margin:0">Shifts</h3><div class="sp"></div><button class="btn primary sm" data-act="addShift">+ Add shift</button></div>
@@ -584,7 +603,7 @@ async function renderExamEditor(v) {
   const S = id => e.shifts.find(x => x.id === id);
   bind(v, {
     back: () => { astate.examId = null; renderAdmin(); },
-    editExam: async () => { const r = await formModal('Edit exam', examFields(e)); if (!r) return; Object.assign(e, r); saveExam(e, 'EXAM_UPDATED', { name: r.name, code: r.code }); },
+    editExam: async () => { const r = await formModal('Edit exam', examFields(e)); if (!r) return; Object.assign(e, r); saveExam(e, 'EXAM_UPDATED', { name: r.name, code: r.code, finalMode: r.finalMode }); },
     delExam: async () => { if (!await confirmModal('Delete exam?', `<p>Delete <b>${esc(e.name)}</b>? It will no longer be sent to the Randomization Console. Synced results remain in the database.</p>`, 'Delete', 'danger')) return;
       if (await apiOrAlert('admin/exams?id=' + encodeURIComponent(e.id), { method: 'DELETE' })) { astate.examId = null; renderAdmin(); } },
     addShift: async () => { const r = await formModal('Add shift', shiftFields(), { validate: shiftValidate }); if (!r) return; const s = { id: uid(), ...r, subjects: [] }; e.shifts.push(s); saveExam(e, 'SHIFT_CREATED', { shiftId: s.id, ...r }); },
@@ -653,26 +672,30 @@ async function renderResults(v) {
   const r = await api('admin/results');
   const D = new Map(r.draws.map(d => [d.key, d]));
   const examsWithDraws = r.exams.filter(e => r.draws.some(d => d.examId === e.id));
+  const C = new Map((r.choices || []).map(c => [c.exam_id, c]));
+  const totalOf = e => isClientMode(e) ? (C.get(e.id) || {}).final_attempt || null : ATTEMPTS;
   v.innerHTML = `<div class="toolbar"><h2>Results & Sync</h2><div class="sp"></div><button class="btn" data-act="reload">↻ Refresh</button><button class="btn primary" data-act="csv">⬇ Results CSV</button></div>
     <div class="card"><h3>Randomization PCs</h3>${r.syncs.length ? `<table class="tbl"><thead><tr><th>PC install ID</th><th>User</th><th>Last sync</th><th>Audit entries</th><th>Chain</th><th></th></tr></thead><tbody>
       ${r.syncs.map(s => `<tr><td class="mono">${esc(s.install_id)}</td><td>${esc(s.actor)}</td><td>${fmtTs(new Date(s.last_sync).getTime())}</td><td>${s.entries}</td><td>${s.chain_ok ? '<span class="badge b-open">✔ intact</span>' : `<span class="badge" style="background:var(--badbg);color:var(--bad)">⛔ ${esc((s.issues || [])[0] || 'broken')}</span>`}</td>
       <td><button class="btn sm" data-act="clog" data-id="${esc(s.install_id)}">⬇ Audit log</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No Randomization PC has synced yet. A PC syncs automatically when it comes back online after randomization.</p>'}</div>
     ${r.conflicts.length ? `<div class="card" style="border-color:#f3c3be"><h3 style="color:var(--bad)">⚠ Sync conflicts</h3><table class="tbl"><thead><tr><th>Time</th><th>PC</th><th>Type</th><th>Detail</th></tr></thead><tbody>
       ${r.conflicts.map(c => `<tr><td>${fmtTs(new Date(c.created_at).getTime())}</td><td class="mono">${esc(c.install_id)}</td><td><b>${esc(c.kind)}</b></td><td class="mono">${esc(JSON.stringify(c.detail))}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    ${examsWithDraws.length ? examsWithDraws.map(e => e.shifts.filter(s => r.draws.some(d => d.shiftId === s.id)).map(s => `<div class="card"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h3>${esc(s.name)} <span class="muted sm">${fmtDate(s.date)} · ${s.start}–${s.end}</span></h3>
-      <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject</th>${ATTEMPT_LABELS.map((l, i) => `<th class="${i === ATTEMPTS - 1 ? 'final' : ''}">${l}</th>`).join('')}</tr></thead><tbody>
-      ${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b> <span class="muted sm">${esc(sb.code || '')}</span></td>${[1, 2, 3, 4, 5].map(a => { const d = D.get(dkey(e.id, s.id, sb.id, a));
-        return d ? `<td class="${a === ATTEMPTS ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTs(d.ts)}</div></td>` : `<td class="${a === ATTEMPTS ? 'final' : ''}" style="color:#b3b9c5">—</td>`; }).join('')}</tr>`).join('')}
-      </tbody></table></div></div>`).join('')).join('') : '<div class="empty">No randomization results synced yet.</div>'}`;
+    ${examsWithDraws.length ? examsWithDraws.map(e => { const T = totalOf(e), cols = Array.from({ length: T || MAX_FINAL }, (_, i) => i + 1);
+      return e.shifts.filter(s => r.draws.some(d => d.shiftId === s.id)).map(s => `<div class="card"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)} · ${modeText(e, T)}</div><h3>${esc(s.name)} <span class="muted sm">${fmtDate(s.date)} · ${s.start}–${s.end}</span></h3>
+      <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject</th>${cols.map(a => `<th class="${a === T ? 'final' : ''}">${T ? attemptLabel(a, T) : ORD[a - 1] + ' Attempt'}</th>`).join('')}</tr></thead><tbody>
+      ${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b> <span class="muted sm">${esc(sb.code || '')}</span></td>${cols.map(a => { const d = D.get(dkey(e.id, s.id, sb.id, a));
+        return d ? `<td class="${a === T ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTs(d.ts)}</div></td>` : `<td class="${a === T ? 'final' : ''}" style="color:#b3b9c5">—</td>`; }).join('')}</tr>`).join('')}
+      </tbody></table></div></div>`).join(''); }).join('') : '<div class="empty">No randomization results synced yet.</div>'}`;
   bind(v, {
     reload: () => renderAdmin(),
     csv: () => {
-      const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ATTEMPT_LABELS.flatMap(l => [l, l + ' time']), 'Status', 'PC install ID']];
-      r.exams.forEach(e => e.shifts.forEach(s => s.subjects.forEach(sb => {
+      const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final set', 'Status', 'PC install ID']];
+      r.exams.forEach(e => { const T = totalOf(e); e.shifts.forEach(s => s.subjects.forEach(sb => {
         const cells = []; let n = 0, pc = '';
-        for (let a = 1; a <= ATTEMPTS; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
-        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, n === ATTEMPTS ? 'FINAL LOCKED' : `In progress (${n}/5)`, pc]);
-      })));
+        for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
+        const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
+        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? `${fd.colour.name}${fd.colour.set ? ' (' + fd.colour.set + ')' : ''}` : '', T && n === T ? 'FINAL LOCKED' : `In progress (${n}/${T || '?'})`, pc]);
+      })); });
       download(`UPESSC_QPR_SERVER_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
     },
     clog: async d => { const x = await apiOrAlert('admin/client-audit?installId=' + encodeURIComponent(d.id)); if (!x) return;
@@ -726,13 +749,15 @@ async function exportAudit(scope, kind) {
   }
 }
 async function exportResults() {
-  const exams = await idb.all('client_exams'), draws = await idb.all('draws'); const D = new Map(draws.map(d => [d.key, d]));
-  const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ATTEMPT_LABELS.flatMap(l => [l, l + ' time']), 'Status']];
-  exams.forEach(e => e.shifts.forEach(s => s.subjects.forEach(sb => {
+  const exams = await idb.all('client_exams'), draws = await idb.all('draws'), choices = await choiceMap(); const D = new Map(draws.map(d => [d.key, d]));
+  const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final set', 'Status']];
+  exams.forEach(e => { const T = totalFor(e, choices); e.shifts.forEach(s => s.subjects.forEach(sb => {
     const cells = []; let n = 0;
-    for (let a = 1; a <= ATTEMPTS; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
-    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, n === ATTEMPTS ? 'FINAL LOCKED' : n ? `In progress (${n}/5)` : 'Not started']);
-  })));
+    for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
+    const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
+    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? `${fd.colour.name}${fd.colour.set ? ' (' + fd.colour.set + ')' : ''}` : '',
+      !T ? 'Final iteration not chosen' : n === T ? 'FINAL LOCKED' : n ? `In progress (${n}/${T})` : 'Not started']);
+  })); });
   await appendLog('client', 'RESULTS_EXPORTED', { rows: rows.length - 1 });
   download(`UPESSC_QPR_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
 }
@@ -745,7 +770,16 @@ const dkey = (e, s, b, a) => `${e}|${s}|${b}|${a}`;
 function shiftWindow(s) { return { start: new Date(`${s.date}T${s.start}:00`).getTime(), end: new Date(`${s.date}T${s.end}:59.999`).getTime() }; }
 function windowState(s, now = Date.now()) { const w = shiftWindow(s); return now < w.start ? 'upcoming' : now > w.end ? 'closed' : 'open'; }
 async function drawMap(examId) { const m = new Map(); (await idb.all('draws')).filter(d => d.examId === examId).forEach(d => m.set(d.key, d)); return m; }
-function shiftProgress(e, s, D) { let done = 0, total = s.subjects.length * ATTEMPTS; s.subjects.forEach(sb => { for (let a = 1; a <= ATTEMPTS; a++) if (D.has(dkey(e.id, s.id, sb.id, a))) done++; }); return { done, total, complete: total > 0 && done === total }; }
+/* Number of attempts for an exam: 5 in Mode A; the locked client choice in Mode B (null until chosen) */
+const totalFor = (e, choices) => isClientMode(e) ? ((choices.get(e.id) || {}).finalAttempt || null) : ATTEMPTS;
+async function finalPlan(e) { const choice = isClientMode(e) ? await idb.get('choices', e.id) : null; return { mode: isClientMode(e) ? 'client' : 'fixed', total: isClientMode(e) ? (choice ? choice.finalAttempt : null) : ATTEMPTS, choice }; }
+async function choiceMap() { return new Map((await idb.all('choices')).map(c => [c.examId, c])); }
+function shiftProgress(e, s, D, T) {
+  if (!T) return { done: 0, total: 0, complete: false };
+  let done = 0; const total = s.subjects.length * T;
+  s.subjects.forEach(sb => { for (let a = 1; a <= T; a++) if (D.has(dkey(e.id, s.id, sb.id, a))) done++; });
+  return { done, total, complete: total > 0 && done === total };
+}
 function stateBadge(s, prog) {
   if (prog.complete) return '<span class="badge b-lock">🔒 LOCKED</span>';
   const w = windowState(s);
@@ -821,6 +855,7 @@ async function mergeExam(ex, meta) {
   const shifts = ex.shifts.map(s => mergeShift(s, existing && existing.shifts.find(o => o.id === s.id)));
   if (existing) existing.shifts.forEach(o => { if (startedShifts.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); keptLocked.push(o.name); } });
   const { packageVersion, exportedAt, ...doc } = ex;
+  if (existing && (draws.length || await idb.get('choices', ex.id)) && (existing.finalMode || 'fixed5') !== (doc.finalMode || 'fixed5')) { doc.finalMode = existing.finalMode || 'fixed5'; keptLocked.push('final selection mode'); }
   await idb.put('client_exams', { ...doc, shifts, ...meta, importedAt: Date.now() });
   return { updated, keptLocked };
 }
@@ -833,8 +868,8 @@ async function syncNow(auto = false) {
   if (!token) { if (!auto) toast('Log in online once to enable sync'); return; }
   syncing = true;
   try {
-    const entries = (await idb.all('client_log')).sort((a, b) => a.seq - b.seq), draws = await idb.all('draws');
-    const r = await api('client/sync', { method: 'POST', token, body: { installId: await installId(), entries, draws } });
+    const entries = (await idb.all('client_log')).sort((a, b) => a.seq - b.seq), draws = await idb.all('draws'), choices = await idb.all('choices');
+    const r = await api('client/sync', { method: 'POST', token, body: { installId: await installId(), entries, draws, choices } });
     await idb.put('meta', { at: Date.now(), upToSeq: entries.length ? entries[entries.length - 1].seq : 0, draws: r.draws, ok: r.ok, conflicts: r.conflicts }, 'last_sync');
     await appendLog('client', 'SYNC_COMPLETED', { upToSeq: entries.length ? entries[entries.length - 1].seq : 0, entries: r.entries, draws: r.draws, serverChainOk: r.chainOk, conflicts: r.conflicts });
     if (!auto || !r.ok) toast(r.ok ? `Synced ✔ ${r.draws} draw(s), ${r.entries} log entries` : 'Synced with conflicts. See server results.');
@@ -895,12 +930,12 @@ async function renderClient() {
 
 async function renderClientExams(v) {
   const exams = (await idb.all('client_exams')).filter(e => e.shifts.length).sort((a, b) => a.name.localeCompare(b.name));
-  const draws = await idb.all('draws');
+  const draws = await idb.all('draws'), choices = await choiceMap();
   v.innerHTML = `<div class="toolbar"><h2>Select exam</h2></div>${exams.length ? `<div class="grid-cards">${exams.map(e => {
-      const D = new Map(draws.filter(d => d.examId === e.id).map(d => [d.key, d]));
-      const open = e.shifts.filter(s => windowState(s) === 'open' && !shiftProgress(e, s, D).complete).length;
-      const locked = e.shifts.filter(s => shiftProgress(e, s, D).complete).length;
-      return `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3><div class="muted sm">${e.shifts.length} shift(s) · package v${e.packageVersion}</div>
+      const D = new Map(draws.filter(d => d.examId === e.id).map(d => [d.key, d])), T = totalFor(e, choices);
+      const open = e.shifts.filter(s => windowState(s) === 'open' && !shiftProgress(e, s, D, T).complete).length;
+      const locked = e.shifts.filter(s => shiftProgress(e, s, D, T).complete).length;
+      return `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3><div class="muted sm">${e.shifts.length} shift(s) · package v${e.packageVersion}</div><div class="muted sm">${modeText(e, T)}</div>
         <div style="margin-top:8px">${open ? `<span class="badge b-open">● ${open} shift(s) open now</span> ` : ''}${locked ? `<span class="badge b-lock">🔒 ${locked} locked</span>` : ''}${!open && !locked ? '<span class="badge b-closed">No window open now</span>' : ''}</div></div>`; }).join('')}</div>`
     : '<div class="empty">No exams available. Import an exam package.</div>'}`;
   bind(v, { open: async d => { cstate.view = 'exam'; cstate.examId = d.id; const e = exams.find(x => x.id === d.id); await appendLog('client', 'EXAM_SELECTED', { examId: e.id, examName: e.name, examCode: e.code }); renderClient(); } });
@@ -908,10 +943,10 @@ async function renderClientExams(v) {
 
 async function renderClientExam(v) {
   const e = await idb.get('client_exams', cstate.examId); if (!e) { cstate.view = 'exams'; return renderClient(); }
-  const D = await drawMap(e.id);
+  const D = await drawMap(e.id), T = (await finalPlan(e)).total;
   const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Exams</button><div><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2></div></div>
-    <div class="grid-cards">${shifts.map(s => { const p = shiftProgress(e, s, D); return `<div class="card click" data-act="open" data-id="${s.id}"><h3>${esc(s.name)}</h3>
+  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Exams</button><div><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2><div class="muted sm">${modeText(e, T)}</div></div></div>
+    <div class="grid-cards">${shifts.map(s => { const p = shiftProgress(e, s, D, T); return `<div class="card click" data-act="open" data-id="${s.id}"><h3>${esc(s.name)}</h3>
       <div class="muted sm">📅 ${fmtDate(s.date)} · Window ${s.start} – ${s.end}</div><div class="muted sm">${s.subjects.length} subject(s)</div><div style="margin-top:8px">${stateBadge(s, p)}</div></div>`; }).join('')}</div>`;
   bind(v, { back: () => { cstate.view = 'exams'; renderClient(); },
     open: async d => { const s = e.shifts.find(x => x.id === d.id); cstate.view = 'shift'; cstate.shiftId = s.id; await appendLog('client', 'SHIFT_OPENED', { examId: e.id, examCode: e.code, shiftId: s.id, shiftName: s.name, windowState: windowState(s) }); renderClient(); } });
@@ -920,27 +955,53 @@ async function renderClientExam(v) {
 async function renderShift(v) {
   const e = await idb.get('client_exams', cstate.examId); const s = e && e.shifts.find(x => x.id === cstate.shiftId);
   if (!s) { cstate.view = 'exams'; return renderClient(); }
-  const D = await drawMap(e.id), p = shiftProgress(e, s, D), w = windowState(s), canRoll = w === 'open' && !p.complete && !navigator.onLine;
+  const T = (await finalPlan(e)).total;
+  const D = await drawMap(e.id), p = shiftProgress(e, s, D, T), w = windowState(s), canRoll = !!T && w === 'open' && !p.complete && !navigator.onLine;
   let note;
   if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final sets have been selected. No further changes are possible.</div>`;
   else if (w === 'open' && navigator.onLine) note = `<div class="notice warn">🔌 The randomization window is open, but this PC is CONNECTED to a network. Disconnect the network cable / Wi-Fi to enable the dice. Randomization is only allowed offline.</div>`;
   else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
   else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start}</b> on <b>${fmtDate(s.date)}</b> (PC clock).</div>`;
   else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
+  const range = Array.from({ length: MAX_FINAL - MIN_FINAL + 1 }, (_, i) => MIN_FINAL + i);
+  const choosePanel = T ? '' : `<div class="card" style="border:2px solid var(--gold);background:#fffbea"><h3>Choose the final iteration for this exam</h3>
+      <p>This exam uses a <b>client-selected final iteration</b>. Before any roll, choose which iteration (${MIN_FINAL}–${MAX_FINAL}) gives the FINAL question paper set.
+      The choice applies to <b>every shift and every subject</b> of ${esc(e.name)} and is <b>locked permanently</b>.</p>
+      <div class="row">${range.map(n => `<button class="btn gold" data-act="choose" data-n="${n}">${ORD[n - 1]} iteration</button>`).join('')}</div></div>`;
   const cell = (sb, a) => {
-    const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === ATTEMPTS ? 'final' : '';
+    const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === T ? 'final' : '';
     if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
-    let next = 1; while (next <= ATTEMPTS && D.has(dkey(e.id, s.id, sb.id, next))) next++;
-    if (a === next) return `<td class="${fin}"><button class="btn ${a === ATTEMPTS ? 'gold' : 'primary'}" data-act="roll" data-b="${sb.id}" data-a="${a}" ${canRoll ? '' : 'disabled'}>🎲 ${a === ATTEMPTS ? 'Final roll' : 'Roll'}</button></td>`;
+    let next = 1; while (next <= T && D.has(dkey(e.id, s.id, sb.id, next))) next++;
+    if (a === next) return `<td class="${fin}"><button class="btn ${a === T ? 'gold' : 'primary'}" data-act="roll" data-b="${sb.id}" data-a="${a}" ${canRoll ? '' : 'disabled'}>🎲 ${a === T ? 'Final roll' : 'Roll'}</button></td>`;
     return `<td class="${fin} pending" style="color:#b3b9c5">—</td>`;
   };
-  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Shifts</button><div class="grow"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h2>${esc(s.name)} <span style="font-size:13px">${stateBadge(s, p)}</span></h2></div><div class="sp"></div>
+  const cols = Array.from({ length: T || 0 }, (_, i) => i + 1);
+  v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Shifts</button><div class="grow"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h2>${esc(s.name)} <span style="font-size:13px">${stateBadge(s, p)}</span></h2><div class="muted sm">${modeText(e, T)}</div></div><div class="sp"></div>
       <button class="btn" data-act="audit">Audit log</button></div>
-    ${note}
-    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & QP colour sets</th>${ATTEMPT_LABELS.map((l, i) => `<th class="${i === ATTEMPTS - 1 ? 'final' : ''}">${l}</th>`).join('')}</tr></thead>
-    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${[1, 2, 3, 4, 5].map(a => cell(sb, a)).join('')}</tr>`).join('')}</tbody></table></div>
+    ${choosePanel}${note}
+    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & QP colour sets</th>${T ? cols.map(a => `<th class="${a === T ? 'final' : ''}">${attemptLabel(a, T)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
+    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(a => cell(sb, a)).join('') : '<td class="muted">Choose the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
     <p class="muted sm" style="margin-top:12px">Every draw uses the browser's cryptographic random number generator (crypto.getRandomValues) with unbiased rejection sampling. Each attempt is an independent draw from all sets of that subject. Results are written to the hash-chained audit log before the animation finishes, so a refresh or power cut cannot alter them.</p>`;
-  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a) });
+  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), choose: d => chooseFinal(e.id, +d.n) });
+}
+
+/* Mode B: lock the final iteration for the whole exam, before any roll */
+async function chooseFinal(examId, n) {
+  if (busy) return; busy = true;
+  try {
+    const e = await idb.get('client_exams', examId);
+    if (!isClientMode(e) || !Number.isInteger(n) || n < MIN_FINAL || n > MAX_FINAL) return;
+    if (await idb.get('choices', examId)) { toast('The final iteration is already locked.'); return; }
+    if ((await idb.all('draws')).some(d => d.examId === examId)) { toast('Randomization has already started for this exam.'); return; }
+    const ok = await confirmModal(`Lock the ${ORD[n - 1]} iteration as final?`,
+      `<p>For <b>${esc(e.name)}</b> (${esc(e.code)}), every subject in every shift will have <b>${n} attempts</b>, and the <b>${ORD[n - 1]} attempt</b> gives the FINAL question paper set.</p><p><b>This is locked permanently and cannot be changed.</b></p>`,
+      `Lock ${ORD[n - 1]} as final`, 'gold');
+    if (!ok) { await appendLog('client', 'FINAL_ITERATION_CHOICE_CANCELLED', { examId, examCode: e.code, proposedFinalAttempt: n }); return; }
+    await appendLog('client', 'FINAL_ITERATION_CHOSEN', { examId, examCode: e.code, examName: e.name, finalAttempt: n, allowedRange: `${MIN_FINAL}-${MAX_FINAL}`, chosenBy: session.user, clockReading: new Date().toISOString(), networkOnline: navigator.onLine },
+      { extra: en => ({ store: 'choices', value: { examId, examCode: e.code, finalAttempt: n, chosenBy: session.user, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
+    toast(`Final iteration locked: ${ORD[n - 1]}`);
+  } catch (err) { await alertModal('Choice not recorded', `<p>${esc(err.message || err)}</p>`); }
+  finally { busy = false; renderClient(); }
 }
 
 /* ---------- the draw ---------- */
@@ -952,13 +1013,16 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
   try {
     await checkClock('pre-draw');
     const e = await idb.get('client_exams', examId), s = e.shifts.find(x => x.id === shiftId), sb = s.subjects.find(x => x.id === subjectId);
+    const plan = await finalPlan(e), T = plan.total;
+    if (!T) { toast('Choose the final iteration first.'); return renderClient(); }
+    if (attempt < 1 || attempt > T) { toast('Invalid attempt.'); return renderClient(); }
     if (navigator.onLine) { await appendLog('client', 'DRAW_BLOCKED_NETWORK_CONNECTED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Disconnect the network to randomize.'); return renderClient(); }
     if (windowState(s) !== 'open') { await appendLog('client', 'DRAW_BLOCKED_OUTSIDE_WINDOW', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Randomization window is not open (PC clock).'); return renderClient(); }
     const n = sb.colours.length;
-    const ok = await confirmModal(`${sb.name} — ${ATTEMPT_LABELS[attempt - 1]}`,
+    const ok = await confirmModal(`${sb.name} — ${attemptLabel(attempt, T)}`,
       `<p>${esc(e.name)} · ${esc(s.name)}</p><p>Pool of ${n} colour-coded sets (each has a 1 in ${n} chance):</p><div class="swatches">${sb.colours.map(swMini).join('')}</div>
-       <p style="margin-top:12px"><b>${attempt === ATTEMPTS ? 'This is the FINAL draw. The selected colour becomes the question paper set for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
-      attempt === ATTEMPTS ? '🎲 Roll FINAL' : '🎲 Roll the dice', attempt === ATTEMPTS ? 'gold' : 'primary');
+       <p style="margin-top:12px"><b>${attempt === T ? 'This is the FINAL draw. The selected colour becomes the question paper set for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
+      attempt === T ? '🎲 Roll FINAL' : '🎲 Roll the dice', attempt === T ? 'gold' : 'primary');
     if (!ok) { await appendLog('client', 'DRAW_CANCELLED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); return; }
 
     const key = dkey(examId, shiftId, subjectId, attempt);
@@ -969,17 +1033,17 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     // ---- random selection ----
     const rnd = secureRandomInt(n), colour = sb.colours[rnd.value];
     const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
-      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: ATTEMPT_LABELS[attempt - 1], pool: sb.colours.map(c => c.name + (c.set ? ` (${c.set})` : '')), poolSize: n,
-      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), networkOnline: navigator.onLine, isFinal: attempt === ATTEMPTS };
+      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: attemptLabel(attempt, T), pool: sb.colours.map(c => c.name + (c.set ? ` (${c.set})` : '')), poolSize: n,
+      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), networkOnline: navigator.onLine, finalAttempt: T, finalMode: plan.mode, isFinal: attempt === T };
     // Persist FIRST (draw + audit entry in one atomic transaction), then animate.
     const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex: rnd.value, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
-    await animateRoll(e, s, sb, attempt, colour, entry);
+    await animateRoll(e, s, sb, attempt, colour, entry, T);
 
-    if (attempt === ATTEMPTS) {
+    if (attempt === T) {
       await appendLog('client', 'SUBJECT_FINAL_LOCKED', { examCode: e.code, shiftName: s.name, subjectName: sb.name, finalColour: colour, drawSeq: entry.seq });
       const D2 = await drawMap(examId);
-      if (shiftProgress(e, s, D2).complete) {
-        await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => ({ subject: x.name, colour: D2.get(dkey(examId, shiftId, x.id, ATTEMPTS)).colour.name })) });
+      if (shiftProgress(e, s, D2, T).complete) {
+        await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => ({ subject: x.name, colour: D2.get(dkey(examId, shiftId, x.id, T)).colour.name })) });
         await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final set. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media. Results will sync to the server automatically when the PC is reconnected.</p>`);
       }
     }
@@ -989,9 +1053,9 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
   } finally { busy = false; renderClient(); }
 }
 
-function animateRoll(e, s, sb, attempt, colour, entry) {
+function animateRoll(e, s, sb, attempt, colour, entry, total = ATTEMPTS) {
   return new Promise(resolve => {
-    const N = sb.colours.length, isFinal = attempt === ATTEMPTS;
+    const N = sb.colours.length, isFinal = attempt === total;
     // Exactly 6 sets → classic Ludo cube (one face per colour). Any other count → N-sided rolling
     // prism ("long dice"), so every colour of the subject is on exactly one face.
     const useCube = N === 6;
@@ -1008,7 +1072,7 @@ function animateRoll(e, s, sb, attempt, colour, entry) {
       const k = sb.colours.indexOf(colour), turns = 4 + Math.floor(Math.random() * 3);
       from = 'rotateX(0deg)'; to = `rotateX(${-(turns * 360 + k * step)}deg)`;
     }
-    openModal(`<div class="roll-modal"><div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${ATTEMPT_LABELS[attempt - 1]}</h3>
+    openModal(`<div class="roll-modal"><div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${attemptLabel(attempt, total)}</h3>
       <div class="stage"><div class="dshadow ${useCube ? '' : 'wide'}"></div><div class="hop">${shape}</div></div>
       <div class="muted sm">${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per QP set</div>
       <div class="rstatus rolling">ROLLING</div><div class="rv"></div></div>`, {
