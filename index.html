@@ -166,11 +166,12 @@ const app = $('#app');
 const enc = new TextEncoder();
 const ITER = 150000;
 const ATTEMPTS = 5;                 // Mode A: the 5th attempt is final
-const MIN_FINAL = 3, MAX_FINAL = 7;  // Mode B: client chooses the final iteration in this range, before any roll
+const MIN_FINAL = 3, MAX_FINAL = 7;  // Mode B: the final iteration is drawn at random in this range on the Randomization PC, before any roll
+const FINAL_EVENTS = new Set(['FINAL_ITERATION_RANDOMIZED', 'FINAL_ITERATION_CHOSEN']);   // CHOSEN = older manual choice, still accepted when verifying
 const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
 const attemptLabel = (a, total) => a === total ? `Final (${ORD[a - 1]})` : `${ORD[a - 1]} Attempt`;
 const isClientMode = e => e && e.finalMode === 'client';
-const modeText = (e, total) => isClientMode(e) ? (total ? `Final iteration: ${ORD[total - 1]} (chosen by client, locked)` : `Final iteration: chosen by client (${MIN_FINAL}–${MAX_FINAL}) before the first roll`) : 'Final iteration: 5th (fixed)';
+const modeText = (e, total) => isClientMode(e) ? (total ? `Final iteration: ${ORD[total - 1]} (drawn at random, locked)` : `Final iteration: drawn at random (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}) before the first roll`) : 'Final iteration: 5th (fixed)';
 const PRESETS = [['Red','#d92d20'],['Blue','#1d4ed8'],['Green','#16a34a'],['Yellow','#facc15'],['Pink','#ec4899'],['Orange','#f97316'],['Purple','#7e22ce'],['White','#ffffff'],['Grey','#6b7280'],['Brown','#8b5a2b'],['Sky Blue','#38bdf8'],['Maroon','#7f1d1d']];
 const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
@@ -192,7 +193,6 @@ async function pbkdf2(pw, salt) {
 }
 async function hashPw(pw, saltB64) { return b64(await pbkdf2(pw, unb64(saltB64))); }
 async function makeCred(username, pw) { const salt = b64(crypto.getRandomValues(new Uint8Array(16))); return { username, salt, hash: await hashPw(pw, salt) }; }
-async function aesKey(pw, salt) { return crypto.subtle.importKey('raw', await pbkdf2(pw, salt), 'AES-GCM', false, ['encrypt', 'decrypt']); }
 /* Unbiased cryptographic integer in [0, n) using rejection sampling */
 function secureRandomInt(n) {
   const limit = Math.floor(0x100000000 / n) * n, a = new Uint32Array(1); let x, tries = 0;
@@ -332,10 +332,10 @@ async function verifyChain(scope) {
     const choices = await idb.all('choices');
     for (const c of choices) {
       const e = bySeq.get(c.logSeq);
-      if (!e || e.event !== 'FINAL_ITERATION_CHOSEN' || e.details.examId !== c.examId || e.details.finalAttempt !== c.finalAttempt || e.hash !== c.logHash) issues.push(`Final-iteration choice for ${c.examCode || c.examId} does not match the audit log`);
+      if (!e || !FINAL_EVENTS.has(e.event) || e.details.examId !== c.examId || e.details.finalAttempt !== c.finalAttempt || e.hash !== c.logHash) issues.push(`Final-iteration choice for ${c.examCode || c.examId} does not match the audit log`);
     }
     const cKeys = new Set(choices.map(c => c.examId));
-    entries.filter(e => e.event === 'FINAL_ITERATION_CHOSEN' && !cKeys.has(e.details.examId)).forEach(e => issues.push(`Final-iteration record for log entry #${e.seq} is missing`));
+    entries.filter(e => FINAL_EVENTS.has(e.event) && !cKeys.has(e.details.examId)).forEach(e => issues.push(`Final-iteration record for log entry #${e.seq} is missing`));
   }
   return { ok: !issues.length, issues, count: entries.length, head: prev, entries };
 }
@@ -482,7 +482,7 @@ function readColours(el) {
 function renderLanding() {
   app.innerHTML = `<div class="mode-cards">
     <div class="card click" data-act="admin"><div class="ic">🛠️</div><h3>Admin Console</h3><p class="muted">Online. Create exams, shifts, subjects and their question paper colours. Publish them to the Randomization Console and view synced results.</p><button class="btn">Open Admin Console</button></div>
-    <div class="card click" data-act="client"><div class="ic">🎲</div><h3>Randomization Console</h3><p class="muted">Log in online once to download published exams. Then disconnect the network and perform the 5-iteration randomization offline.</p><button class="btn primary">Open Randomization Console</button></div>
+    <div class="card click" data-act="client"><div class="ic">🎲</div><h3>Randomization Console</h3><p class="muted">Log in online once to download published exams. Then disconnect the network and perform the randomization offline.</p><button class="btn primary">Open Randomization Console</button></div>
   </div>
   <p class="muted sm" style="text-align:center">Randomization runs fully offline. Every draw is stored in this browser's hash-chained audit log and synced to the server when the PC is back online. Also export the audit log after every session and keep it on secure media.</p>`;
   bind(app, { admin: renderAdminAuth, client: renderClientAuth });
@@ -492,7 +492,7 @@ function renderLanding() {
    ADMIN CONSOLE (online — data lives in Vercel / Neon Postgres)
    ========================================================= */
 async function renderAdminAuth() {
-  if (!HAS_SERVER) { app.innerHTML = `<div class="auth card"><h3>Admin Console needs the server</h3><p class="muted">Open the hosted portal URL to use the Admin Console. This local copy only supports the offline Randomization Console.</p><div class="actions"><button class="btn" data-act="back">Back</button></div></div>`; bind(app, { back: renderLanding }); return; }
+  if (!HAS_SERVER) { app.innerHTML = `<div class="auth card"><h3>Admin Console needs the server</h3><p class="muted">Open the hosted portal URL to use the Admin Console.</p><div class="actions"><button class="btn" data-act="back">Back</button></div></div>`; bind(app, { back: renderLanding }); return; }
   let st;
   try { st = await api('status', { token: null }); }
   catch (e) { app.innerHTML = `<div class="auth card"><h3>Server not reachable</h3><p class="muted">${esc(e.message)}</p><div class="actions"><button class="btn" data-act="back">Back</button><button class="btn primary" data-act="retry">Retry</button></div></div>`; bind(app, { back: renderLanding, retry: renderAdminAuth }); return; }
@@ -548,8 +548,8 @@ async function logout() {
 
 const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description },
   { name: 'finalMode', label: 'Final colour selection', type: 'select', value: e.finalMode || 'fixed5',
-    options: [['fixed5', 'Default — the 5th attempt gives the final colour'], ['client', `Client chooses the final iteration (${MIN_FINAL}–${MAX_FINAL}) before the first roll`]],
-    hint: 'In client mode, the Randomization Console picks one number for the whole exam before any roll; it is then locked. The mode cannot be changed once randomization has started.' }];
+    options: [['fixed5', 'Default — the 5th attempt gives the final colour'], ['client', `Random — the final iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}) is drawn at random before the first roll`]],
+    hint: `In random mode, the Randomization Console draws the final iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}, each equally likely) offline before the first roll. It applies to every shift and subject of the exam and is locked. The mode cannot be changed once randomization has started.` }];
 const shiftFields = (s = {}) => [{ name: 'name', label: 'Shift name', value: s.name, required: true, placeholder: 'e.g. Shift 1 – Morning' }, { row: [{ name: 'date', label: 'Exam date', type: 'date', value: s.date, required: true }, { name: 'start', label: 'Randomization allowed from', type: 'time', value: s.start, required: true }, { name: 'end', label: 'Randomization allowed until', type: 'time', value: s.end, required: true }] }];
 const shiftValidate = v => v.end <= v.start ? 'The randomization end time must be after the start time.' : null;
 const subjectFields = (s = {}) => [{ row: [{ name: 'name', label: 'Subject name', value: s.name, required: true, placeholder: 'e.g. Mathematics' }, { name: 'code', label: 'Subject code', value: s.code, placeholder: 'e.g. MATH-01' }] }, { name: 'colours', label: 'Question paper colours for this subject', type: 'colours', value: s.colours || [], hint: 'Add every question paper colour supplied by the Commission for this subject (minimum 2).' }];
@@ -586,7 +586,6 @@ async function renderExamEditor(v) {
   const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← All exams</button><div class="sp"></div>
       ${e.publishedAt ? '<button class="btn sm danger" data-act="unpublish">Unpublish</button>' : ''}
-      <button class="btn" data-act="export" title="Encrypted .qpr file for a PC that cannot go online at all">⬇ Offline package (.qpr)</button>
       <button class="btn primary" data-act="publish">⬆ ${e.publishedAt ? 'Re-publish' : 'Publish'} to Randomization Console</button></div>
   <div class="card"><div class="row"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2>${e.description ? `<div class="muted">${esc(e.description)}</div>` : ''}
     <div class="sm" style="margin-top:4px"><b>${modeText(e)}</b></div>
@@ -620,30 +619,8 @@ async function renderExamEditor(v) {
       if (!await confirmModal(`${e.publishedAt ? 'Re-publish' : 'Publish'} exam?`, `<p><b>${esc(e.name)}</b> will be downloaded by the Randomization Console at its next online login.</p>`, 'Publish')) return;
       const r = await apiOrAlert('admin/publish', { method: 'POST', body: { id: e.id } }); if (r) { toast(`Published v${r.publishedVersion}`); renderAdmin(); } },
     unpublish: async () => { if (!await confirmModal('Unpublish exam?', '<p>The exam will no longer be sent to the Randomization Console at login. Copies already downloaded on a client PC are not removed.</p>', 'Unpublish', 'danger')) return;
-      if (await apiOrAlert('admin/unpublish', { method: 'POST', body: { id: e.id } })) renderAdmin(); },
-    export: () => exportPackage(e)
+      if (await apiOrAlert('admin/unpublish', { method: 'POST', body: { id: e.id } })) renderAdmin(); }
   });
-}
-
-/* Offline backup path: publishes, then downloads the same version as an encrypted file */
-async function exportPackage(e) {
-  const { clientCred: cred, logo } = await api('admin/settings');
-  if (!cred) return alertModal('Cannot export yet', '<p>Create the Randomization Console login in Settings first.</p>');
-  const r = await formModal('Download encrypted offline package', [{ name: 'pw', label: `Password of Randomization login "${cred.username}"`, type: 'password', required: true, hint: 'Use this only for a PC that cannot go online even once. The exam is published, and the same version is encrypted (AES-256-GCM) with this password.' }],
-    { submitLabel: 'Publish, encrypt & download', validate: async v2 => (await hashPw(v2.pw, cred.salt)) === cred.hash ? null : 'Password does not match the configured Randomization login.' });
-  if (!r) return;
-  const pub = await apiOrAlert('admin/publish', { method: 'POST', body: { id: e.id } }); if (!pub) return;
-  const version = pub.publishedVersion;
-  const { publishedVersion, publishedAt, changedSincePublish, ...examData } = e;
-  const payload = { format: 'UPESSC-QPR-PAYLOAD', version: 1, packageVersion: version, exportedAt: new Date().toISOString(), exportedBy: session.user, adminInstallId: 'server',
-    client: cred, logo: logo || null, exam: examData };
-  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await aesKey(r.pw, salt), enc.encode(JSON.stringify(payload)));
-  const data = b64(ct);
-  const pkg = { format: 'UPESSC-QPR-PACKAGE', version: 1, examCode: e.code, packageVersion: version, createdAt: payload.exportedAt, kdf: { name: 'PBKDF2-SHA256', iterations: ITER }, cipher: 'AES-256-GCM', salt: b64(salt), iv: b64(iv), data, sha256: await sha256(data) };
-  download(`UPESSC_${safeName(e.code)}_package_v${version}_${stamp()}.qpr`, JSON.stringify(pkg));
-  await api('admin/package-logged', { method: 'POST', body: { examId: e.id, examCode: e.code, packageVersion: version, packageSha256: pkg.sha256 } }).catch(() => {});
-  toast(`Package v${version} downloaded`); renderAdmin();
 }
 
 async function renderAdminSettings(v) {
@@ -695,7 +672,7 @@ async function renderResults(v) {
         const cells = []; let n = 0, pc = '';
         for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? d.colour.name : '', d ? fmtTs(d.ts) : ''); }
         const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
-        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? fd.colour.name : '', T && n === T ? 'FINAL LOCKED' : `In progress (${n}/${T || '?'})`, pc]);
+        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not drawn yet', fd ? fd.colour.name : '', T && n === T ? 'FINAL LOCKED' : `In progress (${n}/${T || '?'})`, pc]);
       })); });
       download(`UPESSC_QPR_SERVER_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
     },
@@ -756,8 +733,8 @@ async function exportResults() {
     const cells = []; let n = 0;
     for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? d.colour.name : '', d ? fmtTs(d.ts) : ''); }
     const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
-    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? fd.colour.name : '',
-      !T ? 'Final iteration not chosen' : n === T ? 'FINAL LOCKED' : n ? `In progress (${n}/${T})` : 'Not started']);
+    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not drawn yet', fd ? fd.colour.name : '',
+      !T ? 'Final iteration not drawn yet' : n === T ? 'FINAL LOCKED' : n ? `In progress (${n}/${T})` : 'Not started']);
   })); });
   await appendLog('client', 'RESULTS_EXPORTED', { rows: rows.length - 1 });
   download(`UPESSC_QPR_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
@@ -771,7 +748,7 @@ const dkey = (e, s, b, a) => `${e}|${s}|${b}|${a}`;
 function shiftWindow(s) { return { start: new Date(`${s.date}T${s.start}:00`).getTime(), end: new Date(`${s.date}T${s.end}:59.999`).getTime() }; }
 function windowState(s, now = Date.now()) { const w = shiftWindow(s); return now < w.start ? 'upcoming' : now > w.end ? 'closed' : 'open'; }
 async function drawMap(examId) { const m = new Map(); (await idb.all('draws')).filter(d => d.examId === examId).forEach(d => m.set(d.key, d)); return m; }
-/* Number of attempts for an exam: 5 in Mode A; the locked client choice in Mode B (null until chosen) */
+/* Number of attempts for an exam: 5 in Mode A; the locked random draw in Mode B (null until drawn) */
 const totalFor = (e, choices) => isClientMode(e) ? ((choices.get(e.id) || {}).finalAttempt || null) : ATTEMPTS;
 async function finalPlan(e) { const choice = isClientMode(e) ? await idb.get('choices', e.id) : null; return { mode: isClientMode(e) ? 'client' : 'fixed', total: isClientMode(e) ? (choice ? choice.finalAttempt : null) : ATTEMPTS, choice }; }
 async function choiceMap() { return new Map((await idb.all('choices')).map(c => [c.examId, c])); }
@@ -790,11 +767,10 @@ function stateBadge(s, prog) {
 async function renderClientAuth() {
   const auth = await idb.get('meta', 'client_auth');
   app.innerHTML = `<div class="auth card"><div class="eyebrow">Randomization Console</div><h3>Login</h3>
-    <p class="muted sm">${navigator.onLine && HAS_SERVER ? 'Online: logging in downloads all published exams to this PC. Disconnect the network afterwards to randomize.' : auth ? 'Offline: you can log in with the credentials cached at the last online login.' : 'This PC has never logged in online. Connect to the internet for the first login, or import an offline package.'}</p>
+    <p class="muted sm">${navigator.onLine && HAS_SERVER ? 'Online: logging in downloads all published exams to this PC. Disconnect the network afterwards to randomize.' : auth ? 'Offline: you can log in with the credentials cached at the last online login.' : 'This PC has never logged in online. Connect to the internet for the first login.'}</p>
     <form class="form" id="lf"><label class="fld"><span>Username</span><input name="u" autocomplete="off"></label><label class="fld"><span>Password</span><input name="p" type="password"></label><div class="err" hidden></div>
-      <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Log in</button></div></form>
-    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn sm" data-act="imp">⬆ Import offline package (.qpr)</button></div>`;
-  bind(app, { back: renderLanding, imp: async () => { if (await importPackageFlow()) renderClientAuth(); } });
+      <div class="actions"><button type="button" class="btn ghost" data-act="back">Back</button><button class="btn primary">Log in</button></div></form></div>`;
+  bind(app, { back: renderLanding });
   const f = $('#lf'); f.u.focus();
   f.onsubmit = async e => {
     e.preventDefault(); const u = f.u.value.trim(), p = f.p.value, er = f.querySelector('.err'), btn = f.querySelector('.btn.primary');
@@ -813,7 +789,7 @@ async function renderClientAuth() {
     } else {
       mode = 'offline';
       const a = await idb.get('meta', 'client_auth');
-      if (!a) return showErr('Server not reachable and this PC has no cached login. Connect to the internet for the first login, or import an offline package.');
+      if (!a) return showErr('Server not reachable and this PC has no cached login. Connect to the internet for the first login.');
       if (!(u === a.username && await hashPw(p, a.salt) === a.hash)) { await appendLog('client', 'CLIENT_LOGIN_FAILED', { attemptedUsername: u, mode }, { actor: u || 'unknown' }); return showErr('Invalid username or password.'); }
     }
     setSession({ role: 'client', user: u });
@@ -881,34 +857,6 @@ async function syncNow(auto = false) {
   } finally { syncing = false; if (session && session.role === 'client' && !busy && !$('#modalRoot').children.length) renderClient(); }
 }
 
-async function decryptPackage(file, pw) {
-  let pkg; try { pkg = JSON.parse(await file.text()); } catch { throw new Error('This is not a valid exam package file.'); }
-  if (pkg.format !== 'UPESSC-QPR-PACKAGE') throw new Error('This is not a UPESSC exam package.');
-  if (await sha256(pkg.data) !== pkg.sha256) throw new Error('Package file is corrupted (checksum mismatch).');
-  let plain; try { plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(pkg.iv) }, await aesKey(pw, unb64(pkg.salt)), unb64(pkg.data)); }
-  catch { throw new Error('Wrong password, or the package has been modified.'); }
-  const payload = JSON.parse(new TextDecoder().decode(plain));
-  if (payload.format !== 'UPESSC-QPR-PAYLOAD') throw new Error('Unsupported package content.');
-  return { pkg, payload };
-}
-async function importPackageFlow() {
-  let res;
-  const r = await formModal('Import offline exam package', [{ name: 'file', label: 'Package file (.qpr)', type: 'file', accept: '.qpr', required: true }, { name: 'pw', label: 'Randomization login password', type: 'password', required: true }],
-    { submitLabel: 'Decrypt & import', validate: async v => { try { res = await decryptPackage(v.file, v.pw); } catch (err) { await appendLog('client', 'PACKAGE_IMPORT_FAILED', { file: v.file.name, reason: err.message }); return err.message; }
-      const ex = await idb.get('client_exams', res.payload.exam.id);
-      if (ex && ex.packageVersion > res.payload.packageVersion) return `A newer version (v${ex.packageVersion}) of this exam is already on this PC.`;
-      return null; } });
-  if (!r) return false;
-  const { pkg, payload } = res, ex = payload.exam;
-  const m = await mergeExam(ex, { packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, source: 'package' });
-  await idb.put('meta', payload.client, 'client_auth');
-  if (payload.logo) await idb.put('meta', payload.logo, 'logo');
-  await appendLog('client', 'PACKAGE_IMPORTED', { file: r.file.name, examId: ex.id, examName: ex.name, examCode: ex.code, packageVersion: payload.packageVersion, packageSha256: pkg.sha256, exportedAt: payload.exportedAt, exportedBy: payload.exportedBy, ...m, clientUsername: payload.client.username },
-    { actor: (session && session.user) || payload.client.username });
-  renderHeader();
-  await alertModal('Package imported', `<p><b>${esc(ex.name)}</b> (${esc(ex.code)}) — version ${payload.packageVersion}</p><p>Updated: ${m.updated.map(esc).join(', ') || '—'}${m.keptLocked.length ? `<br>Kept unchanged because randomization has already started: ${m.keptLocked.map(esc).join(', ')}` : ''}</p>`);
-  return true;
-}
 
 async function renderClient() {
   if (!session) return renderLanding();
@@ -920,8 +868,8 @@ async function renderClient() {
   const syncInfo = ls ? `Last sync ${fmtTs(ls.at)}${pending ? ' · <b>unsynced changes</b>' : ' ✔'}` : 'Not yet synced';
   app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div>
     <span class="muted sm">${syncInfo}</span><button class="btn sm" data-act="sync" ${navigator.onLine && HAS_SERVER ? '' : 'disabled title="Connect to the internet to sync"'}>⟳ Sync now</button>
-    <button class="btn sm" data-act="imp">⬆ Import package</button> <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
-  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout, sync: () => syncNow(false), imp: async () => { if (await importPackageFlow()) renderClient(); } });
+    <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
+  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout, sync: () => syncNow(false) });
   const v = $('#view');
   if (cstate.view === 'audit') return renderAudit(v, 'client');
   if (cstate.view === 'exam') return renderClientExam(v);
@@ -936,9 +884,9 @@ async function renderClientExams(v) {
       const D = new Map(draws.filter(d => d.examId === e.id).map(d => [d.key, d])), T = totalFor(e, choices);
       const open = e.shifts.filter(s => windowState(s) === 'open' && !shiftProgress(e, s, D, T).complete).length;
       const locked = e.shifts.filter(s => shiftProgress(e, s, D, T).complete).length;
-      return `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3><div class="muted sm">${e.shifts.length} shift(s) · package v${e.packageVersion}</div><div class="muted sm">${modeText(e, T)}</div>
+      return `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3><div class="muted sm">${e.shifts.length} shift(s) · published v${e.packageVersion}</div><div class="muted sm">${modeText(e, T)}</div>
         <div style="margin-top:8px">${open ? `<span class="badge b-open">● ${open} shift(s) open now</span> ` : ''}${locked ? `<span class="badge b-lock">🔒 ${locked} locked</span>` : ''}${!open && !locked ? '<span class="badge b-closed">No window open now</span>' : ''}</div></div>`; }).join('')}</div>`
-    : '<div class="empty">No exams available. Import an exam package.</div>'}`;
+    : '<div class="empty">No exams on this PC yet. Log in while online to download the published exams.</div>'}`;
   bind(v, { open: async d => { cstate.view = 'exam'; cstate.examId = d.id; const e = exams.find(x => x.id === d.id); await appendLog('client', 'EXAM_SELECTED', { examId: e.id, examName: e.name, examCode: e.code }); renderClient(); } });
 }
 
@@ -964,11 +912,11 @@ async function renderShift(v) {
   else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
   else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start}</b> on <b>${fmtDate(s.date)}</b> (PC clock).</div>`;
   else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
-  const range = Array.from({ length: MAX_FINAL - MIN_FINAL + 1 }, (_, i) => MIN_FINAL + i);
-  const choosePanel = T ? '' : `<div class="card" style="border:2px solid var(--gold);background:#fffbea"><h3>Choose the final iteration for this exam</h3>
-      <p>This exam uses a <b>client-selected final iteration</b>. Before any roll, choose which iteration (${MIN_FINAL}–${MAX_FINAL}) gives the FINAL question paper colour.
-      The choice applies to <b>every shift and every subject</b> of ${esc(e.name)} and is <b>locked permanently</b>.</p>
-      <div class="row">${range.map(n => `<button class="btn gold" data-act="choose" data-n="${n}">${ORD[n - 1]} iteration</button>`).join('')}</div></div>`;
+  const canPick = !T && w === 'open' && !navigator.onLine;
+  const choosePanel = T ? '' : `<div class="card" style="border:2px solid var(--gold);background:#fffbea"><h3>Draw the final iteration for this exam</h3>
+      <p>This exam uses a <b>randomly drawn final iteration</b>. Before the first roll, the system draws at random which iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}, each equally likely) gives the FINAL question paper colour.
+      The result applies to <b>every shift and every subject</b> of ${esc(e.name)} and is <b>locked permanently</b>.</p>
+      <div class="row" style="align-items:center"><button class="btn gold" data-act="pickFinal" ${canPick ? '' : 'disabled'}>🎲 Draw final iteration</button>${canPick ? '' : '<span class="muted sm">Available offline while the randomization window is open.</span>'}</div></div>`;
   const cell = (sb, a) => {
     const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === T ? 'final' : '';
     if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
@@ -981,28 +929,42 @@ async function renderShift(v) {
       <button class="btn" data-act="audit">Audit log</button></div>
     ${choosePanel}${note}
     <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & question paper colours</th>${T ? cols.map(a => `<th class="${a === T ? 'final' : ''}">${attemptLabel(a, T)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
-    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(a => cell(sb, a)).join('') : '<td class="muted">Choose the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
+    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(a => cell(sb, a)).join('') : '<td class="muted">Draw the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
     <p class="muted sm" style="margin-top:12px">Every draw uses the browser's cryptographic random number generator (crypto.getRandomValues) with unbiased rejection sampling. Each attempt is an independent draw from all colours of that subject. Results are written to the hash-chained audit log before the animation finishes, so a refresh or power cut cannot alter them.</p>`;
-  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), choose: d => chooseFinal(e.id, +d.n) });
+  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), pickFinal: () => drawFinalIteration(e.id, s.id) });
 }
 
-/* Mode B: lock the final iteration for the whole exam, before any roll */
-async function chooseFinal(examId, n) {
+/* Mode B: draw the final iteration (3rd–7th) at random for the whole exam, before any roll, and lock it.
+   Same rules as a roll: offline only, inside the shift's window, recorded in the audit log before the animation. */
+async function drawFinalIteration(examId, shiftId) {
   if (busy) return; busy = true;
   try {
-    const e = await idb.get('client_exams', examId);
-    if (!isClientMode(e) || !Number.isInteger(n) || n < MIN_FINAL || n > MAX_FINAL) return;
+    await checkClock('pre-final-iteration-draw');
+    const e = await idb.get('client_exams', examId), s = e && e.shifts.find(x => x.id === shiftId);
+    if (!s || !isClientMode(e)) return;
     if (await idb.get('choices', examId)) { toast('The final iteration is already locked.'); return; }
     if ((await idb.all('draws')).some(d => d.examId === examId)) { toast('Randomization has already started for this exam.'); return; }
-    const ok = await confirmModal(`Lock the ${ORD[n - 1]} iteration as final?`,
-      `<p>For <b>${esc(e.name)}</b> (${esc(e.code)}), every subject in every shift will have <b>${n} attempts</b>, and the <b>${ORD[n - 1]} attempt</b> gives the FINAL question paper colour.</p><p><b>This is locked permanently and cannot be changed.</b></p>`,
-      `Lock ${ORD[n - 1]} as final`, 'gold');
-    if (!ok) { await appendLog('client', 'FINAL_ITERATION_CHOICE_CANCELLED', { examId, examCode: e.code, proposedFinalAttempt: n }); return; }
-    await appendLog('client', 'FINAL_ITERATION_CHOSEN', { examId, examCode: e.code, examName: e.name, finalAttempt: n, allowedRange: `${MIN_FINAL}-${MAX_FINAL}`, chosenBy: session.user, clockReading: new Date().toISOString(), networkOnline: navigator.onLine },
-      { extra: en => ({ store: 'choices', value: { examId, examCode: e.code, finalAttempt: n, chosenBy: session.user, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
-    toast(`Final iteration locked: ${ORD[n - 1]}`);
-  } catch (err) { await alertModal('Choice not recorded', `<p>${esc(err.message || err)}</p>`); }
-  finally { busy = false; renderClient(); }
+    if (navigator.onLine) { await appendLog('client', 'FINAL_ITERATION_BLOCKED_NETWORK_CONNECTED', { examId, examCode: e.code, shiftName: s.name }); toast('Disconnect the network to randomize.'); return; }
+    if (windowState(s) !== 'open') { await appendLog('client', 'FINAL_ITERATION_BLOCKED_OUTSIDE_WINDOW', { examId, examCode: e.code, shiftName: s.name }); toast('Randomization window is not open (PC clock).'); return; }
+    const pool = Array.from({ length: MAX_FINAL - MIN_FINAL + 1 }, (_, i) => MIN_FINAL + i);
+    const ok = await confirmModal('Draw the final iteration?',
+      `<p>For <b>${esc(e.name)}</b> (${esc(e.code)}), the system will now draw at random which iteration gives the FINAL question paper colour.</p>
+       <p>Possible results: ${pool.map(n => `<b>${ORD[n - 1]}</b>`).join(', ')} (each has a 1 in ${pool.length} chance).</p>
+       <p style="margin-top:12px"><b>The result applies to every subject in every shift of this exam and is locked permanently. It cannot be redrawn.</b></p>`,
+      '🎲 Draw final iteration', 'gold');
+    if (!ok) { await appendLog('client', 'FINAL_ITERATION_DRAW_CANCELLED', { examId, examCode: e.code, shiftName: s.name }); return; }
+    // ---- random selection ----
+    const rnd = secureRandomInt(pool.length), n = pool[rnd.value];
+    // Persist FIRST (choice + audit entry in one atomic transaction), then animate.
+    const entry = await appendLog('client', 'FINAL_ITERATION_RANDOMIZED', { examId, examCode: e.code, examName: e.name, finalAttempt: n, pool: pool.map(x => ORD[x - 1]), poolSize: pool.length,
+      drawIndex: rnd.value, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, drawnBy: session.user, shiftId, shiftName: s.name,
+      clockReading: new Date().toISOString(), networkOnline: navigator.onLine },
+      { extra: en => ({ store: 'choices', value: { examId, examCode: e.code, finalAttempt: n, method: 'random', drawnBy: session.user, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
+    await animateFinalIteration(e, s, pool, rnd.value, entry);
+  } catch (err) {
+    console.error(err);
+    await alertModal('Final iteration not recorded', `<p>${esc(err.message || err)}</p><p class="muted">No result was saved. If it was already drawn it remains locked.</p>`);
+  } finally { busy = false; renderClient(); }
 }
 
 /* ---------- the draw ---------- */
@@ -1015,7 +977,7 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     await checkClock('pre-draw');
     const e = await idb.get('client_exams', examId), s = e.shifts.find(x => x.id === shiftId), sb = s.subjects.find(x => x.id === subjectId);
     const plan = await finalPlan(e), T = plan.total;
-    if (!T) { toast('Choose the final iteration first.'); return renderClient(); }
+    if (!T) { toast('Draw the final iteration first.'); return renderClient(); }
     if (attempt < 1 || attempt > T) { toast('Invalid attempt.'); return renderClient(); }
     if (navigator.onLine) { await appendLog('client', 'DRAW_BLOCKED_NETWORK_CONNECTED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Disconnect the network to randomize.'); return renderClient(); }
     if (windowState(s) !== 'open') { await appendLog('client', 'DRAW_BLOCKED_OUTSIDE_WINDOW', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Randomization window is not open (PC clock).'); return renderClient(); }
@@ -1054,28 +1016,22 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
   } finally { busy = false; renderClient(); }
 }
 
-function animateRoll(e, s, sb, attempt, k, entry, total = ATTEMPTS) {
+/* N-sided rolling prism ("long dice"): one face per item, ends with face k at the front */
+function prismShape(faces, k) {   // faces: [{ hex, label }]
+  const N = faces.length, R = 92, step = 360 / N, h = 2 * R * Math.sin(Math.PI / N), apo = R * Math.cos(Math.PI / N);
+  const fs = Math.max(11, Math.min(22, h * 0.32)), turns = 4 + Math.floor(Math.random() * 3);
+  return {
+    shape: `<div class="prism" style="--h:${h.toFixed(2)}px">${faces.map((c, i) => `<div class="pface" style="--c:${c.hex};--ink:${ink(c.hex)};font-size:${fs}px;transform:rotateX(${(i * step).toFixed(3)}deg) translateZ(${apo.toFixed(2)}px)"><span>${esc(c.label)}</span></div>`).join('')}</div>`,
+    from: 'rotateX(0deg)', to: `rotateX(${-(turns * 360 + k * step)}deg)`
+  };
+}
+const lockLine = entry => `<div class="lockline">🔒 Locked & recorded — audit entry #${entry.seq} · ${fmtTs(entry.ts)} · hash ${entry.hash.slice(0, 16)}…</div>`;
+/* Shared dice modal: spins `shape` from → to, then shows the result. Resolves when closed. */
+function spinModal({ head, shape, from, to, wide, caption, status, resultHtml, confettiColours }) {
   return new Promise(resolve => {
-    const N = sb.colours.length, isFinal = attempt === total, colour = sb.colours[k];
-    // Exactly 6 colours → classic Ludo cube (one face per colour). Any other count → N-sided rolling
-    // prism ("long dice"), so every colour of the subject is on exactly one face.
-    const useCube = N === 6;
-    let shape, from, to;
-    if (useCube) {
-      const faces = [colour, ...sb.colours.filter((_, i) => i !== k).sort(() => Math.random() - .5)];
-      shape = `<div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div>`;
-      const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
-      from = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)'; to = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
-    } else {
-      const R = 92, step = 360 / N, h = 2 * R * Math.sin(Math.PI / N), apo = R * Math.cos(Math.PI / N);
-      const fs = Math.max(11, Math.min(22, h * 0.32));
-      shape = `<div class="prism" style="--h:${h.toFixed(2)}px">${sb.colours.map((c, i) => `<div class="pface" style="--c:${c.hex};--ink:${ink(c.hex)};font-size:${fs}px;transform:rotateX(${(i * step).toFixed(3)}deg) translateZ(${apo.toFixed(2)}px)"><span>${esc(c.name)}</span></div>`).join('')}</div>`;
-      const turns = 4 + Math.floor(Math.random() * 3);
-      from = 'rotateX(0deg)'; to = `rotateX(${-(turns * 360 + k * step)}deg)`;
-    }
-    openModal(`<div class="roll-modal"><div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${attemptLabel(attempt, total)}</h3>
-      <div class="stage"><div class="dshadow ${useCube ? '' : 'wide'}"></div><div class="hop">${shape}</div></div>
-      <div class="muted sm">${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per colour</div>
+    openModal(`<div class="roll-modal">${head}
+      <div class="stage"><div class="dshadow ${wide ? 'wide' : ''}"></div><div class="hop">${shape}</div></div>
+      <div class="muted sm">${caption}</div>
       <div class="rstatus rolling">ROLLING</div><div class="rv"></div></div>`, {
       dismissable: false,
       onMount: (m, close) => {
@@ -1089,16 +1045,51 @@ function animateRoll(e, s, sb, attempt, k, entry, total = ATTEMPTS) {
           dice.style.transform = to;
         });
         setTimeout(() => {
-          const st = m.querySelector('.rstatus'); st.classList.remove('rolling'); st.textContent = isFinal ? '' : 'RESULT';
-          m.querySelector('.rv').innerHTML = `${isFinal ? '<div class="finalbanner">★ FINAL QUESTION PAPER COLOUR ★</div>' : ''}
-            <div class="result ${isFinal ? 'final' : ''}" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? 'Final selected colour' : 'Selected colour'}</div><div class="rname">${esc(colour.name)}</div></div></div>
-            <div class="lockline">🔒 Locked & recorded — audit entry #${entry.seq} · ${fmtTs(entry.ts)} · hash ${entry.hash.slice(0, 16)}…</div>
-            <button class="btn primary" data-close>Close</button>`;
+          const st = m.querySelector('.rstatus'); st.classList.remove('rolling'); st.textContent = status;
+          m.querySelector('.rv').innerHTML = `${resultHtml}<button class="btn primary" data-close>Close</button>`;
           m.querySelector('[data-close]').onclick = () => { close(); resolve(); };
-          if (isFinal) confetti([colour.hex, '#c9a227', '#0b2a5b', '#e6c65a', ...sb.colours.map(c => c.hex)]);
+          if (confettiColours) confetti(confettiColours);
         }, 3150);
       }
     });
+  });
+}
+
+function animateRoll(e, s, sb, attempt, k, entry, total = ATTEMPTS) {
+  const N = sb.colours.length, isFinal = attempt === total, colour = sb.colours[k];
+  // Exactly 6 colours → classic Ludo cube (one face per colour). Any other count → N-sided rolling
+  // prism ("long dice"), so every colour of the subject is on exactly one face.
+  const useCube = N === 6;
+  let shape, from, to;
+  if (useCube) {
+    const faces = [colour, ...sb.colours.filter((_, i) => i !== k).sort(() => Math.random() - .5)];
+    shape = `<div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div>`;
+    const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
+    from = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)'; to = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
+  } else ({ shape, from, to } = prismShape(sb.colours.map(c => ({ hex: c.hex, label: c.name })), k));
+  return spinModal({
+    head: `<div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${attemptLabel(attempt, total)}</h3>`,
+    shape, from, to, wide: !useCube, caption: `${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per colour`, status: isFinal ? '' : 'RESULT',
+    resultHtml: `${isFinal ? '<div class="finalbanner">★ FINAL QUESTION PAPER COLOUR ★</div>' : ''}
+      <div class="result ${isFinal ? 'final' : ''}" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? 'Final selected colour' : 'Selected colour'}</div><div class="rname">${esc(colour.name)}</div></div></div>
+      ${lockLine(entry)}`,
+    confettiColours: isFinal ? [colour.hex, '#c9a227', '#0b2a5b', '#e6c65a', ...sb.colours.map(c => c.hex)] : null
+  });
+}
+
+/* Mode B: dice with one face per possible final iteration (3rd–7th) */
+function animateFinalIteration(e, s, pool, k, entry) {
+  const shades = ['#0b2a5b', '#c9a227', '#123a7a', '#e6c65a', '#8a6d0f', '#1d4ed8', '#facc15'];
+  const n = pool[k], label = ORD[n - 1];
+  const { shape, from, to } = prismShape(pool.map((x, i) => ({ hex: shades[i % shades.length], label: ORD[x - 1] })), k);
+  return spinModal({
+    head: `<div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h3>Final iteration draw</h3>`,
+    shape, from, to, wide: true, caption: `${pool.length}-sided dice · one face per possible final iteration`, status: '',
+    resultHtml: `<div class="finalbanner">★ FINAL ITERATION ★</div>
+      <div class="result final" style="--c:#c9a227"><div class="bsw" style="display:grid;place-items:center;font-size:28px;font-weight:800;color:#2a1f00">${n}</div>
+        <div><div class="muted sm">Final iteration</div><div class="rname">${label} attempt</div><div class="muted sm">Every subject in every shift gets ${n} attempts. The ${label} gives the final question paper colour.</div></div></div>
+      ${lockLine(entry)}`,
+    confettiColours: null
   });
 }
 

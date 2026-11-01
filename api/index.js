@@ -5,8 +5,9 @@ import crypto from 'node:crypto';
 const sql = neon(process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_SECRET;
 const ITER = 150000;
-const MAX_ATTEMPTS = 7;   // Mode A uses 5; Mode B lets the client lock 3–7 for the whole exam
-const FINAL_MODES = new Set(['fixed5', 'client']);
+const MAX_ATTEMPTS = 7;   // Mode A uses 5; Mode B draws 3–7 at random on the Randomization PC for the whole exam
+const FINAL_MODES = new Set(['fixed5', 'client']);   // 'client' = final iteration drawn at random on the Randomization PC
+const FINAL_EVENTS = new Set(['FINAL_ITERATION_RANDOMIZED', 'FINAL_ITERATION_CHOSEN']);   // CHOSEN = older manual choice, still accepted
 
 /* ---------------- helpers ---------------- */
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -181,10 +182,6 @@ const routes = {
     await adminLog(user, 'EXAM_UNPUBLISHED', { examId: body.id, examCode: ex.doc.code });
     return { ok: true };
   },
-  'POST admin/package-logged': async ({ body, user }) => {
-    await adminLog(user, 'OFFLINE_PACKAGE_EXPORTED', { examId: str(body.examId, 64), examCode: str(body.examCode, 60), packageVersion: body.packageVersion, packageSha256: str(body.packageSha256, 64) });
-    return { ok: true };
-  },
 
   'GET admin/settings': async () => {
     const cred = await getSetting('client_cred');
@@ -266,8 +263,8 @@ const routes = {
       const stored = new Map((await sql`select key, install_id, log_hash from draws where key = any(${valid.map(d => d.key)})`).map(r => [r.key, r]));
       valid.forEach(d => { const s = stored.get(d.key); if (s.install_id !== installId || s.log_hash !== d.logHash) conflicts.push({ kind: 'DUPLICATE_DRAW_CONFLICT', detail: { key: d.key, subject: d.subjectName, attempt: d.attempt, acceptedFrom: s.install_id, rejectedFrom: installId } }); });
     }
-    // Final-iteration choices (Mode B) are accepted only when backed by a matching audit entry.
-    const okChoices = choices.filter(c => { const e = bySeq.get(c.logSeq); return e && e.event === 'FINAL_ITERATION_CHOSEN' && e.hash === c.logHash && e.details.examId === c.examId && e.details.finalAttempt === c.finalAttempt && c.finalAttempt >= 3 && c.finalAttempt <= MAX_ATTEMPTS; });
+    // Final-iteration draws (Mode B) are accepted only when backed by a matching audit entry.
+    const okChoices = choices.filter(c => { const e = bySeq.get(c.logSeq); return e && FINAL_EVENTS.has(e.event) && e.hash === c.logHash && e.details.examId === c.examId && e.details.finalAttempt === c.finalAttempt && c.finalAttempt >= 3 && c.finalAttempt <= MAX_ATTEMPTS; });
     if (okChoices.length !== choices.length) conflicts.push({ kind: 'UNVERIFIED_CHOICES_REJECTED', detail: { count: choices.length - okChoices.length } });
     for (const c of okChoices) {
       await sql`insert into final_choices (exam_id, install_id, final_attempt, log_hash, choice) values (${c.examId}, ${installId}, ${c.finalAttempt}, ${c.logHash}, ${JSON.stringify(c)}::jsonb) on conflict (exam_id) do nothing`;

@@ -1,6 +1,5 @@
 .claude/
 .DS_Store
-*.qpr
 .vercel
 .env*
 .agents/
