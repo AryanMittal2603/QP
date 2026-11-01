@@ -87,7 +87,13 @@ function requestInfo(req, body) {
   return { device, network: clientNet(req), serverTime, clockOffsetSeconds: Number.isFinite(device.clientTimeMs) ? Math.round((device.clientTimeMs - serverTime) / 1000) : null };
 }
 const logInfo = info => ({ ip: info.network.ip, location: [info.network.city, info.network.region, info.network.country].filter(Boolean).join(', ') || null,
-  appVersion: info.device.appVersion || null, timezone: info.device.timezone || null, installId: info.device.installId || null });
+  appVersion: info.device.appVersion || null, appKind: info.device.appKind || null, buildHash: info.device.buildHash || null,
+  ...(info.device.exeHash ? { exeHash: info.device.exeHash, buildHashMatches: info.device.buildHashMatches ?? null, computer: info.device.computer || null } : {}),
+  timezone: info.device.timezone || null, installId: info.device.installId || null });
+/* The Windows app stays signed in until the person logs out, so its sessions last longer than a browser tab's.
+   Mobile-number logins are still re-checked on every request (auth), so disabling one takes effect at once. */
+const isDesktop = info => info.device.desktop === true && info.device.appKind === 'windows-app';
+const sessionHours = (role, info) => isDesktop(info) ? (role === 'randomizer' ? 60 * 24 : 30 * 24) : (role === 'randomizer' ? 14 * 24 : 12);
 
 /* A clear reason for accounts that exist but cannot log in (shown instead of "wrong password") */
 function accountBlocked(u) {
@@ -230,12 +236,17 @@ function cleanDoc(doc) {
   return { ...doc, shifts: doc.shifts.map(s => ({ ...s, subjects: (s.subjects || []).map(b => ({ ...b, colours: (b.colours || []).map(c => ({ name: c.name, hex: c.hex })) })) })) };
 }
 const EXAM_EVENTS = new Set(['EXAM_CREATED', 'EXAM_UPDATED', 'SHIFT_CREATED', 'SHIFT_UPDATED', 'SHIFT_DUPLICATED', 'SHIFT_DELETED', 'SUBJECT_CREATED', 'SUBJECT_UPDATED', 'SUBJECT_DELETED']);
+const publishedExams = async () => (await sql`select published_doc, published_version, published_at from exams where not deleted and published_doc is not null`)
+  .map(r => ({ ...cleanDoc(r.published_doc), packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
 const getSetting = async k => (await sql`select value from settings where key = ${k}`)[0]?.value ?? null;
 const putSetting = (k, v) => sql`insert into settings (key, value, updated_at) values (${k}, ${JSON.stringify(v)}::jsonb, now()) on conflict (key) do update set value = excluded.value, updated_at = now()`;
 
 /* ---------------- routes ---------------- */
 const routes = {
   'GET status': async () => ({ approverExists: await approverExists(), smsReady: smsConfigured(), serverTime: Date.now() }),
+  /* Connectivity check and server time (no database work), and a 128 KB download for measuring internet speed */
+  'GET ping': async () => ({ ok: true, serverTime: Date.now() }),
+  'GET speedtest': async () => ({ raw: crypto.randomBytes(128 * 1024), type: 'application/octet-stream' }),
 
   /* ----- OTP + sign-up (no login needed) ----- */
   'POST auth/otp': async ({ body, req }) => {
@@ -296,12 +307,12 @@ const routes = {
   'POST admin/login': async ({ body, req }) => {
     const id = String(body.username ?? '').trim().slice(0, 60), mobile = normMobile(id), info = requestInfo(req, body);
     const u = mobile && await mobileLogin('admin', mobile, body.password, info, 'ADMIN_LOGIN');
-    if (u) { await adminLog(mobile, 'ADMIN_LOGIN', { mobile, name: u.name, account: 'mobile', ...logInfo(info) }); return { token: userToken(u, 12), user: mobile, name: u.name }; }
+    if (u) { await adminLog(mobile, 'ADMIN_LOGIN', { mobile, name: u.name, account: 'mobile', ...logInfo(info) }); return { token: userToken(u, sessionHours('admin', info)), user: mobile, name: u.name }; }
     // Older username/password admin accounts keep working.
     const [a] = await sql`select * from admins where username = ${id}`;
     if (!a || !checkPw(a, body.password)) { await adminLog(id || 'unknown', 'ADMIN_LOGIN_FAILED', { attempted: id, ...logInfo(info) }); fail(401, mobile ? 'Invalid mobile number or password.' : 'Invalid username or password.'); }
     await adminLog(id, 'ADMIN_LOGIN', { account: 'username', clientClock: body.clientClock || null, ...logInfo(info) });
-    return { token: sign({ sub: id, role: 'admin', acct: 'legacy', exp: Date.now() + 12 * 3600e3 }), user: id };
+    return { token: sign({ sub: id, role: 'admin', acct: 'legacy', exp: Date.now() + sessionHours('admin', info) * 3600e3 }), user: id };
   },
   'POST admin/logout': async ({ user }) => { await adminLog(user, 'LOGOUT', {}); return { ok: true }; },
 
@@ -400,7 +411,7 @@ const routes = {
     const u = await mobileLogin('approver', mobile, body.password, info, 'APPROVER_LOGIN');
     if (!u) { await adminLog(mobile, 'APPROVER_LOGIN_FAILED', { mobile, reason: 'no approver account', ...logInfo(info) }); fail(401, 'Invalid mobile number or password.'); }
     await adminLog(mobile, 'APPROVER_LOGIN', { mobile, name: u.name, ...logInfo(info) });
-    return { token: userToken(u, 12), user: mobile, name: u.name };
+    return { token: userToken(u, sessionHours('approver', info)), user: mobile, name: u.name };
   },
   'POST approver/logout': async ({ user }) => { await adminLog(user, 'LOGOUT', { console: 'approver' }); return { ok: true }; },
   'GET approver/requests': async () => {
@@ -453,11 +464,10 @@ const routes = {
   /* ----- Randomization console ----- */
   'POST client/login': async ({ body, req }) => {
     const id = String(body.username ?? '').trim().slice(0, 60), mobile = normMobile(id), info = requestInfo(req, body), installId = str(body.installId, 64);
-    let token, cred, name = null, account;
+    let token, name = null, account;
     const u = mobile && await mobileLogin('randomizer', mobile, body.password, info, 'CLIENT_ONLINE_LOGIN');
     if (u) {
-      token = userToken(u, 14 * 24); name = u.name; account = 'mobile';
-      cred = { username: mobile, salt: u.salt, hash: u.hash, name: u.name, kind: 'mobile' };   // cached on the PC so this person can log in offline later
+      token = userToken(u, sessionHours('randomizer', info)); name = u.name; account = 'mobile';
     } else {
       // The older single shared Randomization login keeps working.
       const shared = await getSetting('client_cred');
@@ -465,15 +475,20 @@ const routes = {
         await adminLog(id || 'unknown', 'CLIENT_ONLINE_LOGIN_FAILED', { attempted: id, installId, ...logInfo(info) });
         fail(401, mobile ? 'Invalid mobile number or password.' : 'Invalid username or password.');
       }
-      token = sign({ sub: id, role: 'client', acct: 'legacy', exp: Date.now() + 14 * 86400e3 }); cred = { ...shared, kind: 'shared' }; account = 'shared';
+      token = sign({ sub: id, role: 'client', acct: 'legacy', exp: Date.now() + sessionHours('randomizer', info) * 3600e3 }); account = 'shared';
     }
-    // Latest published exams, shifts and settings are downloaded at every online login.
-    const exams = (await sql`select published_doc, published_version, published_at from exams where not deleted and published_doc is not null`)
-      .map(r => ({ ...cleanDoc(r.published_doc), packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
-    // Logins the approver has disabled or rejected are removed from this PC's offline cache.
-    const revoked = (await sql`select mobile from users where role = 'randomizer' and status in ('disabled', 'rejected')`).map(r => r.mobile);
-    await adminLog(mobile && u ? mobile : id, 'CLIENT_ONLINE_LOGIN', { account, name, installId, examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null, ...logInfo(info) });
-    return { token, cred, name, exams, revoked, logo: await getSetting('logo'), serverTime: Date.now() };
+    // Latest published exams, shifts and settings are downloaded at every login (and with "Update exams").
+    const exams = await publishedExams();
+    await adminLog(mobile && u ? mobile : id, 'CLIENT_ONLINE_LOGIN', { account, name, installId, examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null,
+      clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
+    // No password hash is sent to the PC any more: signing in always needs the internet.
+    return { token, account, cred: { username: mobile && u ? mobile : id, name, kind: account }, name, exams, revoked: [], logo: await getSetting('logo'), serverTime: Date.now() };
+  },
+  /* "Update exams" on the Randomization PC, and automatically whenever its internet comes back */
+  'POST client/exams': async ({ body, req, user }) => {
+    const info = requestInfo(req, body), exams = await publishedExams();
+    await adminLog(user, 'CLIENT_EXAMS_UPDATED', { installId: str(body.installId, 64), examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
+    return { exams, logo: await getSetting('logo'), serverTime: Date.now() };
   },
   'POST client/sync': async ({ body, user }) => {
     const installId = str(body.installId, 64); if (!installId) fail(400, 'Missing install id.');
@@ -483,6 +498,9 @@ const routes = {
     if (entries.length > 20000) fail(413, 'Too many entries.');
     const v = verifyEntries(entries);
     const conflicts = [];
+    // A PC clock running ahead of the server shows up as log entries "from the future"
+    const latest = entries.reduce((m, e) => Math.max(m, Number(e.ts) || 0), 0);
+    if (latest > Date.now() + 120000) conflicts.push({ kind: 'CLIENT_CLOCK_AHEAD', detail: { latestEntry: new Date(latest).toISOString(), serverTime: new Date().toISOString(), aheadSeconds: Math.round((latest - Date.now()) / 1000), actor: user } });
     if (!v.ok) {
       // A broken chain is never stored; the attempt itself is recorded for the admin.
       await sql`insert into sync_conflicts (install_id, kind, detail) values (${installId}, 'CHAIN_INVALID_UPLOAD_REJECTED', ${JSON.stringify({ issues: v.issues.slice(0, 50), actor: user })}::jsonb)`;
@@ -498,8 +516,18 @@ const routes = {
     const valid = draws.filter(d => { const e = bySeq.get(d.logSeq); return e && e.event === 'RANDOMIZATION_DRAW' && e.hash === d.logHash && e.details.key === d.key && e.details.colourIndex === d.colourIndex && d.attempt >= 1 && d.attempt <= MAX_ATTEMPTS; });
     if (valid.length !== draws.length) conflicts.push({ kind: 'UNVERIFIED_DRAWS_REJECTED', detail: { count: draws.length - valid.length } });
     if (valid.length) {
-      await sql`insert into draws (key, install_id, exam_id, shift_id, subject_id, attempt, draw, log_hash)
-        select d->>'key', ${installId}, d->>'examId', d->>'shiftId', d->>'subjectId', (d->>'attempt')::int, d, d->>'logHash' from jsonb_array_elements(${JSON.stringify(valid)}::jsonb) d on conflict (key) do nothing`;
+      const added = new Set((await sql`insert into draws (key, install_id, exam_id, shift_id, subject_id, attempt, draw, log_hash)
+        select d->>'key', ${installId}, d->>'examId', d->>'shiftId', d->>'subjectId', (d->>'attempt')::int, d, d->>'logHash' from jsonb_array_elements(${JSON.stringify(valid)}::jsonb) d on conflict (key) do nothing returning key`).map(r => r.key));
+      // Clock evidence, checked once when a draw first arrives: its time must not be in the server's future,
+      // and must fall inside the shift's IST window (the PC checks both too; this catches a PC clock that was moved).
+      const now = Date.now();
+      valid.filter(d => added.has(d.key)).forEach(d => {
+        const e = bySeq.get(d.logSeq), x = e.details || {}, [ws, we] = String(x.window || '').split('-');
+        const start = Date.parse(`${x.shiftDate}T${ws}:00+05:30`), end = Date.parse(`${x.shiftDate}T${we}:59.999+05:30`);
+        const base = { key: d.key, examCode: x.examCode, shift: x.shiftName, subject: d.subjectName, attempt: d.attempt, drawTime: new Date(e.ts).toISOString(), drawTimeIST: istTime(e.ts) };
+        if (e.ts > now + 120000) conflicts.push({ kind: 'DRAW_TIME_AHEAD_OF_SERVER', detail: { ...base, serverTime: new Date(now).toISOString(), aheadSeconds: Math.round((e.ts - now) / 1000) } });
+        if (Number.isFinite(start) && Number.isFinite(end) && (e.ts < start || e.ts > end)) conflicts.push({ kind: 'DRAW_OUTSIDE_SHIFT_WINDOW', detail: { ...base, window: `${x.shiftDate} ${x.window} IST` } });
+      });
       const stored = new Map((await sql`select key, install_id, log_hash from draws where key = any(${valid.map(d => d.key)})`).map(r => [r.key, r]));
       valid.forEach(d => { const s = stored.get(d.key); if (s.install_id !== installId || s.log_hash !== d.logHash) conflicts.push({ kind: 'DUPLICATE_DRAW_CONFLICT', detail: { key: d.key, subject: d.subjectName, attempt: d.attempt, acceptedFrom: s.install_id, rejectedFrom: installId } }); });
     }
@@ -521,15 +549,17 @@ const routes = {
 export default async function handler(req, res) {
   try {
     if (!SECRET || !process.env.DATABASE_URL) fail(500, 'Server is not configured.');
-    await ensureSchema();
     const path = String(req.query.path || '').replace(/^\/+|\/+$/g, '');
+    if (path !== 'ping' && path !== 'speedtest') await ensureSchema();
     const fn = routes[`${req.method} ${path}`];
     if (!fn) fail(404, 'Not found.');
     const ctx = { body: req.body && typeof req.body === 'object' ? req.body : {}, query: req.query || {}, req };
-    const PUBLIC = new Set(['status', 'auth/otp', 'auth/complete', 'admin/login', 'client/login', 'approver/login']);
+    const PUBLIC = new Set(['status', 'ping', 'speedtest', 'auth/otp', 'auth/complete', 'admin/login', 'client/login', 'approver/login']);
     const need = PUBLIC.has(path) ? null : path.startsWith('admin/') ? 'admin' : path.startsWith('approver/') ? 'approver' : path.startsWith('client/') ? 'client' : null;
     if (need) { ctx.tok = await auth(req, need); ctx.user = ctx.tok.sub; }
-    res.status(200).json(await fn(ctx));
+    const out = await fn(ctx);
+    if (out && Buffer.isBuffer(out.raw)) { res.setHeader('Content-Type', out.type); res.setHeader('Cache-Control', 'no-store, no-transform'); return res.status(200).send(out.raw); }
+    res.status(200).json(out);
   } catch (e) {
     const status = e.status || 500;
     if (status === 500) console.error(e);

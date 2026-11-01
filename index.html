@@ -49,12 +49,21 @@ body.signed-out .logo{display:none}
 .hmeta .clock{font:600 13px var(--mono);letter-spacing:.06em;font-variant-numeric:tabular-nums}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 #who{font-size:12.5px;color:var(--quiet)}#who:empty{display:none}#who b{color:var(--ink);font-weight:700}
-.net{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:4px;font:600 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase}
+.net{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:4px;border:0;cursor:pointer;font:600 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase}
 .net::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.net.off{background:var(--okbg);color:var(--ok)}.net.on{background:var(--badbg);color:var(--bad)}
+.net.good{background:var(--okbg);color:var(--ok)}.net.bad{background:var(--badbg);color:var(--bad)}.net.warn{background:var(--warnbg);color:var(--warn)}.net.chk{background:#E6EBEE;color:#4E5D6C}
+.net:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #banners{max-width:1320px;margin:0 auto;padding:0 32px}
 #banners .banner{margin-top:14px;padding:11px 16px;border-radius:6px;font-weight:600;font-size:13.5px;border-left:3px solid currentColor}
 .banner.bad{background:var(--badbg);color:var(--bad)}.banner.warn{background:var(--warnbg);color:var(--warn)}
+#banners .banner .btn{margin-left:10px;vertical-align:middle}
+.checks{display:flex;flex-wrap:wrap;gap:8px 22px;margin:-8px 0 18px;font:500 11.5px var(--mono);letter-spacing:.02em;color:var(--quiet)}
+.checks span{display:inline-flex;align-items:center;gap:7px}.checks i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.checks .y{color:var(--ok)}.checks .n{color:var(--bad)}.checks .w{color:var(--warn)}
+.notice.bad{background:var(--badbg);color:var(--bad)}
+.res-shift{margin:18px 0 8px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.res-shift h4{font-size:15px}
+table.rgrid.compact{min-width:760px}.rgrid.compact td{padding:9px 8px}.rgrid.compact th{padding:11px 8px 10px}
 main{max-width:1320px;margin:0 auto;padding:28px 32px 56px}
 .foot{max-width:1320px;margin:0 auto;padding:16px 32px 26px;display:flex;justify-content:space-between;gap:12px;font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--quiet);position:relative}
 .foot::before{content:"";position:absolute;left:32px;right:32px;top:0;height:1px;background:linear-gradient(90deg,rgba(20,40,68,.18),rgba(20,40,68,.03))}
@@ -270,7 +279,7 @@ td.final .chip{border:1.5px solid var(--amber);box-shadow:0 0 0 3px rgba(201,150
   </div>
   <div class="hmeta">
     <div class="clock" id="clock">--</div>
-    <div class="hrow"><span id="who"></span><span id="net" class="net off">Offline</span></div>
+    <div class="hrow"><span id="who"></span><button type="button" id="net" class="net chk" onclick="testConnection()">Checking network…</button></div>
   </div>
 </header>
 <div id="banners"></div>
@@ -288,7 +297,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
 const enc = new TextEncoder();
 const ITER = 150000;
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const SEAL = 'data:image/png;base64,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';   // UPESSC seal, recoloured to the navy ink (#142844), 2x for sharp rendering        // shown to the approver with every sign-up request
 const ATTEMPTS = 5;                 // Mode A: the 5th attempt is final
 const MIN_FINAL = 3, MAX_FINAL = 7;  // Mode B: the final iteration is drawn at random in this range on the Randomization PC, before any roll
@@ -324,10 +333,11 @@ function secureRandomInt(n) {
   do { crypto.getRandomValues(a); x = a[0]; tries++; } while (x >= limit);
   return { value: x % n, raw: x, tries };
 }
-function fmtTs(t) { if (!t) return '—'; const d = new Date(t); return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
-const fmtTime = t => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+const IST_MS = 330 * 60000, ist = t => new Date(t + IST_MS);   // all times are shown and judged in IST (UTC+05:30), whatever the PC's time zone
+function fmtTs(t) { if (!t) return '—'; const d = ist(t); return `${pad(d.getUTCDate())}-${pad(d.getUTCMonth()+1)}-${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`; }
+const fmtTime = t => { const d = ist(t); return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`; };
 const fmtDate = s => { const [y, m, d] = s.split('-'); return `${d}-${m}-${y}`; };
-const stamp = () => { const d = new Date(); return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`; };
+const stamp = () => { const d = ist(Date.now()); return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}_${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`; };
 const safeName = s => String(s).replace(/[^A-Za-z0-9_-]+/g, '_');
 function ink(h) { const n = parseInt(h.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (0.299*r + 0.587*g + 0.114*b) > 160 ? '#1b2333' : '#ffffff'; }
 function download(name, text, type = 'application/json') {
@@ -346,7 +356,7 @@ const cleanColour = c => ({ name: c.name, hex: c.hex });
 const cleanShift = s => ({ ...s, subjects: s.subjects.map(b => ({ ...b, colours: b.colours.map(cleanColour) })) });
 
 /* ---------- Server API (Vercel + Neon). Unavailable when opened as a local file or offline. ---------- */
-const HAS_SERVER = location.protocol.startsWith('http');
+const HAS_SERVER = location.protocol.startsWith('http') || !!window.qprDesktop;   // the Windows app relays /api to the same server
 async function api(path, { method = 'GET', body, token } = {}) {
   if (!HAS_SERVER) { const e = new Error('Server not available (page opened as a local file).'); e.network = true; throw e; }
   const t = token !== undefined ? token : session && session.token;
@@ -355,8 +365,10 @@ async function api(path, { method = 'GET', body, token } = {}) {
   catch { const e = new Error('Server not reachable. Check the internet connection.'); e.network = true; throw e; }
   const j = await r.json().catch(() => ({ error: 'Unexpected server response.' }));
   if (!r.ok) {
-    if (r.status === 401 && session && (session.role === 'admin' || session.role === 'approver') && !/\/login$/.test(path)) {
-      const role = session.role; setSession(null); role === 'admin' ? renderAdminAuth() : renderApproverAuth();
+    if (r.status === 401 && session && !/\/login$/.test(path)) {
+      // Windows app (all logins) and Randomizer (also in a browser): keep the session and everything on this PC, ask for the password again
+      if (DESK || session.role === 'client') needReauth(j.error);
+      else { const role = session.role; setSession(null); role === 'admin' ? renderAdminAuth() : renderApproverAuth(); }
     }
     const e = new Error(j.error || 'Request failed.'); e.status = r.status; throw e;
   }
@@ -470,63 +482,302 @@ async function verifyChain(scope) {
 }
 
 /* =========================================================
-   Session, clock, network
+   Session, build, network, clock
    ========================================================= */
-let session = JSON.parse(sessionStorage.getItem('qpr_session') || 'null');
+const DESK = window.qprDesktop || null;   // present only inside the Windows app (desktop/preload.js)
+/* The Windows app keeps you signed in until you log out, also when there is no internet. A browser tab forgets the login when it is closed. */
+const SESSION_STORE = (() => { try { return DESK ? localStorage : sessionStorage; } catch { return null; } })();
+let session = (() => { try { return JSON.parse(SESSION_STORE.getItem('qpr_session') || 'null'); } catch { return null; } })();
 let busy = false;
 let logoData = null;
 let integrityIssue = null;
-function setSession(s) { session = s; if (s) sessionStorage.setItem('qpr_session', JSON.stringify(s)); else sessionStorage.removeItem('qpr_session'); renderHeader(); }
+function setSession(s) { session = s; try { if (s) SESSION_STORE.setItem('qpr_session', JSON.stringify(s)); else SESSION_STORE.removeItem('qpr_session'); } catch {} renderHeader(); }
 async function installId() { let id = await idb.get('meta', 'install_id'); if (!id) { id = uid(); await idb.put('meta', id, 'install_id'); } return id; }
+const modalOpen = () => !!$('#modalRoot').children.length;
+const clientIdle = () => session && session.role === 'client' && !busy && !modalOpen();
 
-/* PC clock is the source of truth; flag any backwards movement */
-async function checkClock(context, scope = 'client') {
-  const now = Date.now(); const key = scope + '_clock';
-  const m = (await idb.get('meta', key)) || { lastSeen: 0, flags: 0 };
-  let flagged = false;
-  if (m.lastSeen && now < m.lastSeen - 2000) {
-    flagged = true; m.flags = (m.flags || 0) + 1;
-    await appendLog(scope, 'CLOCK_BACKWARDS_FLAG', { context, currentClock: new Date(now).toISOString(), currentLocal: fmtTs(now), lastSeenClock: new Date(m.lastSeen).toISOString(), lastSeenLocal: fmtTs(m.lastSeen), backwardsBySeconds: Math.round((m.lastSeen - now) / 1000) });
+/* Build identity: logged at every start, login and draw, so the build used can be verified later against the published hash */
+const BUILD = { version: APP_VERSION, kind: DESK ? 'windows-app' : 'web', hash: null, expectedHash: null, exeHash: null };
+let buildReady = null;
+function loadBuildInfo() {
+  buildReady ??= (async () => {
+    try {
+      if (DESK) {
+        const i = await DESK.info();
+        Object.assign(BUILD, { hash: i.buildHash || null, expectedHash: i.buildHashExpected || null, exeHash: i.exeHash || null, exeName: i.exeName || null, electron: i.electron || null, os: i.os || null, computer: i.computer || null, server: i.server || null });
+      } else if (HAS_SERVER) {
+        const r = await fetch('/index.html', { cache: 'no-store' });
+        if (r.ok) BUILD.hash = hex(await crypto.subtle.digest('SHA-256', await r.arrayBuffer()));
+      }
+    } catch {}
+    const v = $('#ver');
+    if (v) { v.textContent = `Version ${APP_VERSION}${DESK ? ' · Windows app' : ''}${BUILD.hash ? ' · build ' + BUILD.hash.slice(0, 12) : ''}`; v.title = BUILD.hash ? 'SHA-256 of this build: ' + BUILD.hash + (BUILD.exeHash ? '\nSHA-256 of the .exe: ' + BUILD.exeHash : '') : ''; }
+    return BUILD;
+  })();
+  return buildReady;
+}
+const buildLog = () => ({ appVersion: BUILD.version, appKind: BUILD.kind, buildHash: BUILD.hash,
+  ...(DESK ? { buildHashExpected: BUILD.expectedHash, buildHashMatches: BUILD.hash && BUILD.expectedHash ? BUILD.hash === BUILD.expectedHash : null, exeHash: BUILD.exeHash, exeName: BUILD.exeName } : {}) });
+
+/* =========================================================
+   Network. Checked actively, not just "is a cable plugged in":
+   link     = a network adapter is connected (Windows app: the PC's adapters; browser: navigator.onLine)
+   internet = the UPESSC server, or a public site, answers within 5 seconds (checked every 10 s offline, 60 s online, and right before every roll)
+   speed    = a 128 KB download from the server: on connecting, on request, and every 10 minutes while online
+   ========================================================= */
+const PROBE_MS = 5000, SPEED_EVERY = 10 * 60e3, SLOW_KBPS = 256, SLOW_RTT_MS = 2000;
+const PUBLIC_PROBES = ['https://www.gstatic.com/generate_204', 'https://www.google.com/generate_204', 'https://1.1.1.1/cdn-cgi/trace'];
+const net = { checked: false, link: navigator.onLine, adapters: null, internet: false, server: false, via: null, rttMs: null, downKbps: null, speedAt: 0, checkedAt: 0, error: null };
+function timedFetch(url, opts = {}, ms = PROBE_MS) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, { cache: 'no-store', ...opts, signal: ctl.signal }).finally(() => clearTimeout(t));
+}
+async function probeServer() {
+  if (!HAS_SERVER) return { ok: false, error: 'no server (opened as a local file)' };
+  const t0 = Date.now(), p0 = performance.now();
+  try {
+    const r = await timedFetch('/api/ping?t=' + t0);
+    const j = await r.json(), rtt = performance.now() - p0;
+    if (!r.ok || !Number.isFinite(j.serverTime)) return { ok: false, error: 'server answered HTTP ' + r.status };
+    return { ok: true, rttMs: Math.round(rtt), serverTime: j.serverTime, localMid: t0 + rtt / 2 };
+  } catch (e) { return { ok: false, error: e.name === 'AbortError' ? 'no answer within 5 s' : 'not reachable' }; }
+}
+/* Public "is there internet?" endpoints (the same kind Windows and Android use), fetched without reading the answer */
+async function probePublic() {
+  try { return await Promise.any(PUBLIC_PROBES.map(u => timedFetch(u + '?t=' + Date.now(), { mode: 'no-cors', credentials: 'omit', referrerPolicy: 'no-referrer' }).then(() => new URL(u).host))); }
+  catch { return null; }
+}
+async function speedTest() {
+  try {
+    const p0 = performance.now(), r = await timedFetch('/api/speedtest?t=' + Date.now(), {}, 20000);
+    const buf = await r.arrayBuffer(), ms = performance.now() - p0;
+    if (r.ok && buf.byteLength >= 16384) { net.downKbps = Math.max(1, Math.round(buf.byteLength * 8 / ms)); net.speedAt = Date.now(); }   // bits per ms = kbit/s
+  } catch {}
+}
+const fmtSpeed = k => k >= 1000 ? (k / 1000).toFixed(k >= 10000 ? 0 : 1) + ' Mbps' : k + ' kbps';
+const netSlow = () => net.internet && ((net.downKbps != null && net.downKbps < SLOW_KBPS) || (net.rttMs != null && net.rttMs > SLOW_RTT_MS));
+const netSnapshot = () => ({ internet: net.internet, link: net.link, serverReachable: net.server, via: net.via, rttMs: net.rttMs, downKbps: net.downKbps, slow: netSlow(),
+  adapters: net.adapters, checkedAt: net.checkedAt ? new Date(net.checkedAt).toISOString() : null, error: net.error });
+let netRun = null, netNext = null, speedRun = null;
+/* One check at a time. A request made while a check is running gets a fresh check right after it,
+   so an adapter plugged in or pulled out mid-check is never missed. */
+function refreshNet(reason = 'check', opts = {}) {
+  if (netRun) { netNext ??= netRun.catch(() => {}).then(() => { netNext = null; return refreshNet(reason, opts); }); return netNext; }
+  const { speed = false } = opts;
+  netRun = (async () => {
+    const before = { checked: net.checked, internet: net.internet };
+    let link = navigator.onLine, adapters = null;
+    if (DESK) { try { const n = await DESK.network(); link = !!n.link; adapters = n.adapters || null; } catch {} }
+    const sp = probeServer(), pp = probePublic();
+    const s = await sp, pub = s.ok ? null : await pp;
+    const internet = s.ok || !!pub;
+    Object.assign(net, { checked: true, link: link || internet, adapters, internet, server: s.ok, via: s.ok ? 'UPESSC server' : pub, rttMs: s.ok ? s.rttMs : null,
+      error: internet ? null : s.error, checkedAt: Date.now() });
+    if (!internet) { net.downKbps = null; net.speedAt = 0; }
+    if (s.ok && db) await noteServerTime(s, reason);
+    if (s.ok && !speedRun && (speed || !before.internet || Date.now() - net.speedAt > SPEED_EVERY))   // measured alongside, never holding up the check
+      speedRun = speedTest().then(() => { speedRun = null; paintNet(); });
+    if (speed && speedRun) await speedRun;
+    paintNet(); syncNetUi();
+    if (!before.checked || before.internet !== internet) await onNetChange(reason, before.checked);
+    return net;
+  })().finally(() => { netRun = null; });
+  return netRun;
+}
+async function onNetChange(reason, wasChecked) {
+  renderBanners();
+  if (session && session.role === 'client' && db) {
+    if (wasChecked) await appendLog('client', net.internet ? 'NETWORK_CONNECTED' : 'NETWORK_DISCONNECTED', { reason, ...netSnapshot(),
+      note: net.internet ? 'Internet reachable: randomization disabled; updating exams and syncing results' : 'Internet not reachable: randomization allowed inside the shift window' });
+    if (net.internet) (async () => { await refreshExams(true); await syncNow(true); })();
+    if (clientIdle()) renderClient();
   }
-  m.lastSeen = Math.max(now, m.lastSeen || 0);
-  await idb.put('meta', m, key);
-  if (flagged) renderBanners();
-  return flagged;
 }
-function tickClock() {
-  $('#clock').textContent = fmtTs(Date.now());
-  const n = $('#net'); n.className = 'net ' + (navigator.onLine ? 'on' : 'off'); n.textContent = navigator.onLine ? 'Network connected' : 'Offline';
-  syncNetUi();
+function paintNet() {
+  const n = $('#net'); if (!n) return;
+  const wantOnline = !session || session.role !== 'client';   // the Randomizer must be OFFLINE to roll; everyone else needs the internet
+  let cls, text;
+  if (!net.checked) { cls = 'chk'; text = 'Checking network…'; }
+  else if (net.internet) { const slow = netSlow(); cls = slow ? 'warn' : wantOnline ? 'good' : 'bad'; text = `Internet${net.downKbps != null ? ' · ' + fmtSpeed(net.downKbps) : ''}${net.rttMs != null ? ' · ' + net.rttMs + ' ms' : ''}${slow ? ' · slow' : ''}`; }
+  else if (net.link) { cls = 'warn'; text = 'Network · no internet'; }
+  else { cls = wantOnline ? 'bad' : 'good'; text = 'Offline'; }
+  n.className = 'net ' + cls; n.textContent = text;
+  n.title = (net.checked ? `Checked ${fmtTime(net.checkedAt)} IST. ` : '') + (net.internet ? `Reached: ${net.via}.` : net.checked ? `Internet not reachable (${net.error || 'no answer'}).` : '')
+    + (net.adapters && net.adapters.length ? ` Network adapters: ${net.adapters.join(', ')}.` : '') + ' Click to check again.';
 }
+async function testConnection() {
+  const n = await refreshNet('manual', { speed: true });
+  toast(n.internet ? `Internet connected · ${n.downKbps != null ? fmtSpeed(n.downKbps) : 'speed unknown'}${n.rttMs != null ? ' · ' + n.rttMs + ' ms' : ''}${netSlow() ? ' · slow connection' : ''}`
+    : n.link ? 'Network adapter connected, but no internet.' : 'Offline: no network connection.', 3600);
+}
+
+/* =========================================================
+   Clock. Shift windows are judged by the PC clock in IST, so the clock itself is checked:
+   1. against the server time whenever the PC is online: it must be within 2 minutes;
+   2. rolls for a shift need such a check on the shift's own date (IST);
+   3. while the app runs, the clock is compared with a monotonic timer every 5 seconds (the Windows app also
+      reacts to Windows' own time-change notice and ignores sleep), so moving it forward or back is caught;
+   4. across restarts it may never be earlier than the last time seen, and the Windows app reads Windows'
+      own record of clock changes (event log) made since the last check.
+   A change after the last server check blocks rolls until the clock has been checked online again.
+   ========================================================= */
+const CLOCK_TOL_MS = 120000, JUMP_MS = 60000;
+const istDateOf = t => ist(t).toISOString().slice(0, 10);
+const fmtDur = ms => { const s = Math.round(Math.abs(ms) / 1000); return s < 120 ? `${s} s` : s < 7200 ? `${Math.round(s / 60)} min` : s < 172800 ? `${(s / 3600).toFixed(1)} h` : `${Math.round(s / 86400)} days`; };
+const tzInfo = () => ({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null, utcOffset: utcOffsetText(), isIST: new Date().getTimezoneOffset() === -330 });
+let clockQ = Promise.resolve();
+const clockMeta = fn => { const p = clockQ.then(async () => { const m = (await idb.get('meta', 'client_clock')) || { lastSeen: 0, flags: 0 }; const out = await fn(m); await idb.put('meta', m, 'client_clock'); return out; }); clockQ = p.catch(() => {}); return p; };
+const clockActor = () => (session && session.role === 'client' && session.user) || 'system';
+
+async function flagClock(kind, detail, eventKey = null) {
+  const added = await clockMeta(m => {
+    if (eventKey) { m.seenEvents = m.seenEvents || []; if (m.seenEvents.includes(eventKey)) return false; m.seenEvents = [...m.seenEvents.slice(-49), eventKey]; }
+    m.flags = (m.flags || 0) + 1; m.lastFlag = { kind, at: Date.now(), text: detail.summary || kind }; return true;
+  });
+  if (!added) return;
+  await appendLog('client', { backwards: 'CLOCK_BACKWARDS_FLAG', forward: 'CLOCK_FORWARD_FLAG', changed: 'CLOCK_CHANGED_FLAG' }[kind], detail, { actor: clockActor() });
+  renderBanners(); if (clientIdle() && ['shift', 'exam', 'exams'].includes(cstate.view)) renderClient();
+}
+/* Never earlier than the latest time this PC has seen (also across restarts) */
+async function checkClock(context) {
+  const now = Date.now();
+  // flagged once per change: after a flag the new reading becomes the reference
+  const back = await clockMeta(m => { const b = m.lastSeen && now < m.lastSeen - 2000 ? m.lastSeen : 0; m.lastSeen = b ? now : Math.max(now, m.lastSeen || 0); return b; });
+  if (back) await flagClock('backwards', { context, summary: `set back by ${fmtDur(back - now)}`, currentClock: new Date(now).toISOString(), currentIST: fmtTs(now),
+    lastSeenClock: new Date(back).toISOString(), lastSeenIST: fmtTs(back), backwardsBySeconds: Math.round((back - now) / 1000) });
+  return !!back;
+}
+/* Wall clock vs monotonic timer while the app runs */
+const clockBase = { wall: Date.now(), mono: performance.now(), resumes: null };
+async function clockTick(context = 'watch') {
+  const wall = Date.now(), mono = performance.now(), drift = (wall - clockBase.wall) - (mono - clockBase.mono);
+  let resumed = false;
+  if (DESK) { try { const c = await DESK.clock(); if (clockBase.resumes !== null && c.resumeCount !== clockBase.resumes) resumed = true; clockBase.resumes = c.resumeCount; } catch {} }
+  const from = clockBase.wall + (mono - clockBase.mono);
+  clockBase.wall = wall; clockBase.mono = mono;
+  const back = db ? await checkClock(context) : false;
+  if (!db || Math.abs(drift) < JUMP_MS || (drift < 0 && back)) return;   // a move back is flagged once, by checkClock
+  if (drift > 0 && resumed) { await appendLog('client', 'SYSTEM_RESUMED', { context, note: 'The PC was asleep; the clock moved on with real time', sleptSeconds: Math.round(drift / 1000) }, { actor: clockActor() }); return; }
+  await flagClock(drift > 0 ? 'forward' : 'backwards', { context, summary: `moved ${drift > 0 ? 'forward' : 'back'} by ${fmtDur(drift)}`, expectedClock: new Date(from).toISOString(), expectedIST: fmtTs(from),
+    currentClock: new Date(wall).toISOString(), currentIST: fmtTs(wall), jumpSeconds: Math.round(drift / 1000), detectedBy: DESK ? 'monotonic timer (Windows app)' : 'monotonic timer (browser)' });
+}
+/* Windows app: clock changes recorded by Windows itself since the last good check (catches changes made while the app was closed) */
+async function checkWindowsTimeLog(context) {
+  if (!DESK || !DESK.timeChanges || !db) return null;
+  const tc = await idb.get('meta', 'timecheck'); if (!tc || !tc.ok) return null;
+  let r; try { r = await DESK.timeChanges(new Date(tc.at - 1000).toISOString()); } catch { return null; }
+  if (!r || !r.ok) return r;
+  for (const c of r.changes || []) if (Math.abs(c.deltaMs) >= CLOCK_TOL_MS)
+    await flagClock('changed', { context, summary: `changed by ${fmtDur(c.deltaMs)} (Windows event log)`, source: 'Windows event log (Kernel-General event 1)', changedFrom: c.oldTime, changedTo: c.newTime,
+      changedBySeconds: Math.round(c.deltaMs / 1000), windowsReason: c.reason || null, process: c.process || null, eventRecordId: c.recordId || null }, 'evt:' + (c.recordId || c.newTime + c.oldTime));
+  return r;
+}
+/* Server time, from every successful contact with the server */
+async function noteServerTime(s, source) {
+  const offsetMs = Math.round(s.serverTime - s.localMid), now = Date.now();
+  const prev = await idb.get('meta', 'timecheck'), ck = (await idb.get('meta', 'client_clock')) || {};
+  const tc = { serverTime: s.serverTime, offsetMs, rttMs: s.rttMs ?? null, at: now, istDate: istDateOf(s.serverTime), ok: Math.abs(offsetMs) <= CLOCK_TOL_MS, flagsAtCheck: ck.flags || 0, source };
+  if (tc.ok && DESK) await checkWindowsTimeLog('before-clock-check');   // changes made since the previous check are recorded before this check clears them
+  tc.flagsAtCheck = ((await idb.get('meta', 'client_clock')) || {}).flags || 0;
+  await idb.put('meta', tc, 'timecheck');
+  if (!(session && session.role === 'client')) return tc;
+  const cleared = prev && prev.ok && tc.ok && (prev.flagsAtCheck || 0) < tc.flagsAtCheck;
+  const detail = { source, pcClock: new Date(now).toISOString(), pcIST: fmtTs(now), serverClock: new Date(s.serverTime).toISOString(), serverIST: fmtTs(s.serverTime),
+    offsetSeconds: Math.round(offsetMs / 1000), pcIs: Math.abs(offsetMs) < 1000 ? 'in step' : offsetMs > 0 ? 'behind the server' : 'ahead of the server', rttMs: tc.rttMs, ...tzInfo() };
+  if (!tc.ok && (!prev || prev.ok || Math.abs(prev.offsetMs - offsetMs) > 60000)) await appendLog('client', 'CLOCK_OFFSET_FLAG', { ...detail, note: 'PC clock is more than 2 minutes off the server time: randomization blocked until it is corrected' });
+  else if (tc.ok && (source === 'login' || !prev || !prev.ok || prev.istDate !== tc.istDate || cleared)) await appendLog('client', 'CLOCK_CHECKED', { ...detail, note: cleared ? 'Clock checked again after a change: rolls allowed again' : 'PC clock matches the server time' });
+  if (!prev || prev.ok !== tc.ok || cleared || prev.istDate !== tc.istDate) { renderBanners(); if (clientIdle() && ['shift', 'exam', 'exams'].includes(cstate.view)) renderClient(); }
+  return tc;
+}
+/* Is the clock trustworthy for rolling in shift s? */
+async function clockState(s) {
+  const tc = await idb.get('meta', 'timecheck'), ck = (await idb.get('meta', 'client_clock')) || {};
+  const base = { tc, flags: ck.flags || 0, ok: false };
+  const reconnect = 'Connect to the internet for a moment (the clock is checked automatically), then disconnect again.';
+  if (!tc) return { ...base, reason: 'The PC clock has not been checked against the server yet.', fix: reconnect };
+  if (!tc.ok) return { ...base, reason: `The PC clock is ${fmtDur(tc.offsetMs)} ${tc.offsetMs > 0 ? 'behind' : 'ahead of'} the server time.`,
+    fix: 'Correct the Windows clock (Settings → Time & language → Date & time → Set time automatically, time zone (UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi) while connected to the internet; rolls are allowed again once the check passes.' };
+  if ((ck.flags || 0) > (tc.flagsAtCheck || 0)) return { ...base, reason: `The PC clock was ${ck.lastFlag ? ck.lastFlag.text : 'changed'} after the last check.`, fix: reconnect };
+  if (s && tc.istDate !== s.date) return { ...base, reason: `The PC clock was last checked against the server on ${fmtDate(tc.istDate)}; rolls for this shift need a check on ${fmtDate(s.date)} (IST).`, fix: reconnect };
+  return { ...base, ok: true };
+}
+const clockSnapshot = c => ({ checkedAt: c.tc ? new Date(c.tc.at).toISOString() : null, checkedIST: c.tc ? fmtTs(c.tc.at) : null, checkedDate: c.tc ? c.tc.istDate : null,
+  offsetSeconds: c.tc ? Math.round(c.tc.offsetMs / 1000) : null, flagsSinceCheck: c.tc ? (c.flags - (c.tc.flagsAtCheck || 0)) : null, ...tzInfo() });
+
+function tickClock() { $('#clock').textContent = fmtTs(Date.now()) + ' IST'; }
 setInterval(tickClock, 1000);
-window.addEventListener('online', async () => {
-  tickClock();
-  if (session && session.role === 'client') { await appendLog('client', 'NETWORK_CONNECTED', { note: 'Randomization disabled while connected; syncing results' }); renderBanners(); if (!busy) renderClient(); syncNow(true); }
-});
-window.addEventListener('offline', async () => { tickClock(); if (session && session.role === 'client') { await appendLog('client', 'NETWORK_DISCONNECTED', {}); renderBanners(); if (!busy) renderClient(); } });
-setInterval(async () => {
-  if (session && session.role === 'client') {
-    await checkClock('periodic');
-    if (!busy && !$('#modalRoot').children.length && (cstate.view === 'shift' || cstate.view === 'exam')) renderClient();
-  }
-}, 20000);
+window.addEventListener('online', () => refreshNet('os-online'));
+window.addEventListener('offline', () => refreshNet('os-offline'));
+function startWatchers() {
+  setInterval(() => clockTick().catch(() => {}), 5000);
+  if (DESK && DESK.onTimeChanged) DESK.onTimeChanged(() => clockTick('windows-time-change').catch(() => {}));
+  if (DESK && DESK.onNetworkChanged) DESK.onNetworkChanged(() => refreshNet('adapter-change'));
+  (function loop() { setTimeout(async () => { try { await refreshNet('periodic'); } catch {} loop(); }, net.internet ? 60000 : 10000); })();   // offline: every 10 s, so a reconnection is seen at once
+  setInterval(() => { if (session && session.role === 'client' && !net.internet) checkWindowsTimeLog('periodic').catch(() => {}); }, 60000);
+  setInterval(() => { if (clientIdle() && (cstate.view === 'shift' || cstate.view === 'exam')) renderClient(); }, 20000);   // window opens / closes
+}
 
 async function renderHeader() {
   $('#logo').innerHTML = `<img src="${SEAL}" alt="UPESSC seal">`;
   document.body.classList.toggle('signed-out', !session);
   $('#who').innerHTML = session ? `${{ admin: 'Admin', approver: 'Approver', client: 'Randomizer' }[session.role]} · <b>${esc(session.name || session.user)}</b>${session.name ? ` <span class="mono">${esc(session.user)}</span>` : ''}` : '';
+  paintNet();
   renderBanners();
 }
+let reauthNeeded = null;
 async function renderBanners() {
   const b = [];
-  if (session) {
+  if (session && db) {
     const scope = session.role;
-    if (scope === 'client' && navigator.onLine) b.push(['warn', '⚠ Network is CONNECTED. Exams have been downloaded. Disconnect the network (cable / Wi-Fi) to enable randomization. Results sync automatically when the PC is back online.']);
-    const ck = await idb.get('meta', scope + '_clock');
-    if (ck && ck.flags) b.push(['bad', `⚠ System clock was detected moving backwards ${ck.flags} time(s). Each occurrence is flagged in the audit log.`]);
-    if (integrityIssue && scope === 'client') b.push(['bad', '⛔ Audit integrity check failed: ' + integrityIssue + '. See Audit Log tab.']);
+    if (reauthNeeded) b.push(['bad', `⚠ ${reauthNeeded}`, 'reauth', 'Sign in again']);
+    if (scope === 'client') {
+      if (net.internet) b.push(['warn', '⚠ Internet is CONNECTED. Exams are updated and results synced. Disconnect Wi-Fi / LAN / hotspot to enable randomization.']);
+      const c = await clockState(null), onShift = cstate.view === 'shift' && !net.internet;   // offline, the shift page says it in its own notice
+      if (!c.ok && c.tc && !onShift) b.push(['bad', `⛔ Randomization blocked: ${c.reason} ${c.fix}`]);
+      else if (!c.ok && !onShift) b.push(['warn', `⚠ ${c.reason} ${c.fix}`]);
+      if (!tzInfo().isIST) b.push(['warn', `⚠ This PC's time zone is ${tzInfo().utcOffset} (${tzInfo().timezone || 'unknown'}), not India Standard Time. All times here are shown and checked in IST, but please set Windows to (UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi.`]);
+      if (integrityIssue) b.push(['bad', '⛔ Audit integrity check failed: ' + integrityIssue + '. See Audit Log tab.']);
+    }
   }
-  $('#banners').innerHTML = b.map(([c, t]) => `<div class="banner ${c}">${esc(t)}</div>`).join('');
+  const el = $('#banners');
+  el.innerHTML = b.map(([c, t, act, label]) => `<div class="banner ${c}">${esc(t)}${act ? ` <button class="btn sm" data-act="${act}">${esc(label)}</button>` : ''}</div>`).join('');
+  bind(el, { reauth: () => promptReauth() });
+}
+
+/* Signed in, but the server no longer accepts the session (expired / disabled): ask for the password again.
+   Nothing on this PC is cleared, and the Windows app never signs anyone out by itself. */
+let reauthOpen = false;
+function needReauth(msg) { reauthNeeded = msg || 'Your sign-in has expired on the server.'; renderBanners(); }
+async function promptReauth() {
+  if (reauthOpen || !session) return; reauthOpen = true;
+  const role = session.role, label = { admin: 'Admin', approver: 'Approver', client: 'Randomizer' }[role];
+  try {
+    await new Promise(resolve => openModal(`<h3>Sign in again</h3><p class="muted sm">${esc(reauthNeeded || 'Your sign-in has expired on the server.')} Enter the password for <b>${esc(session.name || session.user)}</b> (${label}). Everything on this PC is kept.</p>
+      <form class="form" novalidate><label class="fld"><span>Password</span><input name="p" type="password" autocomplete="current-password"></label><div class="err" hidden></div>
+      <div class="actions"><button type="button" class="btn ghost" data-out>Log out instead</button><button type="button" class="btn ghost" data-cancel>Later</button><button class="btn primary">Sign in</button></div></form>`, {
+      onDismiss: resolve, onMount: (m, close) => {
+        const f = m.querySelector('form'), er = m.querySelector('.err');
+        f.p.focus();
+        m.querySelector('[data-cancel]').onclick = () => { close(); resolve(); };
+        m.querySelector('[data-out]').onclick = async () => { close(); resolve(); await logout(true); };
+        f.onsubmit = async e => {
+          e.preventDefault(); er.hidden = true; const btn = f.querySelector('.btn.primary'); btn.disabled = true;
+          try {
+            if (role === 'client') {
+              const r = await api('client/login', { method: 'POST', token: null, body: { username: session.user, password: f.p.value, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } });
+              await idb.put('meta', r.token, 'client_token');
+              await appendLog('client', 'CLIENT_SIGNED_IN_AGAIN', { ...buildLog(), network: netSnapshot() });
+              await applyDownload(r, 'sign-in-again');
+            } else {
+              const r = await api(role + '/login', { method: 'POST', token: null, body: { username: session.user, password: f.p.value, device: await deviceInfo(role) } });
+              setSession({ ...session, token: r.token, name: r.name || session.name });
+            }
+            reauthNeeded = null; close(); resolve(); toast('Signed in again ✔');
+            role === 'client' ? (syncNow(true), renderClient()) : role === 'admin' ? renderAdmin() : renderApprover();
+          } catch (err) { showErr(er, err.network ? 'Internet is required to sign in again.' : err.message); btn.disabled = false; }
+        };
+      } }));
+  } finally { reauthOpen = false; renderBanners(); }
 }
 
 /* =========================================================
@@ -619,8 +870,8 @@ async function renderLogin(role = rememberedRole(), prefill = '') {
   try { localStorage.setItem(ROLE_KEY, role); } catch {}   // a Randomization PC reopens on the Randomizer tab
   const idLabel = { admin: 'Mobile number or admin username', randomizer: 'Mobile number or shared username', approver: 'Mobile number' }[role];
   const note = role === 'randomizer'
-    ? '<p class="note" data-online-only>Logging in online downloads the latest exams to this PC. Disconnect the network afterwards to randomize.</p><p class="note" data-offline-only>Offline: logins used online on this PC before still work.</p>'
-    : '<p class="note" data-offline-only>This login needs an internet connection.</p>';
+    ? `<p class="note" data-online-only>Logging in downloads the latest exams to this PC and checks its clock. Disconnect the internet afterwards to randomize.${DESK ? ' This PC stays signed in until you log out.' : ''}</p><p class="note" data-offline-only>No internet: signing in needs an internet connection. Once signed in, this PC randomizes offline.</p>`
+    : '<p class="note" data-offline-only>No internet: this login needs an internet connection.</p>';
   app.innerHTML = `<div class="auth card signin" data-role="${role}">
     <img class="seal" src="${SEAL}" alt="UPESSC seal">
     <h3>Sign in</h3>
@@ -646,7 +897,7 @@ async function renderLogin(role = rememberedRole(), prefill = '') {
     catch (err) { showErr(er, err.message || String(err)); btn.disabled = false; }
   };
   // The approver account is created once; until it exists, the Approver tab offers that instead of a login.
-  if (role === 'approver' && HAS_SERVER && navigator.onLine) api('status', { token: null }).then(st => {
+  if (role === 'approver' && HAS_SERVER && netUp()) api('status', { token: null }).then(st => {
     const card = app.querySelector('.signin[data-role=approver]');
     if (!card || st.approverExists) return;
     card.querySelector('#roleBody').innerHTML = `<p class="muted">No approver account exists yet. It is created once, with the setup key configured on the server. The approver then reviews every request for a new Admin or Randomizer login.</p>
@@ -673,6 +924,7 @@ const utcOffsetText = () => { const m = -new Date().getTimezoneOffset(); return 
 const showErr = (el, msg) => { el.textContent = msg; el.hidden = false; };
 /* What this browser can say about itself; the server adds IP address and location. Shown to the approver. */
 async function deviceInfo(consoleName) {
+  await loadBuildInfo();
   const ua = navigator.userAgentData, c = navigator.connection || {};
   let hi = {}; try { if (ua && ua.getHighEntropyValues) hi = await ua.getHighEntropyValues(['platformVersion', 'model', 'fullVersionList']); } catch {}
   const brands = (hi.fullVersionList || (ua && ua.brands) || []).filter(b => !/not.?a.?brand/i.test(b.brand)).map(b => `${b.brand} ${b.version}`);
@@ -681,13 +933,16 @@ async function deviceInfo(consoleName) {
     mobileDevice: ua ? !!ua.mobile : /Mobi|Android/i.test(navigator.userAgent), userAgent: navigator.userAgent,
     screen: `${screen.width}×${screen.height} @${devicePixelRatio}x`, window: `${innerWidth}×${innerHeight}`, cpuCores: navigator.hardwareConcurrency || null, memoryGB: navigator.deviceMemory || null,
     language: navigator.language, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null, utcOffset: utcOffsetText(), clientTime: new Date().toISOString(), clientTimeMs: Date.now(),
-    online: navigator.onLine, networkType: c.type || null, effectiveType: c.effectiveType || null, downlinkMbps: c.downlink ?? null, rttMs: c.rtt ?? null, saveData: c.saveData ?? null };
+    online: net.internet, networkAdapter: net.link, measuredRttMs: net.rttMs, measuredDownKbps: net.downKbps, networkType: c.type || null, effectiveType: c.effectiveType || null, downlinkMbps: c.downlink ?? null, rttMs: c.rtt ?? null, saveData: c.saveData ?? null,
+    desktop: !!DESK, computer: BUILD.computer || null, osDetail: BUILD.os || null, ...buildLog() };
 }
 /* Both variants are rendered; syncNetUi() shows the right one and keeps it right when the network comes and goes */
 const accountLinks = (canSignup = true) => `<div class="auth-links" data-online-only>${canSignup ? '<button type="button" class="linkbtn" data-act="signup">Create new login</button>' : '<span></span>'}<button type="button" class="linkbtn" data-act="forgot">Forgot password?</button></div>
   <p class="muted sm" style="margin-top:14px" data-offline-only>Creating a new login or resetting a password needs an internet connection.</p>`;
+/* Online for sign-in purposes; before the first check, trust the browser's own flag */
+const netUp = () => HAS_SERVER && (net.checked ? net.internet : navigator.onLine);
 function syncNetUi() {
-  const on = HAS_SERVER && navigator.onLine;
+  const on = netUp();
   document.querySelectorAll('[data-online-only]').forEach(el => { el.hidden = !on; });
   document.querySelectorAll('[data-offline-only]').forEach(el => { el.hidden = on; });
 }
@@ -698,7 +953,7 @@ function syncNetUi() {
 function renderAccountFlow({ role, purpose, back, prefill = '' }) {
   const title = { register: `Create new ${ROLE_NAME[role]} login`, reset: `Reset ${ROLE_NAME[role]} password`, setup: 'Create the approver account' }[purpose];
   const head = `<img class="seal sm" src="${SEAL}" alt="UPESSC seal"><div class="eyebrow">${CONSOLE_NAME[role]}</div><h3>${title}</h3>`;
-  if (!HAS_SERVER || !navigator.onLine) {
+  if (!netUp()) {
     app.innerHTML = `<div class="auth card">${head}<p class="muted">This needs an internet connection, because an OTP is sent to your mobile number.</p><div class="actions"><button class="btn" data-act="back">Back</button></div></div>`;
     bind(app, { back: () => back() }); return;
   }
@@ -794,7 +1049,7 @@ const astate = { tab: 'exams', examId: null };
 async function renderAdmin() {
   const tabs = [['exams', 'Exams'], ['results', 'Results & Sync'], ['settings', 'Settings'], ['audit', 'Audit Log']];
   app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${astate.tab === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="logout">Log out</button></div><div id="view"><div class="muted">Loading…</div></div>`;
-  bind(app, { tab: d => { astate.tab = d.k; astate.examId = null; renderAdmin(); }, logout: logout });
+  bind(app, { tab: d => { astate.tab = d.k; astate.examId = null; renderAdmin(); }, logout: () => logout() });
   const v = $('#view');
   try {
     if (astate.tab === 'exams') return await (astate.examId ? renderExamEditor(v) : renderExamList(v));
@@ -803,10 +1058,12 @@ async function renderAdmin() {
     if (astate.tab === 'audit') return await renderAudit(v, 'admin');
   } catch (e) { if (session) v.innerHTML = `<div class="notice warn">${esc(e.message)}</div>`; }
 }
-async function logout() {
+async function logout(force = false) {
+  if (!session) return renderLanding();
+  if (force !== true && !net.internet && !(await confirmModal('Log out?', '<p>There is no internet right now, and signing in again needs an internet connection.</p>', 'Log out', 'danger'))) return;
   if (session.role === 'admin' || session.role === 'approver') { try { await api(session.role + '/logout', { method: 'POST' }); } catch {} }
-  else await appendLog('client', 'LOGOUT', {});
-  setSession(null); cstate.view = 'exams'; astate.examId = null; renderLanding();
+  else await appendLog('client', 'LOGOUT', { network: netSnapshot() });
+  reauthNeeded = null; setSession(null); cstate.view = 'exams'; astate.examId = null; renderLanding();
 }
 
 const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description },
@@ -1011,7 +1268,7 @@ const pstate = { tab: 'requests', show: 'pending' };
 async function renderApprover() {
   const tabs = [['requests', 'Requests'], ['users', 'Users'], ['audit', 'Audit Log']];
   app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${pstate.tab === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div><button class="btn sm" data-act="logout">Log out</button></div><div id="view"><div class="muted">Loading…</div></div>`;
-  bind(app, { tab: d => { pstate.tab = d.k; renderApprover(); }, logout });
+  bind(app, { tab: d => { pstate.tab = d.k; renderApprover(); }, logout: () => logout() });
   const v = $('#view');
   try {
     if (pstate.tab === 'requests') return await renderRequests(v);
@@ -1105,7 +1362,8 @@ async function renderUsers(v) {
    ========================================================= */
 const cstate = { view: 'exams', examId: null, shiftId: null };
 const dkey = (e, s, b, a) => `${e}|${s}|${b}|${a}`;
-function shiftWindow(s) { return { start: new Date(`${s.date}T${s.start}:00`).getTime(), end: new Date(`${s.date}T${s.end}:59.999`).getTime() }; }
+/* Shift windows are IST times, so a PC set to another time zone still opens and closes them at the right moment */
+function shiftWindow(s) { return { start: Date.parse(`${s.date}T${s.start}:00+05:30`), end: Date.parse(`${s.date}T${s.end}:59.999+05:30`) }; }
 function windowState(s, now = Date.now()) { const w = shiftWindow(s); return now < w.start ? 'upcoming' : now > w.end ? 'closed' : 'open'; }
 async function drawMap(examId) { const m = new Map(); (await idb.all('draws')).filter(d => d.examId === examId).forEach(d => m.set(d.key, d)); return m; }
 /* Number of attempts for an exam: 5 in Mode A; the locked random draw in Mode B (null until drawn) */
@@ -1124,66 +1382,61 @@ function stateBadge(s, prog) {
   return (w === 'open' ? '<span class="badge b-open">● Window open</span>' : w === 'upcoming' ? '<span class="badge b-up">Upcoming</span>' : '<span class="badge b-closed">Window closed</span>') + (prog.done ? ` <span class="badge b-prog">${prog.done}/${prog.total} draws</span>` : '');
 }
 
-/* Logins this PC can use offline: everyone who has logged in online on it (salted password hashes only) */
-async function cachedLogins() {
-  const m = { ...((await idb.get('meta', 'client_auths')) || {}) };
-  const legacy = await idb.get('meta', 'client_auth');   // the older single shared login, cached by earlier versions
-  if (legacy && legacy.username && !m[legacy.username]) m[legacy.username] = { ...legacy, kind: 'shared' };
-  return m;
-}
-async function forgetLogin(id) {
-  const m = (await idb.get('meta', 'client_auths')) || {};
-  if (m[id]) { delete m[id]; await idb.put('meta', m, 'client_auths'); }
-}
-/* Randomizer login: online first (downloads the latest exams); offline falls back to logins saved on this PC */
+/* Randomizer login: needs the internet (it downloads the latest exams and checks the PC clock). Once signed in,
+   the PC randomizes offline; the Windows app stays signed in until the person logs out. */
 async function submitClientLogin(f, er, btn) {
-    const cached = await cachedLogins();
     const raw = f.u.value.trim(), p = f.p.value;
     const id = normMobile(raw) || raw;
     const stop = m => { showErr(er, m); btn.disabled = false; };
     er.hidden = true; if (!raw || !p) return stop('Enter your mobile number and password.');
     btn.disabled = true;
-    let online = null;
-    try { online = await api('client/login', { method: 'POST', token: null, body: { username: id, password: p, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } }); }
+    let r; const t0 = Date.now();
+    try { r = await api('client/login', { method: 'POST', token: null, body: { username: id, password: p, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } }); }
     catch (err) {
-      if (!err.network) {
-        if (err.status === 403) await forgetLogin(id);   // pending / rejected / disabled: this PC must not let it in offline either
-        await appendLog('client', 'CLIENT_LOGIN_FAILED', { attempted: id, mode: 'online', reason: err.message }, { actor: id || 'unknown' }); return stop(err.message);
-      }
+      if (err.network) { refreshNet('login-failed'); return stop('Internet is required to sign in. Connect to the internet and try again. After signing in, this PC can randomize offline.'); }
+      await appendLog('client', 'CLIENT_LOGIN_FAILED', { attempted: id, reason: err.message, ...buildLog() }, { actor: id || 'unknown' }); return stop(err.message);
     }
-    let mode = 'online', name = null;
-    if (online) {
-      const m = (await idb.get('meta', 'client_auths')) || {};
-      m[id] = online.cred; (online.revoked || []).forEach(x => delete m[x]);   // logins the approver disabled or rejected are removed from this PC
-      await idb.put('meta', m, 'client_auths');
-      await idb.put('meta', online.token, 'client_token');
-      online.logo ? await idb.put('meta', online.logo, 'logo') : await idb.del('meta', 'logo');
-      name = online.name || null;
-    } else {
-      mode = 'offline';
-      if (!Object.keys(cached).length) return stop('Server not reachable and this PC has no saved logins. Connect to the internet for the first login.');
-      const a = (await cachedLogins())[id];
-      if (!a || await hashPw(p, a.salt) !== a.hash) {
-        await appendLog('client', 'CLIENT_LOGIN_FAILED', { attempted: id, mode, reason: a ? 'wrong password' : 'login not saved on this PC' }, { actor: id || 'unknown' });
-        return stop(a ? 'Invalid mobile number or password.' : 'This login has not been used online on this PC yet, so it cannot log in offline. Connect to the internet once and log in.');
-      }
-      name = a.name || null;
-    }
-    setSession({ role: 'client', user: id, name });
-    await checkClock('login');
-    await appendLog('client', 'CLIENT_LOGIN', { mode, name, account: (online ? online.cred.kind : (await cachedLogins())[id].kind) || 'shared', clockReading: new Date().toISOString(), localClock: fmtTs(Date.now()), serverClock: online ? new Date(online.serverTime).toISOString() : null,
-      clockDriftSeconds: online ? Math.round((Date.now() - online.serverTime) / 1000) : null, timezoneOffsetMinutes: new Date().getTimezoneOffset(), networkOnline: navigator.onLine, installId: await installId(), userAgent: navigator.userAgent });
-    if (online) {
-      const summary = [];
-      for (const ex of online.exams) { const m = await mergeExam(ex, { packageVersion: ex.packageVersion, exportedAt: ex.exportedAt, source: 'online' }); summary.push({ code: ex.code, version: ex.packageVersion, ...m }); }
-      await appendLog('client', 'EXAMS_DOWNLOADED', { count: online.exams.length, exams: summary });
-      if (Math.abs(Date.now() - online.serverTime) > 120000) await appendLog('client', 'CLOCK_DRIFT_FLAG', { pcClock: new Date().toISOString(), serverClock: new Date(online.serverTime).toISOString(), driftSeconds: Math.round((Date.now() - online.serverTime) / 1000) });
-    }
+    const t1 = Date.now();
+    await idb.del('meta', 'client_auths'); await idb.del('meta', 'client_auth');   // older versions kept password hashes here for offline logins; not any more
+    await idb.put('meta', r.token, 'client_token');
+    reauthNeeded = null;
+    setSession({ role: 'client', user: id, name: r.name || null });
+    await checkClock('login'); await loadBuildInfo();
+    await appendLog('client', 'CLIENT_LOGIN', { mode: 'online', name: r.name || null, account: r.account || (r.cred && r.cred.kind) || 'shared', clockReading: new Date(t1).toISOString(), localClock: fmtTs(t1) + ' IST',
+      serverClock: new Date(r.serverTime).toISOString(), clockDriftSeconds: Math.round(((t0 + t1) / 2 - r.serverTime) / 1000), ...tzInfo(), timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+      network: netSnapshot(), installId: await installId(), userAgent: navigator.userAgent, staysSignedIn: !!DESK, ...buildLog() });
+    if (Number.isFinite(r.serverTime)) await noteServerTime({ serverTime: r.serverTime, localMid: (t0 + t1) / 2, rttMs: t1 - t0 }, 'login');
+    await applyDownload(r, 'login');
     const x = await verifyChain('client');
     integrityIssue = x.ok ? null : x.issues[0];
     if (!x.ok) await appendLog('client', 'INTEGRITY_CHECK_FAILED', { issues: x.issues });
     cstate.view = 'exams'; renderHeader(); renderClient();
-    if (online) syncNow(true);
+    refreshNet('after-login');
+    syncNow(true);
+}
+/* Exams, shifts and the logo from the server: at login, with "Update exams", and automatically when the internet comes back */
+async function applyDownload(r, source) {
+  r.logo ? await idb.put('meta', r.logo, 'logo') : await idb.del('meta', 'logo');
+  const summary = [];
+  for (const ex of r.exams || []) { const m = await mergeExam(ex, { packageVersion: ex.packageVersion, exportedAt: ex.exportedAt, source: 'online' }); summary.push({ code: ex.code, version: ex.packageVersion, ...m }); }
+  await idb.put('meta', { at: Date.now(), count: (r.exams || []).length, source }, 'last_exams_update');
+  await appendLog('client', 'EXAMS_DOWNLOADED', { source, count: (r.exams || []).length, exams: summary });
+}
+let refreshing = false;
+async function refreshExams(auto = false) {
+  if (refreshing || !session || session.role !== 'client') return;
+  if (!net.internet) { if (!auto) toast('Connect to the internet to update exams.'); return; }
+  const token = await idb.get('meta', 'client_token');
+  if (!token) { needReauth('Sign in again to update exams and sync results.'); if (!auto) promptReauth(); return; }
+  refreshing = true;
+  try {
+    const r = await api('client/exams', { method: 'POST', token, body: { installId: await installId(), device: await deviceInfo('randomizer') } });
+    await applyDownload(r, auto ? 'automatic (internet reconnected)' : 'Update exams button');
+    if (!auto) toast(`Exams updated ✔ ${(r.exams || []).length} exam(s)`);
+  } catch (err) {
+    if (err.status !== 401) await appendLog('client', 'EXAMS_UPDATE_FAILED', { reason: err.message, network: netSnapshot() });
+    if (!auto) toast('Update failed: ' + err.message);
+  } finally { refreshing = false; if (clientIdle()) renderClient(); }
 }
 
 /* Merge a downloaded/imported exam. In a shift where randomization has started, the time window and
@@ -1216,9 +1469,9 @@ async function mergeExam(ex, meta) {
 /* Upload the local audit chain + draws to the server (append-only on the server side) */
 let syncing = false;
 async function syncNow(auto = false) {
-  if (syncing || !HAS_SERVER || !navigator.onLine) { if (!auto) toast(navigator.onLine ? 'Sync already running' : 'Offline — results will sync when the PC is back online'); return; }
+  if (syncing || !HAS_SERVER || !net.internet) { if (!auto) toast(net.internet ? 'Sync already running' : 'No internet: results sync automatically when the PC is back online'); return; }
   const token = await idb.get('meta', 'client_token');
-  if (!token) { if (!auto) toast('Log in online once to enable sync'); return; }
+  if (!token) { needReauth('Sign in again to sync results.'); if (!auto) promptReauth(); return; }
   syncing = true;
   try {
     const entries = (await idb.all('client_log')).sort((a, b) => a.seq - b.seq), draws = await idb.all('draws'), choices = await idb.all('choices');
@@ -1229,25 +1482,29 @@ async function syncNow(auto = false) {
   } catch (err) {
     await appendLog('client', 'SYNC_FAILED', { reason: err.message });
     if (!auto) toast('Sync failed: ' + err.message);
-    if (err.status === 401) await idb.del('meta', 'client_token');
-  } finally { syncing = false; if (session && session.role === 'client' && !busy && !$('#modalRoot').children.length) renderClient(); }
+  } finally { syncing = false; if (clientIdle()) renderClient(); }
 }
 
 
 async function renderClient() {
   if (!session) return renderLanding();
-  const tabs = [['exams', 'Exams'], ['audit', 'Audit Log']];
-  const cur = cstate.view === 'audit' ? 'audit' : 'exams';
+  const tabs = [['exams', 'Exams'], ['results', 'Results'], ['audit', 'Audit Log']];
+  const cur = ['audit', 'results'].includes(cstate.view) ? cstate.view : 'exams';
+  const up = await idb.get('meta', 'last_exams_update');
   const ls = await idb.get('meta', 'last_sync');
   const logs = await lastEntry('client_log');
   const pending = logs && (!ls || logs.seq > ls.upToSeq + 1);
   const syncInfo = ls ? `Last sync ${fmtTs(ls.at)}${pending ? ' · <b>unsynced changes</b>' : ' ✔'}` : 'Not yet synced';
   app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div>
-    <span class="muted sm">${syncInfo}</span><button class="btn sm" data-act="sync" ${navigator.onLine && HAS_SERVER ? '' : 'disabled title="Connect to the internet to sync"'}>⟳ Sync now</button>
+    <span class="muted sm">${syncInfo}</span>
+    <button class="btn sm" data-act="update" ${net.internet ? '' : 'disabled'} title="${net.internet ? 'Download the latest published exams, shifts and colours' : 'Connect to the internet to update exams'}${up ? ' · last updated ' + fmtTs(up.at) + ' IST' : ''}">⇣ Update exams</button>
+    <button class="btn sm" data-act="sync" ${net.internet ? '' : 'disabled title="Connect to the internet to sync"'}>⟳ Sync now</button>
     <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
-  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout, sync: () => syncNow(false) });
+  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout: () => logout(), sync: () => syncNow(false), update: () => refreshExams(false) });
+  renderBanners();
   const v = $('#view');
   if (cstate.view === 'audit') return renderAudit(v, 'client');
+  if (cstate.view === 'results') return renderClientResults(v);
   if (cstate.view === 'exam') return renderClientExam(v);
   if (cstate.view === 'shift') return renderShift(v);
   return renderClientExams(v);
@@ -1262,8 +1519,39 @@ async function renderClientExams(v) {
       const locked = e.shifts.filter(s => shiftProgress(e, s, D, T).complete).length;
       return `<div class="card click" data-act="open" data-id="${e.id}"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3><div class="muted sm">${e.shifts.length} shift(s) · published v${e.packageVersion}</div><div class="muted sm">${modeText(e, T)}</div>
         <div style="margin-top:8px">${open ? `<span class="badge b-open">● ${open} shift(s) open now</span> ` : ''}${locked ? `<span class="badge b-lock">🔒 ${locked} locked</span>` : ''}${!open && !locked ? '<span class="badge b-closed">No window open now</span>' : ''}</div></div>`; }).join('')}</div>`
-    : '<div class="empty">No exams on this PC yet. Log in while online to download the published exams.</div>'}`;
+    : '<div class="empty">No exams on this PC yet. Connect to the internet and press “Update exams” to download the published exams.</div>'}`;
   bind(v, { open: async d => { cstate.view = 'exam'; cstate.examId = d.id; const e = exams.find(x => x.id === d.id); await appendLog('client', 'EXAM_SELECTED', { examId: e.id, examName: e.name, examCode: e.code }); renderClient(); } });
+}
+
+/* Every roll stored on this PC: exam → shift → subject × turn, with the colour that came up on each turn */
+async function renderClientResults(v) {
+  const exams = (await idb.all('client_exams')).sort((a, b) => a.name.localeCompare(b.name)), draws = await idb.all('draws'), choices = await choiceMap();
+  const D = new Map(draws.map(d => [d.key, d]));
+  const sel = exams.some(e => e.id === cstate.resultsExam) ? cstate.resultsExam : 'all';
+  const shown = sel === 'all' ? exams : exams.filter(e => e.id === sel);
+  const block = e => {
+    const T = totalFor(e, choices), drawn = draws.filter(d => d.examId === e.id);
+    const cols = Math.max(T || 0, ...drawn.map(d => d.attempt), 0);
+    const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+    return `<div class="card"><div class="row" style="align-items:baseline"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3></div>
+      <span class="muted sm">${modeText(e, T)} · ${drawn.length} roll(s) on this PC</span></div>
+      ${shifts.map(s => {
+        const p = shiftProgress(e, s, D, T);
+        return `<div class="res-shift"><h4>${esc(s.name)}</h4><span class="muted sm">${fmtDate(s.date)} · window ${s.start}–${s.end} IST</span>${stateBadge(s, p)}</div>
+          ${cols ? `<div class="rgrid-wrap"><table class="rgrid compact"><thead><tr><th>Subject</th>${Array.from({ length: cols }, (_, i) => `<th class="${i + 1 === T ? 'final' : ''}">${T ? attemptLabel(i + 1, T) : ORD[i]}</th>`).join('')}</tr></thead>
+          <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}</td>${Array.from({ length: cols }, (_, i) => {
+            const d = D.get(dkey(e.id, s.id, sb.id, i + 1)), fin = i + 1 === T ? 'final' : '';
+            return d ? `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span></div><div class="ts">${fmtTime(d.ts)} IST · #${d.logSeq}</div></td>` : `<td class="${fin} pending" style="color:var(--rule)">—</td>`;
+          }).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted sm">${T ? 'No rolls yet.' : 'Final iteration not drawn yet.'}</p>`}`;
+      }).join('')}</div>`;
+  };
+  v.innerHTML = `<div class="toolbar">${pageHead('Stored on this PC · offline', 'Roll <em>results</em>')}<div class="sp"></div>
+      ${exams.length > 1 ? `<label class="fld" style="margin:0;min-width:220px"><span>Exam</span><select data-exam><option value="all">All exams</option>${exams.map(e => `<option value="${e.id}" ${e.id === sel ? 'selected' : ''}>${esc(e.code)} · ${esc(e.name)}</option>`).join('')}</select></label>` : ''}
+      <button class="btn" data-act="print">Print</button><button class="btn primary" data-act="csv">⬇ Export results (CSV)</button></div>
+    <p class="muted sm">Every roll made on this PC, turn by turn: which colour came up on which attempt, shift-wise and exam-wise. Times are IST; # is the audit log entry. These records stay on this PC and are also synced to the server when it is online.</p>
+    ${shown.length ? shown.map(block).join('') : '<div class="empty">No exams on this PC yet.</div>'}`;
+  const selEl = v.querySelector('[data-exam]'); if (selEl) selEl.onchange = () => { cstate.resultsExam = selEl.value; renderClient(); };
+  bind(v, { csv: exportResults, print: async () => { await appendLog('client', 'RESULTS_PRINTED', { exam: sel }); window.print(); } });
 }
 
 async function renderClientExam(v) {
@@ -1272,7 +1560,7 @@ async function renderClientExam(v) {
   const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Exams</button><div class="head"><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2><div class="muted sm">${modeText(e, T)}</div></div></div>
     <div class="grid-cards">${shifts.map(s => { const p = shiftProgress(e, s, D, T); return `<div class="card click" data-act="open" data-id="${s.id}"><h3>${esc(s.name)}</h3>
-      <div class="muted sm">📅 ${fmtDate(s.date)} · Window ${s.start} – ${s.end}</div><div class="muted sm">${s.subjects.length} subject(s)</div><div style="margin-top:8px">${stateBadge(s, p)}</div></div>`; }).join('')}</div>`;
+      <div class="muted sm">📅 ${fmtDate(s.date)} · Window ${s.start} – ${s.end} IST</div><div class="muted sm">${s.subjects.length} subject(s)</div><div style="margin-top:8px">${stateBadge(s, p)}</div></div>`; }).join('')}</div>`;
   bind(v, { back: () => { cstate.view = 'exams'; renderClient(); },
     open: async d => { const s = e.shifts.find(x => x.id === d.id); cstate.view = 'shift'; cstate.shiftId = s.id; await appendLog('client', 'SHIFT_OPENED', { examId: e.id, examCode: e.code, shiftId: s.id, shiftName: s.name, windowState: windowState(s) }); renderClient(); } });
 }
@@ -1281,24 +1569,32 @@ async function renderShift(v) {
   const e = await idb.get('client_exams', cstate.examId); const s = e && e.shifts.find(x => x.id === cstate.shiftId);
   if (!s) { cstate.view = 'exams'; return renderClient(); }
   const T = (await finalPlan(e)).total;
-  const D = await drawMap(e.id), p = shiftProgress(e, s, D, T), w = windowState(s), canRoll = !!T && w === 'open' && !p.complete && !navigator.onLine;
+  const D = await drawMap(e.id), p = shiftProgress(e, s, D, T), w = windowState(s), ck = await clockState(s);
+  const netOk = net.checked && !net.internet, canRoll = !!T && w === 'open' && !p.complete && netOk && ck.ok;
   let note;
   if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final colours have been selected. No further changes are possible.</div>`;
-  else if (w === 'open' && navigator.onLine) note = `<div class="notice warn">🔌 The randomization window is open, but this PC is CONNECTED to a network. Disconnect the network cable / Wi-Fi to enable the dice. Randomization is only allowed offline.</div>`;
-  else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
-  else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start}</b> on <b>${fmtDate(s.date)}</b> (PC clock).</div>`;
-  else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
-  const canPick = !T && w === 'open' && !navigator.onLine;
+  else if (w === 'open' && net.internet) note = `<div class="notice warn">🔌 The randomization window is open, but this PC can reach the INTERNET. Disconnect Wi-Fi / LAN cable / mobile hotspot to enable the dice. Randomization is only allowed offline.</div>`;
+  else if (w === 'open' && !ck.ok) note = `<div class="notice bad">⏱ Rolls are blocked: ${esc(ck.reason)} ${esc(ck.fix)}</div>`;
+  else if (w === 'open' && !net.checked) note = `<div class="notice info">Checking the network…</div>`;
+  else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} IST on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
+  else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start} IST</b> on <b>${fmtDate(s.date)}</b>.</div>`;
+  else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} IST on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
+  const canPick = !T && w === 'open' && netOk && ck.ok;
+  const checks = `<div class="checks">
+      <span class="${!net.checked ? 'w' : net.internet ? 'n' : 'y'}"><i></i>${!net.checked ? 'Network: checking…' : net.internet ? `Internet CONNECTED${net.downKbps != null ? ' · ' + fmtSpeed(net.downKbps) : ''}` : net.link ? 'Network adapter on · no internet' : 'Offline'}${net.checkedAt ? ` (checked ${fmtTime(net.checkedAt)})` : ''}</span>
+      <span class="${ck.ok ? 'y' : 'n'}"><i></i>${ck.tc ? `Clock checked with server ${fmtTs(ck.tc.at)} IST · offset ${Math.round(ck.tc.offsetMs / 1000)} s` : 'Clock not checked with the server yet'}${ck.ok ? '' : ' · not valid for this shift'}</span>
+      <span class="${tzInfo().isIST ? 'y' : 'w'}"><i></i>Time zone ${tzInfo().utcOffset}${tzInfo().isIST ? ' (IST)' : ' (not IST)'}</span>
+      ${ck.flags ? `<span class="w"><i></i>${ck.flags} clock change(s) flagged on this PC · see audit log</span>` : ''}</div>`;
   const finals = T ? s.subjects.filter(sb => D.has(dkey(e.id, s.id, sb.id, T))).length : 0;
   const stats = `<div class="stats">
       <div class="stat"><div class="v">${p.done}<small>/ ${p.total || '—'}</small></div><div class="l">rolls recorded in this shift</div></div>
       <div class="stat amber"><div class="v">${T ? ORD[T - 1] : '—'}</div><div class="l">final iteration ${isClientMode(e) ? (T ? '· drawn at random' : '· not drawn yet') : '· fixed'}</div></div>
       <div class="stat green"><div class="v">${finals}<small>/ ${s.subjects.length}</small></div><div class="l">subjects with a final colour</div></div>
-      <div class="stat ${w === 'open' ? 'blue' : 'rust'}"><div class="v">${s.start}<small>– ${s.end}</small></div><div class="l">randomization window · ${fmtDate(s.date)} · ${w}</div></div></div>`;
+      <div class="stat ${w === 'open' ? 'blue' : 'rust'}"><div class="v">${s.start}<small>– ${s.end}</small></div><div class="l">randomization window (IST) · ${fmtDate(s.date)} · ${w}</div></div></div>`;
   const choosePanel = T ? '' : `<div class="card callout"><h3>Draw the final iteration for this exam</h3>
       <p>This exam uses a <b>randomly drawn final iteration</b>. Before the first roll, the system draws at random which iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}, each equally likely) gives the FINAL question paper colour.
       The result applies to <b>every shift and every subject</b> of ${esc(e.name)} and is <b>locked permanently</b>.</p>
-      <div class="row" style="align-items:center"><button class="btn gold" data-act="pickFinal" ${canPick ? '' : 'disabled'}>🎲 Draw final iteration</button>${canPick ? '' : '<span class="muted sm">Available offline while the randomization window is open.</span>'}</div></div>`;
+      <div class="row" style="align-items:center"><button class="btn gold" data-act="pickFinal" ${canPick ? '' : 'disabled'}>🎲 Draw final iteration</button>${canPick ? '' : '<span class="muted sm">Available offline while the randomization window is open and the clock check is valid.</span>'}</div></div>`;
   const cell = (sb, a) => {
     const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === T ? 'final' : '';
     if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
@@ -1309,11 +1605,32 @@ async function renderShift(v) {
   const cols = Array.from({ length: T || 0 }, (_, i) => i + 1);
   v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Shifts</button><div class="grow head"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h2>${esc(s.name)} <span style="font-size:13px">${stateBadge(s, p)}</span></h2><div class="muted sm">${modeText(e, T)}</div></div><div class="sp"></div>
       <button class="btn" data-act="audit">Audit log</button></div>
-    ${stats}${choosePanel}${note}
+    ${stats}${checks}${choosePanel}${note}
     <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & question paper colours</th>${T ? cols.map(a => `<th class="${a === T ? 'final' : ''}">${attemptLabel(a, T)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
     <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(a => cell(sb, a)).join('') : '<td class="muted">Draw the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
     <p class="muted sm" style="margin-top:12px">Each roll is an independent, unbiased draw (crypto.getRandomValues) and is saved to the audit log before the dice stop.</p>`;
   bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), pickFinal: () => drawFinalIteration(e.id, s.id) });
+}
+
+/* Checked right before every roll (and again after the confirmation): fresh internet probe, clock checks, shift window.
+   Returns null when the roll may go ahead, otherwise { event, msg }. */
+async function rollGuard(s, context, quick = false) {
+  await clockTick(context);
+  if (!quick) await checkWindowsTimeLog(context);
+  if (!quick || Date.now() - net.checkedAt > 15000) await refreshNet(context);
+  if (net.internet) return { event: 'NETWORK_CONNECTED', msg: 'This PC can reach the internet. Disconnect Wi-Fi / LAN cable / mobile hotspot to randomize.' };
+  const c = await clockState(s);
+  if (!c.ok) return { event: 'CLOCK_NOT_VERIFIED', msg: `${c.reason} ${c.fix}` };
+  if (windowState(s) !== 'open') return { event: 'OUTSIDE_WINDOW', msg: `The randomization window (${s.start}–${s.end} IST on ${fmtDate(s.date)}) is not open.` };
+  return null;
+}
+async function withChecking(fn) {
+  let close = null; const t = setTimeout(() => { close = openModal('<div class="eyebrow">Before the roll</div><h3>Checking network and clock…</h3><p class="muted sm">A few seconds at most.</p>', { dismissable: false }); }, 300);
+  try { return await fn(); } finally { clearTimeout(t); close && close(); }
+}
+async function blocked(event, g, info) {
+  await appendLog('client', event + g.event, { ...info, reason: g.msg, network: netSnapshot() });
+  await alertModal('Not allowed right now', `<p>${esc(g.msg)}</p>`);
 }
 
 /* Mode B: draw the final iteration (3rd–7th) at random for the whole exam, before any roll, and lock it.
@@ -1321,13 +1638,13 @@ async function renderShift(v) {
 async function drawFinalIteration(examId, shiftId) {
   if (busy) return; busy = true;
   try {
-    await checkClock('pre-final-iteration-draw');
     const e = await idb.get('client_exams', examId), s = e && e.shifts.find(x => x.id === shiftId);
     if (!s || !isClientMode(e)) return;
     if (await idb.get('choices', examId)) { toast('The final iteration is already locked.'); return; }
     if ((await idb.all('draws')).some(d => d.examId === examId)) { toast('Randomization has already started for this exam.'); return; }
-    if (navigator.onLine) { await appendLog('client', 'FINAL_ITERATION_BLOCKED_NETWORK_CONNECTED', { examId, examCode: e.code, shiftName: s.name }); toast('Disconnect the network to randomize.'); return; }
-    if (windowState(s) !== 'open') { await appendLog('client', 'FINAL_ITERATION_BLOCKED_OUTSIDE_WINDOW', { examId, examCode: e.code, shiftName: s.name }); toast('Randomization window is not open (PC clock).'); return; }
+    const info = { examId, examCode: e.code, shiftName: s.name };
+    let g = await withChecking(() => rollGuard(s, 'pre-final-iteration-draw'));
+    if (g) return blocked('FINAL_ITERATION_BLOCKED_', g, info);
     const pool = Array.from({ length: MAX_FINAL - MIN_FINAL + 1 }, (_, i) => MIN_FINAL + i);
     const ok = await confirmModal('Draw the final iteration?',
       `<p>For <b>${esc(e.name)}</b> (${esc(e.code)}), the system will now draw at random which iteration gives the FINAL question paper colour.</p>
@@ -1335,12 +1652,16 @@ async function drawFinalIteration(examId, shiftId) {
        <p style="margin-top:12px"><b>The result applies to every subject in every shift of this exam and is locked permanently. It cannot be redrawn.</b></p>`,
       '🎲 Draw final iteration', 'gold');
     if (!ok) { await appendLog('client', 'FINAL_ITERATION_DRAW_CANCELLED', { examId, examCode: e.code, shiftName: s.name }); return; }
+    g = await withChecking(() => rollGuard(s, 'final-iteration-confirmed', true));
+    if (g) return blocked('FINAL_ITERATION_BLOCKED_', g, info);
+    if (await idb.get('choices', examId)) { toast('The final iteration is already locked.'); return; }
+    const ckSnap = clockSnapshot(await clockState(s));
     // ---- random selection ----
     const rnd = secureRandomInt(pool.length), n = pool[rnd.value];
     // Persist FIRST (choice + audit entry in one atomic transaction), then animate.
     const entry = await appendLog('client', 'FINAL_ITERATION_RANDOMIZED', { examId, examCode: e.code, examName: e.name, finalAttempt: n, pool: pool.map(x => ORD[x - 1]), poolSize: pool.length,
       drawIndex: rnd.value, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, drawnBy: session.user, shiftId, shiftName: s.name,
-      clockReading: new Date().toISOString(), networkOnline: navigator.onLine },
+      clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap, ...buildLog() },
       { extra: en => ({ store: 'choices', value: { examId, examCode: e.code, finalAttempt: n, method: 'random', drawnBy: session.user, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
     await animateFinalIteration(e, s, pool, rnd.value, entry);
   } catch (err) {
@@ -1356,19 +1677,22 @@ const faceHtml = (i, c) => `<div class="face f${i}" style="--c:${c.hex};--ink:${
 async function doDraw(examId, shiftId, subjectId, attempt) {
   if (busy) return; busy = true;
   try {
-    await checkClock('pre-draw');
     const e = await idb.get('client_exams', examId), s = e.shifts.find(x => x.id === shiftId), sb = s.subjects.find(x => x.id === subjectId);
     const plan = await finalPlan(e), T = plan.total;
     if (!T) { toast('Draw the final iteration first.'); return renderClient(); }
     if (attempt < 1 || attempt > T) { toast('Invalid attempt.'); return renderClient(); }
-    if (navigator.onLine) { await appendLog('client', 'DRAW_BLOCKED_NETWORK_CONNECTED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Disconnect the network to randomize.'); return renderClient(); }
-    if (windowState(s) !== 'open') { await appendLog('client', 'DRAW_BLOCKED_OUTSIDE_WINDOW', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Randomization window is not open (PC clock).'); return renderClient(); }
+    const info = { examCode: e.code, shiftName: s.name, subject: sb.name, attempt };
+    let g = await withChecking(() => rollGuard(s, 'pre-draw'));
+    if (g) return blocked('DRAW_BLOCKED_', g, info);
     const n = sb.colours.length;
     const ok = await confirmModal(`${sb.name} — ${attemptLabel(attempt, T)}`,
       `<p>${esc(e.name)} · ${esc(s.name)}</p><p>Pool of ${n} question paper colours (each has a 1 in ${n} chance):</p><div class="swatches">${sb.colours.map(swMini).join('')}</div>
        <p style="margin-top:12px"><b>${attempt === T ? 'This is the FINAL draw. The selected colour becomes the final question paper colour for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
       attempt === T ? '🎲 Roll FINAL' : '🎲 Roll the dice', attempt === T ? 'gold' : 'primary');
     if (!ok) { await appendLog('client', 'DRAW_CANCELLED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); return; }
+    g = await withChecking(() => rollGuard(s, 'draw-confirmed', true));
+    if (g) return blocked('DRAW_BLOCKED_', g, info);
+    const ckSnap = clockSnapshot(await clockState(s));
 
     const key = dkey(examId, shiftId, subjectId, attempt);
     const D = await drawMap(examId);
@@ -1379,7 +1703,7 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     const rnd = secureRandomInt(n), colour = cleanColour(sb.colours[rnd.value]);
     const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
       subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: attemptLabel(attempt, T), pool: sb.colours.map(c => c.name), poolSize: n,
-      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), networkOnline: navigator.onLine, finalAttempt: T, finalMode: plan.mode, isFinal: attempt === T };
+      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap, ...buildLog(), finalAttempt: T, finalMode: plan.mode, isFinal: attempt === T };
     // Persist FIRST (draw + audit entry in one atomic transaction), then animate.
     const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex: rnd.value, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
     await animateRoll(e, s, sb, attempt, rnd.value, entry, T);
@@ -1491,17 +1815,26 @@ function confetti(colours) {
    Boot
    ========================================================= */
 (async function boot() {
-  $('#ver').textContent = 'Version ' + APP_VERSION;
-  tickClock();
+  $('#ver').textContent = 'Version ' + APP_VERSION + (DESK ? ' · Windows app' : '');
+  tickClock(); paintNet();
   if (!window.indexedDB || !window.crypto || !crypto.subtle) { app.innerHTML = '<div class="empty">This browser does not support the required secure storage/cryptography. Please use the latest Google Chrome or Microsoft Edge.</div>'; return; }
   db = await openDB();
   try { navigator.storage && navigator.storage.persist && await navigator.storage.persist(); } catch {}
   await installId();
+  loadBuildInfo();
+  if (DESK) { try { clockBase.resumes = (await DESK.clock()).resumeCount; } catch {} }
+  startWatchers();
+  refreshNet('startup');
   await renderHeader();
-  if (HAS_SERVER && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  if (HAS_SERVER && !DESK && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   if (session && session.role === 'admin' && session.token) return renderAdmin();
   if (session && session.role === 'approver' && session.token) return renderApprover();
-  if (session && session.role === 'client' && (await cachedLogins())[session.user]) { await checkClock('reload'); const x = await verifyChain('client'); integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); return renderClient(); }
+  if (session && session.role === 'client' && session.user) {
+    await checkClock('app-start'); await loadBuildInfo();
+    await appendLog('client', 'APP_STARTED', { signedIn: session.user, staysSignedIn: !!DESK, pcClock: new Date().toISOString(), pcIST: fmtTs(Date.now()), ...tzInfo(), ...buildLog() });
+    await checkWindowsTimeLog('app-start');
+    const x = await verifyChain('client'); integrityIssue = x.ok ? null : x.issues[0]; renderBanners(); return renderClient();
+  }
   setSession(null); renderLanding();
 })().catch(err => { app.innerHTML = `<div class="empty">Failed to start: ${esc(err.message)}</div>`; });
 </script>

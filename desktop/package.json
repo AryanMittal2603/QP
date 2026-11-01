@@ -1,0 +1,51 @@
+{
+  "name": "upessc-qpr-desktop",
+  "productName": "UPESSC QPR",
+  "version": "2.1.0",
+  "description": "UPESSC Question Paper Randomization: Windows app for Admin, Randomizer and Approver logins",
+  "author": "UPESSC",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "prepare-app": "node build/prepare.js",
+    "start": "node build/prepare.js && electron .",
+    "dist": "node build/prepare.js && electron-builder --win portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "43.8.0",
+    "electron-builder": "26.17.0",
+    "resedit": "3.1.0"
+  },
+  "build": {
+    "appId": "in.upessc.qpr",
+    "productName": "UPESSC QPR",
+    "artifactName": "UPESSC-QPR-${version}-portable.exe",
+    "directories": {
+      "output": "../release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "afterPack": "build/after-pack.js",
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "requestExecutionLevel": "user"
+    }
+  }
+}
