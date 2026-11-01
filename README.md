@@ -1,14 +1,14 @@
 # UPESSC QP Randomization System
 
-A portal that randomizes the Commission's colour-coded question paper sets: five independent draws per exam × shift × subject, ending with one final colour. The randomization itself runs **offline on a stand-alone PC**, and every draw is kept in a tamper-evident audit trail.
+A portal that randomizes the Commission's question paper colours: five independent draws per exam × shift × subject, ending with one final colour. The randomization itself runs **offline on a stand-alone PC**, and every draw is kept in a tamper-evident audit trail.
 
 Live: https://upessc-qpr.vercel.app
 
 ## How it works (hybrid online / offline)
 
-1. **Admin Console (online).** Create exams, then shifts (date + allowed randomization window), then subjects with their colour-coded QP sets. Set the single Randomization Console login and upload the logo. Then **publish** the exam. Everything is stored in Neon Postgres, and every admin action goes into a server-side SHA-256 hash-chained audit log.
+1. **Admin Console (online).** Create exams, then shifts (date + allowed randomization window), then subjects with their question paper colours. Create the single Randomization Console login and upload the logo. Then **publish** the exam. Everything is stored in Neon Postgres, and every admin action goes into a server-side SHA-256 hash-chained audit log.
 2. **Randomization Console, login (online).** The head client logs in once while online. All published exams and the login are downloaded and cached in the browser (IndexedDB). A service worker caches the page.
-3. **Disconnect the network.** The dice are **disabled while the PC is online**. Offline, each subject row shows 1st → 4th → Final. Every click is one independent draw using `crypto.getRandomValues` with rejection sampling. The draw is written atomically with a hash-chained audit entry *before* the animation runs, and the cell is locked permanently. A shift locks once every subject has a final set.
+3. **Disconnect the network.** The dice are **disabled while the PC is online**. Offline, each subject row shows 1st → 4th → Final. Every click is one independent draw using `crypto.getRandomValues` with rejection sampling. The draw is written atomically with a hash-chained audit entry *before* the animation runs, and the cell is locked permanently. A shift locks once every subject has a final colour.
 4. **Reconnect.** The local audit chain and draws are uploaded automatically. The server re-verifies the chain, stores it append-only, accepts only draws backed by a matching audit entry, and records conflicts. The admin "Results & Sync" tab shows the results, the PCs that synced, and any conflicts.
 
 Other safeguards:

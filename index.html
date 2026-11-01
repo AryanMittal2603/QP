@@ -71,7 +71,7 @@ table.rgrid{width:100%;border-collapse:separate;border-spacing:0;min-width:980px
 .cell.pending{color:#b3b9c5}
 .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:9px;border:1px solid var(--line);background:#fff;text-align:left}
 .chip .sw{width:26px;height:26px;border-radius:6px;background:var(--c);border:1px solid rgba(0,0,0,.2);flex:none}
-.chip b{display:block;font-size:13px}.chip small{display:block;color:var(--muted);font-size:11px}
+.chip b{display:block;font-size:13px}
 .chip svg{width:14px;height:14px;color:var(--muted)}
 td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39,.18)}
 .ts{font-size:11px;color:var(--muted);margin-top:3px;font-variant-numeric:tabular-nums}
@@ -95,7 +95,7 @@ td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39
 .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .presets button{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:3px 10px 3px 4px;cursor:pointer;font-size:12.5px}
 .presets button i{width:14px;height:14px;border-radius:50%;background:var(--c);border:1px solid rgba(0,0,0,.25)}
-.crow{display:grid;grid-template-columns:44px 1fr 120px 34px;gap:8px;align-items:center;margin-bottom:6px}
+.crow{display:grid;grid-template-columns:44px 1fr 34px;gap:8px;align-items:center;margin-bottom:6px}
 .crow input[type=color]{width:44px;height:34px;padding:2px;border:1px solid #c9d0db;border-radius:7px}
 .crow input[type=text]{padding:7px 9px;border:1px solid #c9d0db;border-radius:7px}
 .crow button{border:1px solid #f3c3be;color:var(--bad);background:#fff;border-radius:7px;height:34px;cursor:pointer}
@@ -123,7 +123,6 @@ td.final .chip{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(201,162,39
 .prism{width:170px;height:184px;position:relative;transform-style:preserve-3d;transition:transform 3s cubic-bezier(.15,.65,.2,1)}
 .pface{position:absolute;left:0;top:50%;width:170px;height:var(--h);margin-top:calc(var(--h) / -2);background:var(--c);color:var(--ink);backface-visibility:hidden;-webkit-backface-visibility:hidden;
   display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-weight:800;letter-spacing:.5px;text-transform:uppercase;border:2px solid rgba(0,0,0,.2);border-radius:6px;box-shadow:inset 0 0 18px rgba(0,0,0,.22),inset 0 4px 8px rgba(255,255,255,.3);overflow:hidden}
-.pface small{font-size:.6em;font-weight:600;opacity:.8;text-transform:none}
 .dshadow.wide{width:190px;margin-left:-95px}
 .rstatus{font-weight:700;color:var(--muted);letter-spacing:.5px;min-height:22px}
 .rstatus.rolling::after{content:"";animation:dots 1s steps(4) infinite}
@@ -214,7 +213,10 @@ const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' 
 const toCsv = rows => rows.map(r => r.map(csvCell).join(',')).join('\r\n');
 function toast(msg, ms = 2600) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
 function bind(root, actions) { root.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => { const f = actions[el.dataset.act]; if (f) { e.stopPropagation(); f(el.dataset, e); } })); }
-const swMini = c => `<span class="sw-mini" style="--c:${c.hex}"><i></i>${esc(c.name)}${c.set ? ` <span class="muted">(${esc(c.set)})</span>` : ''}</span>`;
+const swMini = c => `<span class="sw-mini" style="--c:${c.hex}"><i></i>${esc(c.name)}</span>`;
+/* A question paper is identified by its colour only: keep just name + hex (drops legacy fields) */
+const cleanColour = c => ({ name: c.name, hex: c.hex });
+const cleanShift = s => ({ ...s, subjects: s.subjects.map(b => ({ ...b, colours: b.colours.map(cleanColour) })) });
 
 /* ---------- Server API (Vercel + Neon). Unavailable when opened as a local file or offline. ---------- */
 const HAS_SERVER = location.protocol.startsWith('http');
@@ -458,21 +460,20 @@ function formModal(title, fields, { submitLabel = 'Save', validate, intro = '' }
   });
 }
 function mountColours(el, initial) {
-  let rows = initial.map(c => ({ ...c }));
-  const nextSet = () => { const used = new Set(rows.map(r => r.set)); for (let i = 0; i < 26; i++) { const s = 'Set ' + String.fromCharCode(65 + i); if (!used.has(s)) return s; } return ''; };
+  let rows = initial.map(cleanColour);
   const sync = () => { rows = readColours(el); };
   const render = () => {
     el.innerHTML = `<div class="presets">${PRESETS.map(([n, h]) => `<button type="button" data-p="${n}" style="--c:${h}"><i></i>${n}</button>`).join('')}<button type="button" data-custom>+ Custom</button></div>
-      ${rows.length ? `<div class="crow muted sm"><span>Colour</span><span>Colour name</span><span>Set code</span><span></span></div>` : '<div class="muted sm">Click a preset colour above to add question-paper sets.</div>'}
-      ${rows.map((r, i) => `<div class="crow"><input type="color" value="${r.hex}"><input type="text" data-n value="${esc(r.name)}" placeholder="e.g. Red"><input type="text" data-s value="${esc(r.set || '')}" placeholder="e.g. Set A"><button type="button" data-rm="${i}" title="Remove">✕</button></div>`).join('')}`;
-    el.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { sync(); const p = PRESETS.find(x => x[0] === b.dataset.p); if (rows.some(r => r.name.toLowerCase() === p[0].toLowerCase())) return toast(`${p[0]} is already added`); rows.push({ name: p[0], hex: p[1], set: nextSet() }); render(); });
-    el.querySelector('[data-custom]').onclick = () => { sync(); rows.push({ name: '', hex: '#888888', set: nextSet() }); render(); el.querySelectorAll('[data-n]')[rows.length - 1].focus(); };
+      ${rows.length ? `<div class="crow muted sm"><span>Colour</span><span>Colour name</span><span></span></div>` : '<div class="muted sm">Click a preset colour above to add question paper colours.</div>'}
+      ${rows.map((r, i) => `<div class="crow"><input type="color" value="${r.hex}"><input type="text" data-n value="${esc(r.name)}" placeholder="e.g. Red"><button type="button" data-rm="${i}" title="Remove">✕</button></div>`).join('')}`;
+    el.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { sync(); const p = PRESETS.find(x => x[0] === b.dataset.p); if (rows.some(r => r.name.toLowerCase() === p[0].toLowerCase())) return toast(`${p[0]} is already added`); rows.push({ name: p[0], hex: p[1] }); render(); });
+    el.querySelector('[data-custom]').onclick = () => { sync(); rows.push({ name: '', hex: '#888888' }); render(); el.querySelectorAll('[data-n]')[rows.length - 1].focus(); };
     el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { sync(); rows.splice(+b.dataset.rm, 1); render(); });
   };
   render();
 }
 function readColours(el) {
-  return [...el.querySelectorAll('.crow')].filter(r => r.querySelector('[type=color]')).map(r => ({ hex: r.querySelector('[type=color]').value, name: r.querySelector('[data-n]').value.trim(), set: r.querySelector('[data-s]').value.trim() }));
+  return [...el.querySelectorAll('.crow')].filter(r => r.querySelector('[type=color]')).map(r => ({ name: r.querySelector('[data-n]').value.trim(), hex: r.querySelector('[type=color]').value }));
 }
 
 /* =========================================================
@@ -480,7 +481,7 @@ function readColours(el) {
    ========================================================= */
 function renderLanding() {
   app.innerHTML = `<div class="mode-cards">
-    <div class="card click" data-act="admin"><div class="ic">🛠️</div><h3>Admin Console</h3><p class="muted">Online. Create exams, shifts, subjects and colour-coded QP sets. Publish them to the Randomization Console and view synced results.</p><button class="btn">Open Admin Console</button></div>
+    <div class="card click" data-act="admin"><div class="ic">🛠️</div><h3>Admin Console</h3><p class="muted">Online. Create exams, shifts, subjects and their question paper colours. Publish them to the Randomization Console and view synced results.</p><button class="btn">Open Admin Console</button></div>
     <div class="card click" data-act="client"><div class="ic">🎲</div><h3>Randomization Console</h3><p class="muted">Log in online once to download published exams. Then disconnect the network and perform the 5-iteration randomization offline.</p><button class="btn primary">Open Randomization Console</button></div>
   </div>
   <p class="muted sm" style="text-align:center">Randomization runs fully offline. Every draw is stored in this browser's hash-chained audit log and synced to the server when the PC is back online. Also export the audit log after every session and keep it on secure media.</p>`;
@@ -546,14 +547,14 @@ async function logout() {
 }
 
 const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description },
-  { name: 'finalMode', label: 'Final set selection', type: 'select', value: e.finalMode || 'fixed5',
-    options: [['fixed5', 'Default — the 5th attempt is the final set'], ['client', `Client chooses the final iteration (${MIN_FINAL}–${MAX_FINAL}) before the first roll`]],
+  { name: 'finalMode', label: 'Final colour selection', type: 'select', value: e.finalMode || 'fixed5',
+    options: [['fixed5', 'Default — the 5th attempt gives the final colour'], ['client', `Client chooses the final iteration (${MIN_FINAL}–${MAX_FINAL}) before the first roll`]],
     hint: 'In client mode, the Randomization Console picks one number for the whole exam before any roll; it is then locked. The mode cannot be changed once randomization has started.' }];
 const shiftFields = (s = {}) => [{ name: 'name', label: 'Shift name', value: s.name, required: true, placeholder: 'e.g. Shift 1 – Morning' }, { row: [{ name: 'date', label: 'Exam date', type: 'date', value: s.date, required: true }, { name: 'start', label: 'Randomization allowed from', type: 'time', value: s.start, required: true }, { name: 'end', label: 'Randomization allowed until', type: 'time', value: s.end, required: true }] }];
 const shiftValidate = v => v.end <= v.start ? 'The randomization end time must be after the start time.' : null;
-const subjectFields = (s = {}) => [{ row: [{ name: 'name', label: 'Subject name', value: s.name, required: true, placeholder: 'e.g. Mathematics' }, { name: 'code', label: 'Subject code', value: s.code, placeholder: 'e.g. MATH-01' }] }, { name: 'colours', label: 'Colour-coded QP sets for this subject', type: 'colours', value: s.colours || [], hint: 'Add every colour-coded question paper set supplied by the Commission for this subject (minimum 2).' }];
+const subjectFields = (s = {}) => [{ row: [{ name: 'name', label: 'Subject name', value: s.name, required: true, placeholder: 'e.g. Mathematics' }, { name: 'code', label: 'Subject code', value: s.code, placeholder: 'e.g. MATH-01' }] }, { name: 'colours', label: 'Question paper colours for this subject', type: 'colours', value: s.colours || [], hint: 'Add every question paper colour supplied by the Commission for this subject (minimum 2).' }];
 function subjectValidate(v) {
-  if (v.colours.length < 2) return 'Add at least 2 colour-coded sets.';
+  if (v.colours.length < 2) return 'Add at least 2 colours.';
   if (v.colours.some(c => !c.name)) return 'Every colour needs a name.';
   const names = v.colours.map(c => c.name.toLowerCase()); if (new Set(names).size !== names.length) return 'Colour names must be unique within the subject.';
   return null;
@@ -594,11 +595,11 @@ async function renderExamEditor(v) {
   <div class="toolbar" style="margin-top:20px"><h3 style="margin:0">Shifts</h3><div class="sp"></div><button class="btn primary sm" data-act="addShift">+ Add shift</button></div>
   ${shifts.length ? shifts.map(s => `<div class="card"><div class="row"><div class="grow"><h4>${esc(s.name)}</h4><div class="muted sm">📅 ${fmtDate(s.date)} · Randomization window ${s.start} – ${s.end}</div></div>
       <div><button class="btn sm primary" data-act="addSub" data-s="${s.id}">+ Subject</button> <button class="btn sm" data-act="editShift" data-s="${s.id}">Edit</button> <button class="btn sm" data-act="dupShift" data-s="${s.id}">Duplicate</button> <button class="btn sm danger" data-act="delShift" data-s="${s.id}">Delete</button></div></div>
-      ${s.subjects.length ? `<table class="tbl"><thead><tr><th>Subject</th><th>Code</th><th>Colour-coded QP sets</th><th style="width:150px"></th></tr></thead><tbody>
+      ${s.subjects.length ? `<table class="tbl"><thead><tr><th>Subject</th><th>Code</th><th>Question paper colours</th><th style="width:150px"></th></tr></thead><tbody>
         ${s.subjects.map(sb => `<tr><td><b>${esc(sb.name)}</b></td><td>${esc(sb.code || '—')}</td><td><div class="swatches">${sb.colours.map(swMini).join('')}</div></td>
         <td style="text-align:right"><button class="btn sm" data-act="editSub" data-s="${s.id}" data-b="${sb.id}">Edit</button> <button class="btn sm danger" data-act="delSub" data-s="${s.id}" data-b="${sb.id}">Delete</button></td></tr>`).join('')}</tbody></table>`
       : `<div class="muted sm" style="margin-top:10px">No subjects yet.</div>`}</div>`).join('')
-    : `<div class="empty">No shifts yet. Add a shift, then add subjects and their colour-coded sets.</div>`}
+    : `<div class="empty">No shifts yet. Add a shift, then add subjects and their question paper colours.</div>`}
   <p class="muted sm">Changes are saved to the server immediately. The Randomization Console only receives an exam after it is <b>published</b>. Re-publish after changes. Shifts where randomization has already started are never overwritten on the client PC.</p>`;
   const S = id => e.shifts.find(x => x.id === id);
   bind(v, {
@@ -608,8 +609,8 @@ async function renderExamEditor(v) {
       if (await apiOrAlert('admin/exams?id=' + encodeURIComponent(e.id), { method: 'DELETE' })) { astate.examId = null; renderAdmin(); } },
     addShift: async () => { const r = await formModal('Add shift', shiftFields(), { validate: shiftValidate }); if (!r) return; const s = { id: uid(), ...r, subjects: [] }; e.shifts.push(s); saveExam(e, 'SHIFT_CREATED', { shiftId: s.id, ...r }); },
     editShift: async d => { const s = S(d.s); const r = await formModal('Edit shift', shiftFields(s), { validate: shiftValidate }); if (!r) return; Object.assign(s, r); saveExam(e, 'SHIFT_UPDATED', { shiftId: s.id, ...r }); },
-    dupShift: async d => { const s = S(d.s); const r = await formModal('Duplicate shift (copies all subjects & colour sets)', shiftFields({ ...s, name: s.name + ' (copy)' }), { validate: shiftValidate }); if (!r) return;
-      const n = { id: uid(), ...r, subjects: s.subjects.map(sb => ({ ...sb, id: uid(), colours: sb.colours.map(c => ({ ...c })) })) }; e.shifts.push(n); saveExam(e, 'SHIFT_DUPLICATED', { fromShiftId: s.id, shiftId: n.id, ...r }); },
+    dupShift: async d => { const s = S(d.s); const r = await formModal('Duplicate shift (copies all subjects & colours)', shiftFields({ ...s, name: s.name + ' (copy)' }), { validate: shiftValidate }); if (!r) return;
+      const n = { id: uid(), ...r, subjects: s.subjects.map(sb => ({ ...sb, id: uid(), colours: sb.colours.map(cleanColour) })) }; e.shifts.push(n); saveExam(e, 'SHIFT_DUPLICATED', { fromShiftId: s.id, shiftId: n.id, ...r }); },
     delShift: async d => { const s = S(d.s); if (!await confirmModal('Delete shift?', `<p>Delete <b>${esc(s.name)}</b> and its ${s.subjects.length} subject(s)?</p>`, 'Delete', 'danger')) return; e.shifts = e.shifts.filter(x => x.id !== s.id); saveExam(e, 'SHIFT_DELETED', { shiftId: s.id, name: s.name }); },
     addSub: async d => { const s = S(d.s); const r = await formModal(`Add subject — ${s.name}`, subjectFields(), { validate: v2 => subjectValidate(v2) || (s.subjects.some(x => x.name.toLowerCase() === v2.name.toLowerCase()) ? 'This subject already exists in the shift.' : null) }); if (!r) return;
       const sb = { id: uid(), ...r }; s.subjects.push(sb); saveExam(e, 'SUBJECT_CREATED', { shiftId: s.id, subjectId: sb.id, name: sb.name, code: sb.code, colours: sb.colours }); },
@@ -627,7 +628,7 @@ async function renderExamEditor(v) {
 /* Offline backup path: publishes, then downloads the same version as an encrypted file */
 async function exportPackage(e) {
   const { clientCred: cred, logo } = await api('admin/settings');
-  if (!cred) return alertModal('Cannot export yet', '<p>Set the Randomization Console login in Settings first.</p>');
+  if (!cred) return alertModal('Cannot export yet', '<p>Create the Randomization Console login in Settings first.</p>');
   const r = await formModal('Download encrypted offline package', [{ name: 'pw', label: `Password of Randomization login "${cred.username}"`, type: 'password', required: true, hint: 'Use this only for a PC that cannot go online even once. The exam is published, and the same version is encrypted (AES-256-GCM) with this password.' }],
     { submitLabel: 'Publish, encrypt & download', validate: async v2 => (await hashPw(v2.pw, cred.salt)) === cred.hash ? null : 'Password does not match the configured Randomization login.' });
   if (!r) return;
@@ -648,7 +649,7 @@ async function exportPackage(e) {
 async function renderAdminSettings(v) {
   const { clientCred: cred, logo } = await api('admin/settings');
   v.innerHTML = `<div class="card"><div class="row"><div class="grow"><h3>Randomization Console login</h3><p class="muted sm">The single head-client login used on the stand-alone PC. The PC logs in online once to download published exams; after that it works offline with the same login.</p>
-      <div>${cred ? `Current username: <b>${esc(cred.username)}</b>` : '<span class="badge b-prog">Not configured</span>'}</div></div><div><button class="btn primary" data-act="cred">${cred ? 'Change' : 'Set'} login</button></div></div></div>
+      <div>${cred ? `Current username: <b>${esc(cred.username)}</b>` : '<span class="badge b-prog">Not configured</span>'}</div></div><div><button class="btn primary" data-act="cred">${cred ? 'Change' : 'Create'} login</button></div></div></div>
     <div class="card"><div class="row"><div class="grow"><h3>Commission logo</h3><p class="muted sm">Upload the official UPESSC logo (PNG/JPG/SVG, max 500 KB). It appears in the header of both consoles.</p>
       ${logo ? `<img src="${logo}" style="height:70px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff">` : '<span class="muted">No logo uploaded.</span>'}</div>
       <div><button class="btn" data-act="logo">Upload logo</button> ${logo ? '<button class="btn danger" data-act="rmlogo">Remove</button>' : ''}</div></div></div>
@@ -684,17 +685,17 @@ async function renderResults(v) {
       return e.shifts.filter(s => r.draws.some(d => d.shiftId === s.id)).map(s => `<div class="card"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)} · ${modeText(e, T)}</div><h3>${esc(s.name)} <span class="muted sm">${fmtDate(s.date)} · ${s.start}–${s.end}</span></h3>
       <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject</th>${cols.map(a => `<th class="${a === T ? 'final' : ''}">${T ? attemptLabel(a, T) : ORD[a - 1] + ' Attempt'}</th>`).join('')}</tr></thead><tbody>
       ${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b> <span class="muted sm">${esc(sb.code || '')}</span></td>${cols.map(a => { const d = D.get(dkey(e.id, s.id, sb.id, a));
-        return d ? `<td class="${a === T ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTs(d.ts)}</div></td>` : `<td class="${a === T ? 'final' : ''}" style="color:#b3b9c5">—</td>`; }).join('')}</tr>`).join('')}
+        return d ? `<td class="${a === T ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${fmtTs(d.ts)}</div></td>` : `<td class="${a === T ? 'final' : ''}" style="color:#b3b9c5">—</td>`; }).join('')}</tr>`).join('')}
       </tbody></table></div></div>`).join(''); }).join('') : '<div class="empty">No randomization results synced yet.</div>'}`;
   bind(v, {
     reload: () => renderAdmin(),
     csv: () => {
-      const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final set', 'Status', 'PC install ID']];
+      const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final colour', 'Status', 'PC install ID']];
       r.exams.forEach(e => { const T = totalOf(e); e.shifts.forEach(s => s.subjects.forEach(sb => {
         const cells = []; let n = 0, pc = '';
-        for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
+        for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? d.colour.name : '', d ? fmtTs(d.ts) : ''); }
         const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
-        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? `${fd.colour.name}${fd.colour.set ? ' (' + fd.colour.set + ')' : ''}` : '', T && n === T ? 'FINAL LOCKED' : `In progress (${n}/${T || '?'})`, pc]);
+        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? fd.colour.name : '', T && n === T ? 'FINAL LOCKED' : `In progress (${n}/${T || '?'})`, pc]);
       })); });
       download(`UPESSC_QPR_SERVER_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
     },
@@ -750,12 +751,12 @@ async function exportAudit(scope, kind) {
 }
 async function exportResults() {
   const exams = await idb.all('client_exams'), draws = await idb.all('draws'), choices = await choiceMap(); const D = new Map(draws.map(d => [d.key, d]));
-  const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final set', 'Status']];
+  const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final colour', 'Status']];
   exams.forEach(e => { const T = totalFor(e, choices); e.shifts.forEach(s => s.subjects.forEach(sb => {
     const cells = []; let n = 0;
-    for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? `${d.colour.name}${d.colour.set ? ' (' + d.colour.set + ')' : ''}` : '', d ? fmtTs(d.ts) : ''); }
+    for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? d.colour.name : '', d ? fmtTs(d.ts) : ''); }
     const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
-    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? `${fd.colour.name}${fd.colour.set ? ' (' + fd.colour.set + ')' : ''}` : '',
+    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not chosen', fd ? fd.colour.name : '',
       !T ? 'Final iteration not chosen' : n === T ? 'FINAL LOCKED' : n ? `In progress (${n}/${T})` : 'Not started']);
   })); });
   await appendLog('client', 'RESULTS_EXPORTED', { rows: rows.length - 1 });
@@ -856,7 +857,7 @@ async function mergeExam(ex, meta) {
   if (existing) existing.shifts.forEach(o => { if (startedShifts.has(o.id) && !shifts.some(s => s.id === o.id)) { shifts.push(o); keptLocked.push(o.name); } });
   const { packageVersion, exportedAt, ...doc } = ex;
   if (existing && (draws.length || await idb.get('choices', ex.id)) && (existing.finalMode || 'fixed5') !== (doc.finalMode || 'fixed5')) { doc.finalMode = existing.finalMode || 'fixed5'; keptLocked.push('final selection mode'); }
-  await idb.put('client_exams', { ...doc, shifts, ...meta, importedAt: Date.now() });
+  await idb.put('client_exams', { ...doc, shifts: shifts.map(cleanShift), ...meta, importedAt: Date.now() });
   return { updated, keptLocked };
 }
 
@@ -958,19 +959,19 @@ async function renderShift(v) {
   const T = (await finalPlan(e)).total;
   const D = await drawMap(e.id), p = shiftProgress(e, s, D, T), w = windowState(s), canRoll = !!T && w === 'open' && !p.complete && !navigator.onLine;
   let note;
-  if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final sets have been selected. No further changes are possible.</div>`;
+  if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final colours have been selected. No further changes are possible.</div>`;
   else if (w === 'open' && navigator.onLine) note = `<div class="notice warn">🔌 The randomization window is open, but this PC is CONNECTED to a network. Disconnect the network cable / Wi-Fi to enable the dice. Randomization is only allowed offline.</div>`;
   else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
   else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start}</b> on <b>${fmtDate(s.date)}</b> (PC clock).</div>`;
   else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
   const range = Array.from({ length: MAX_FINAL - MIN_FINAL + 1 }, (_, i) => MIN_FINAL + i);
   const choosePanel = T ? '' : `<div class="card" style="border:2px solid var(--gold);background:#fffbea"><h3>Choose the final iteration for this exam</h3>
-      <p>This exam uses a <b>client-selected final iteration</b>. Before any roll, choose which iteration (${MIN_FINAL}–${MAX_FINAL}) gives the FINAL question paper set.
+      <p>This exam uses a <b>client-selected final iteration</b>. Before any roll, choose which iteration (${MIN_FINAL}–${MAX_FINAL}) gives the FINAL question paper colour.
       The choice applies to <b>every shift and every subject</b> of ${esc(e.name)} and is <b>locked permanently</b>.</p>
       <div class="row">${range.map(n => `<button class="btn gold" data-act="choose" data-n="${n}">${ORD[n - 1]} iteration</button>`).join('')}</div></div>`;
   const cell = (sb, a) => {
     const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === T ? 'final' : '';
-    if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b>${d.colour.set ? `<small>${esc(d.colour.set)}</small>` : ''}</span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
+    if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
     let next = 1; while (next <= T && D.has(dkey(e.id, s.id, sb.id, next))) next++;
     if (a === next) return `<td class="${fin}"><button class="btn ${a === T ? 'gold' : 'primary'}" data-act="roll" data-b="${sb.id}" data-a="${a}" ${canRoll ? '' : 'disabled'}>🎲 ${a === T ? 'Final roll' : 'Roll'}</button></td>`;
     return `<td class="${fin} pending" style="color:#b3b9c5">—</td>`;
@@ -979,9 +980,9 @@ async function renderShift(v) {
   v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Shifts</button><div class="grow"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h2>${esc(s.name)} <span style="font-size:13px">${stateBadge(s, p)}</span></h2><div class="muted sm">${modeText(e, T)}</div></div><div class="sp"></div>
       <button class="btn" data-act="audit">Audit log</button></div>
     ${choosePanel}${note}
-    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & QP colour sets</th>${T ? cols.map(a => `<th class="${a === T ? 'final' : ''}">${attemptLabel(a, T)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
+    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & question paper colours</th>${T ? cols.map(a => `<th class="${a === T ? 'final' : ''}">${attemptLabel(a, T)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
     <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(a => cell(sb, a)).join('') : '<td class="muted">Choose the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
-    <p class="muted sm" style="margin-top:12px">Every draw uses the browser's cryptographic random number generator (crypto.getRandomValues) with unbiased rejection sampling. Each attempt is an independent draw from all sets of that subject. Results are written to the hash-chained audit log before the animation finishes, so a refresh or power cut cannot alter them.</p>`;
+    <p class="muted sm" style="margin-top:12px">Every draw uses the browser's cryptographic random number generator (crypto.getRandomValues) with unbiased rejection sampling. Each attempt is an independent draw from all colours of that subject. Results are written to the hash-chained audit log before the animation finishes, so a refresh or power cut cannot alter them.</p>`;
   bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), choose: d => chooseFinal(e.id, +d.n) });
 }
 
@@ -994,7 +995,7 @@ async function chooseFinal(examId, n) {
     if (await idb.get('choices', examId)) { toast('The final iteration is already locked.'); return; }
     if ((await idb.all('draws')).some(d => d.examId === examId)) { toast('Randomization has already started for this exam.'); return; }
     const ok = await confirmModal(`Lock the ${ORD[n - 1]} iteration as final?`,
-      `<p>For <b>${esc(e.name)}</b> (${esc(e.code)}), every subject in every shift will have <b>${n} attempts</b>, and the <b>${ORD[n - 1]} attempt</b> gives the FINAL question paper set.</p><p><b>This is locked permanently and cannot be changed.</b></p>`,
+      `<p>For <b>${esc(e.name)}</b> (${esc(e.code)}), every subject in every shift will have <b>${n} attempts</b>, and the <b>${ORD[n - 1]} attempt</b> gives the FINAL question paper colour.</p><p><b>This is locked permanently and cannot be changed.</b></p>`,
       `Lock ${ORD[n - 1]} as final`, 'gold');
     if (!ok) { await appendLog('client', 'FINAL_ITERATION_CHOICE_CANCELLED', { examId, examCode: e.code, proposedFinalAttempt: n }); return; }
     await appendLog('client', 'FINAL_ITERATION_CHOSEN', { examId, examCode: e.code, examName: e.name, finalAttempt: n, allowedRange: `${MIN_FINAL}-${MAX_FINAL}`, chosenBy: session.user, clockReading: new Date().toISOString(), networkOnline: navigator.onLine },
@@ -1020,8 +1021,8 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     if (windowState(s) !== 'open') { await appendLog('client', 'DRAW_BLOCKED_OUTSIDE_WINDOW', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); toast('Randomization window is not open (PC clock).'); return renderClient(); }
     const n = sb.colours.length;
     const ok = await confirmModal(`${sb.name} — ${attemptLabel(attempt, T)}`,
-      `<p>${esc(e.name)} · ${esc(s.name)}</p><p>Pool of ${n} colour-coded sets (each has a 1 in ${n} chance):</p><div class="swatches">${sb.colours.map(swMini).join('')}</div>
-       <p style="margin-top:12px"><b>${attempt === T ? 'This is the FINAL draw. The selected colour becomes the question paper set for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
+      `<p>${esc(e.name)} · ${esc(s.name)}</p><p>Pool of ${n} question paper colours (each has a 1 in ${n} chance):</p><div class="swatches">${sb.colours.map(swMini).join('')}</div>
+       <p style="margin-top:12px"><b>${attempt === T ? 'This is the FINAL draw. The selected colour becomes the final question paper colour for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
       attempt === T ? '🎲 Roll FINAL' : '🎲 Roll the dice', attempt === T ? 'gold' : 'primary');
     if (!ok) { await appendLog('client', 'DRAW_CANCELLED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); return; }
 
@@ -1031,20 +1032,20 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     for (let a = 1; a < attempt; a++) if (!D.has(dkey(examId, shiftId, subjectId, a))) { toast('Previous attempts must be completed first.'); return renderClient(); }
 
     // ---- random selection ----
-    const rnd = secureRandomInt(n), colour = sb.colours[rnd.value];
+    const rnd = secureRandomInt(n), colour = cleanColour(sb.colours[rnd.value]);
     const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
-      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: attemptLabel(attempt, T), pool: sb.colours.map(c => c.name + (c.set ? ` (${c.set})` : '')), poolSize: n,
+      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: attemptLabel(attempt, T), pool: sb.colours.map(c => c.name), poolSize: n,
       colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), networkOnline: navigator.onLine, finalAttempt: T, finalMode: plan.mode, isFinal: attempt === T };
     // Persist FIRST (draw + audit entry in one atomic transaction), then animate.
     const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex: rnd.value, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
-    await animateRoll(e, s, sb, attempt, colour, entry, T);
+    await animateRoll(e, s, sb, attempt, rnd.value, entry, T);
 
     if (attempt === T) {
       await appendLog('client', 'SUBJECT_FINAL_LOCKED', { examCode: e.code, shiftName: s.name, subjectName: sb.name, finalColour: colour, drawSeq: entry.seq });
       const D2 = await drawMap(examId);
       if (shiftProgress(e, s, D2, T).complete) {
         await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => ({ subject: x.name, colour: D2.get(dkey(examId, shiftId, x.id, T)).colour.name })) });
-        await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final set. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media. Results will sync to the server automatically when the PC is reconnected.</p>`);
+        await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final colour. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media. Results will sync to the server automatically when the PC is reconnected.</p>`);
       }
     }
   } catch (err) {
@@ -1053,28 +1054,28 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
   } finally { busy = false; renderClient(); }
 }
 
-function animateRoll(e, s, sb, attempt, colour, entry, total = ATTEMPTS) {
+function animateRoll(e, s, sb, attempt, k, entry, total = ATTEMPTS) {
   return new Promise(resolve => {
-    const N = sb.colours.length, isFinal = attempt === total;
-    // Exactly 6 sets → classic Ludo cube (one face per colour). Any other count → N-sided rolling
+    const N = sb.colours.length, isFinal = attempt === total, colour = sb.colours[k];
+    // Exactly 6 colours → classic Ludo cube (one face per colour). Any other count → N-sided rolling
     // prism ("long dice"), so every colour of the subject is on exactly one face.
     const useCube = N === 6;
     let shape, from, to;
     if (useCube) {
-      const faces = [colour, ...sb.colours.filter(c => c !== colour).sort(() => Math.random() - .5)];
+      const faces = [colour, ...sb.colours.filter((_, i) => i !== k).sort(() => Math.random() - .5)];
       shape = `<div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div>`;
       const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
       from = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)'; to = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
     } else {
       const R = 92, step = 360 / N, h = 2 * R * Math.sin(Math.PI / N), apo = R * Math.cos(Math.PI / N);
       const fs = Math.max(11, Math.min(22, h * 0.32));
-      shape = `<div class="prism" style="--h:${h.toFixed(2)}px">${sb.colours.map((c, i) => `<div class="pface" style="--c:${c.hex};--ink:${ink(c.hex)};font-size:${fs}px;transform:rotateX(${(i * step).toFixed(3)}deg) translateZ(${apo.toFixed(2)}px)"><span>${esc(c.name)}</span>${c.set && h > 40 ? `<small>${esc(c.set)}</small>` : ''}</div>`).join('')}</div>`;
-      const k = sb.colours.indexOf(colour), turns = 4 + Math.floor(Math.random() * 3);
+      shape = `<div class="prism" style="--h:${h.toFixed(2)}px">${sb.colours.map((c, i) => `<div class="pface" style="--c:${c.hex};--ink:${ink(c.hex)};font-size:${fs}px;transform:rotateX(${(i * step).toFixed(3)}deg) translateZ(${apo.toFixed(2)}px)"><span>${esc(c.name)}</span></div>`).join('')}</div>`;
+      const turns = 4 + Math.floor(Math.random() * 3);
       from = 'rotateX(0deg)'; to = `rotateX(${-(turns * 360 + k * step)}deg)`;
     }
     openModal(`<div class="roll-modal"><div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${attemptLabel(attempt, total)}</h3>
       <div class="stage"><div class="dshadow ${useCube ? '' : 'wide'}"></div><div class="hop">${shape}</div></div>
-      <div class="muted sm">${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per QP set</div>
+      <div class="muted sm">${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per colour</div>
       <div class="rstatus rolling">ROLLING</div><div class="rv"></div></div>`, {
       dismissable: false,
       onMount: (m, close) => {
@@ -1089,8 +1090,8 @@ function animateRoll(e, s, sb, attempt, colour, entry, total = ATTEMPTS) {
         });
         setTimeout(() => {
           const st = m.querySelector('.rstatus'); st.classList.remove('rolling'); st.textContent = isFinal ? '' : 'RESULT';
-          m.querySelector('.rv').innerHTML = `${isFinal ? '<div class="finalbanner">★ FINAL QUESTION PAPER SET ★</div>' : ''}
-            <div class="result ${isFinal ? 'final' : ''}" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? 'Final selected set' : 'Selected set'}</div><div class="rname">${esc(colour.name)}</div><div class="muted sm">${esc(colour.set || '')}</div></div></div>
+          m.querySelector('.rv').innerHTML = `${isFinal ? '<div class="finalbanner">★ FINAL QUESTION PAPER COLOUR ★</div>' : ''}
+            <div class="result ${isFinal ? 'final' : ''}" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? 'Final selected colour' : 'Selected colour'}</div><div class="rname">${esc(colour.name)}</div></div></div>
             <div class="lockline">🔒 Locked & recorded — audit entry #${entry.seq} · ${fmtTs(entry.ts)} · hash ${entry.hash.slice(0, 16)}…</div>
             <button class="btn primary" data-close>Close</button>`;
           m.querySelector('[data-close]').onclick = () => { close(); resolve(); };

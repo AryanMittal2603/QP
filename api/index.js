@@ -94,7 +94,7 @@ function validateExam(doc) {
     if (!str(s.id, 64) || !str(s.name) || !/^\d{4}-\d{2}-\d{2}$/.test(s.date) || !/^\d{2}:\d{2}$/.test(s.start) || !/^\d{2}:\d{2}$/.test(s.end) || s.end <= s.start || !Array.isArray(s.subjects)) fail(400, `Invalid shift "${s.name}".`);
     for (const b of s.subjects) {
       if (!str(b.id, 64) || !str(b.name) || !Array.isArray(b.colours)) fail(400, `Invalid subject in "${s.name}".`);
-      if (b.colours.some(c => !str(c.name, 60) || !/^#[0-9a-fA-F]{6}$/.test(c.hex))) fail(400, `Invalid colour set in "${b.name}".`);
+      if (b.colours.some(c => !str(c.name, 60) || !/^#[0-9a-fA-F]{6}$/.test(c.hex))) fail(400, `Invalid colour in "${b.name}".`);
     }
   }
   if (JSON.stringify(doc).length > 500000) fail(413, 'Exam document too large.');
@@ -102,8 +102,13 @@ function validateExam(doc) {
 function publishProblems(doc) {
   const p = [];
   if (!doc.shifts.length) p.push('Add at least one shift.');
-  doc.shifts.forEach(s => { if (!s.subjects.length) p.push(`${s.name}: add at least one subject.`); s.subjects.forEach(b => { if (b.colours.length < 2) p.push(`${s.name} / ${b.name}: needs at least 2 colour sets.`); }); });
+  doc.shifts.forEach(s => { if (!s.subjects.length) p.push(`${s.name}: add at least one subject.`); s.subjects.forEach(b => { if (b.colours.length < 2) p.push(`${s.name} / ${b.name}: needs at least 2 colours.`); }); });
   return p;
+}
+/* A question paper is identified by its colour only: each colour keeps just { name, hex } (drops legacy fields) */
+function cleanDoc(doc) {
+  if (!doc || !Array.isArray(doc.shifts)) return doc;
+  return { ...doc, shifts: doc.shifts.map(s => ({ ...s, subjects: (s.subjects || []).map(b => ({ ...b, colours: (b.colours || []).map(c => ({ name: c.name, hex: c.hex })) })) })) };
 }
 const EXAM_EVENTS = new Set(['EXAM_CREATED', 'EXAM_UPDATED', 'SHIFT_CREATED', 'SHIFT_UPDATED', 'SHIFT_DUPLICATED', 'SHIFT_DELETED', 'SUBJECT_CREATED', 'SUBJECT_UPDATED', 'SUBJECT_DELETED']);
 const getSetting = async k => (await sql`select value from settings where key = ${k}`)[0]?.value ?? null;
@@ -134,14 +139,15 @@ const routes = {
 
   'GET admin/exams': async () => {
     const rows = await sql`select doc, published_version, published_at, (published_doc is not null and published_doc <> doc) as changed from exams where not deleted order by updated_at desc`;
-    return rows.map(r => ({ ...r.doc, publishedVersion: r.published_version, publishedAt: r.published_at ? new Date(r.published_at).getTime() : null, changedSincePublish: !!r.changed }));
+    return rows.map(r => ({ ...cleanDoc(r.doc), publishedVersion: r.published_version, publishedAt: r.published_at ? new Date(r.published_at).getTime() : null, changedSincePublish: !!r.changed }));
   },
   'PUT admin/exams': async ({ body, user }) => {
     const { exam, event, details } = body;
     if (!EXAM_EVENTS.has(event)) fail(400, 'Unknown event.');
-    const { publishedVersion, publishedAt, changedSincePublish, ...doc } = exam || {};
+    const { publishedVersion, publishedAt, changedSincePublish, ...raw } = exam || {};
+    validateExam(raw);
+    const doc = cleanDoc(raw);
     doc.updatedAt = Date.now();
-    validateExam(doc);
     const [ex] = await sql`select deleted, doc from exams where id = ${doc.id}`;
     if (ex && ex.deleted) fail(410, 'Exam was deleted.');
     if (ex && (ex.doc.finalMode || 'fixed5') !== (doc.finalMode || 'fixed5')) {
@@ -162,7 +168,7 @@ const routes = {
     const [ex] = await sql`select * from exams where id = ${body.id} and not deleted`;
     if (!ex) fail(404, 'Exam not found.');
     const p = publishProblems(ex.doc); if (p.length) fail(400, p.join('\n'));
-    if (!(await getSetting('client_cred'))) fail(400, 'Set the Randomization Console login in Settings first.');
+    if (!(await getSetting('client_cred'))) fail(400, 'Create the Randomization Console login in Settings first.');
     const v = ex.published_version + 1;
     await sql`update exams set published_version = ${v}, published_doc = doc, published_at = now() where id = ${body.id}`;
     await adminLog(user, 'EXAM_PUBLISHED', { examId: ex.id, examCode: ex.doc.code, publishedVersion: v, docSha256: sha256(stable(ex.doc)),
@@ -214,7 +220,7 @@ const routes = {
     draws: (await sql`select key, install_id, draw, received_at from draws order by received_at`).map(r => ({ ...r.draw, installId: r.install_id, receivedAt: new Date(r.received_at).getTime() })),
     syncs: await sql`select install_id, actor, last_sync, entries, chain_ok, issues, head from sync_status order by last_sync desc`,
     conflicts: await sql`select id, install_id, kind, detail, created_at from sync_conflicts order by id desc limit 200`,
-    exams: (await sql`select doc from exams where not deleted`).map(r => r.doc),
+    exams: (await sql`select doc from exams where not deleted`).map(r => cleanDoc(r.doc)),
     choices: await sql`select exam_id, install_id, final_attempt, choice, received_at from final_choices`,
   }),
   'GET admin/client-audit': async ({ query }) => {
@@ -228,7 +234,7 @@ const routes = {
     const u = str(body.username, 60) || '';
     if (!cred || u !== cred.username || !checkPw(cred, body.password)) { await adminLog(u || 'unknown', 'CLIENT_ONLINE_LOGIN_FAILED', { attemptedUsername: u, installId: str(body.installId, 64) }); fail(401, 'Invalid username or password.'); }
     const exams = (await sql`select published_doc, published_version, published_at from exams where not deleted and published_doc is not null`)
-      .map(r => ({ ...r.published_doc, packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
+      .map(r => ({ ...cleanDoc(r.published_doc), packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
     await adminLog(u, 'CLIENT_ONLINE_LOGIN', { installId: str(body.installId, 64), examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null });
     return { token: sign({ sub: u, role: 'client', exp: Date.now() + 14 * 86400e3 }), cred, exams, logo: await getSetting('logo'), serverTime: Date.now() };
   },
