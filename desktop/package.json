@@ -1,7 +1,7 @@
 {
   "name": "upessc-qpr-desktop",
   "productName": "UPESSC QPR",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "UPESSC Question Paper Randomization: Windows app for Admin, Randomizer and Approver logins",
   "author": "UPESSC",
   "private": true,

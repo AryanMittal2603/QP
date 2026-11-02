@@ -484,6 +484,15 @@ const routes = {
     // No password hash is sent to the PC any more: signing in always needs the internet.
     return { token, account, cred: { username: mobile && u ? mobile : id, name, kind: account }, name, exams, revoked: [], logo: await getSetting('logo'), serverTime: Date.now() };
   },
+  /* "Clear this PC" on a Randomization PC (password already checked with client/login): recorded before the PC wipes itself */
+  'POST client/pc-cleared': async ({ body, req, user }) => {
+    const info = requestInfo(req, body), n = v => Number.isFinite(Number(v)) ? Number(v) : null;
+    const oldId = str(body.installId, 64), newId = str(body.newInstallId, 64);
+    if (!oldId || !newId) fail(400, 'Missing install id.');
+    await adminLog(user, 'RANDOMIZATION_PC_CLEARED', { oldInstallId: oldId, newInstallId: newId, examsDeleted: n(body.exams), rollsDeleted: n(body.rolls), finalIterationsDeleted: n(body.finalIterations),
+      logEntriesDeleted: n(body.logEntries), logHead: str(body.logHead, 80), hadUnsyncedData: body.unsynced === true, ...logInfo(info) });
+    return { ok: true };
+  },
   /* "Update exams" on the Randomization PC, and automatically whenever its internet comes back */
   'POST client/exams': async ({ body, req, user }) => {
     const info = requestInfo(req, body), exams = await publishedExams();
@@ -496,6 +505,14 @@ const routes = {
     const draws = Array.isArray(body.draws) ? body.draws : [];
     const choices = Array.isArray(body.choices) ? body.choices : [];
     if (entries.length > 20000) fail(413, 'Too many entries.');
+    // After the exam data was reset on the server, a PC whose log began before the reset is refused (nothing is stored),
+    // so old test rolls cannot come back. The PC is told to use "Clear this PC" first.
+    const reset = await getSetting('data_reset');
+    if (reset && entries.length && Number(entries[0].ts) < reset.at) {
+      const [seen] = await sql`select 1 from sync_conflicts where install_id = ${installId} and kind = 'PRE_RESET_DATA_REJECTED' and created_at > to_timestamp(${reset.at / 1000}) limit 1`;
+      if (!seen) await sql`insert into sync_conflicts (install_id, kind, detail) values (${installId}, 'PRE_RESET_DATA_REJECTED', ${JSON.stringify({ actor: user, firstEntry: new Date(Number(entries[0].ts)).toISOString(), entries: entries.length, draws: draws.length, resetAt: new Date(reset.at).toISOString() })}::jsonb)`;
+      return { ok: false, resetRequired: true, resetAt: reset.at, chainOk: null, issues: [], conflicts: [{ kind: 'PRE_RESET_DATA_REJECTED' }], entries: 0, draws: 0, syncedAt: Date.now() };
+    }
     const v = verifyEntries(entries);
     const conflicts = [];
     // A PC clock running ahead of the server shows up as log entries "from the future"

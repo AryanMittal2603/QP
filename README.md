@@ -31,12 +31,15 @@ Other safeguards:
 - **Clock checks.** Whenever the PC is online its clock is compared with the server's (must be within 2 minutes). Rolls for a shift need such a check on the shift's own date. While the app runs, the clock is compared with a monotonic timer every 5 seconds (the Windows app also reacts to Windows' time-change notice and ignores sleep), it may never go back past the latest time seen (also across restarts), and the Windows app reads Windows' own event log of clock changes. Any change after the last check blocks rolls until the PC has been online again for a moment. At sync, the server flags log entries and draws dated in its future, and draws outside the IST window.
 - **Build hash.** The SHA-256 of the running page (and, in the Windows app, of the .exe) is shown in the footer and written into every login, app start and draw, for later verification against the published hash.
 - **Results tab** on the Randomization PC: every roll, turn by turn (which colour came up on which attempt), shift-wise and exam-wise, stored on that PC.
+- **Clear this PC** (Randomizer, Audit Log tab): deletes the exams, rolls and audit log on that PC, for test PCs or after a server reset. Needs the internet, the password and typing CLEAR; the server records it, and the PC gets a new install ID.
+- **Resetting exam data on the server:** `DATABASE_URL=… node tools/wipe-exam-data.mjs` deletes all exams and results (logins, settings and the server audit log are kept, and the wipe is recorded there). After a reset, a PC that still holds older data is refused at sync and told to use *Clear this PC*.
 - Audit logs can be exported as JSON or CSV, and results as CSV.
 
 ## Project layout
 
 - `index.html` — the whole UI (all three consoles), no build step
 - `sw.js` — offline page cache (website only)
+- `tools/wipe-exam-data.mjs` — deletes all exam data from the database (asks for confirmation)
 - `desktop/` — the Windows app (Electron): wraps `index.html`, relays `/api` to the server; `npm run dist` builds the portable .exe into `release/`
 - `api/index.js` — single serverless function (all routes), Neon Postgres
 - `vercel.json` — rewrites `/api/*` to the function
