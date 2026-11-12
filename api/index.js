@@ -6,7 +6,7 @@ const sql = neon(process.env.DATABASE_URL);
 const SECRET = process.env.AUTH_SECRET;
 const ITER = 150000;
 const MAX_ATTEMPTS = 7;   // Mode A uses 5; Mode B draws 3–7 at random on the Randomization PC for the whole exam
-const FINAL_MODES = new Set(['fixed5', 'client']);   // 'client' = final iteration drawn at random on the Randomization PC
+const FINAL_MODES = new Set(['fixed5', 'client', 'best5']);   // 'client' = final iteration drawn at random on the PC; 'best5' = most frequent colour of 5 spins
 const FINAL_EVENTS = new Set(['FINAL_ITERATION_RANDOMIZED', 'FINAL_ITERATION_CHOSEN']);   // CHOSEN = older manual choice, still accepted
 
 /* ---------------- helpers ---------------- */
@@ -236,6 +236,18 @@ function cleanDoc(doc) {
   return { ...doc, shifts: doc.shifts.map(s => ({ ...s, subjects: (s.subjects || []).map(b => ({ ...b, colours: (b.colours || []).map(c => ({ name: c.name, hex: c.hex })) })) })) };
 }
 const EXAM_EVENTS = new Set(['EXAM_CREATED', 'EXAM_UPDATED', 'SHIFT_CREATED', 'SHIFT_UPDATED', 'SHIFT_DUPLICATED', 'SHIFT_DELETED', 'SUBJECT_CREATED', 'SUBJECT_UPDATED', 'SUBJECT_DELETED']);
+/* QP-Draw certificate: signature blocks printed on every certificate (Admin → Settings) */
+const DEFAULT_SIGNATORIES = [
+  { name: 'Dr. Prashant Kumar', designation: 'Honorable Chairman, UPESSC, Prayagraj' },
+  { name: 'Dr. Harendra Kumar Rai', designation: 'Honorable Senior-most Member, UPESSC, Prayagraj' },
+  { name: 'Shri Manoj Kumar', designation: 'Secretary, UPESSC, Prayagraj' },
+  { name: 'Shri Devendra Pratap Singh', designation: 'Examination Controller, UPESSC, Prayagraj' },
+  { name: 'Dr. Sanjay Kumar Singh', designation: 'Deputy Secretary, UPESSC, Prayagraj' }];
+const certSettings = async () => ({ signatories: DEFAULT_SIGNATORIES, ...((await getSetting('certificate')) || {}) });
+/* The two committee verifiers who must sign in on a Randomization PC before any draw (Admin → Settings) */
+const getVerifiers = async () => (await getSetting('verifiers')) || [];
+const publicVerifiers = v => v.map(x => ({ slot: x.slot, id: x.id, name: x.name, designation: x.designation || '', hasPassword: !!x.hash }));
+const verifiersReady = v => v.length === 2 && v.every(x => x.id && x.hash);
 const publishedExams = async () => (await sql`select published_doc, published_version, published_at from exams where not deleted and published_doc is not null`)
   .map(r => ({ ...cleanDoc(r.published_doc), packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
 const getSetting = async k => (await sql`select value from settings where key = ${k}`)[0]?.value ?? null;
@@ -362,7 +374,31 @@ const routes = {
 
   'GET admin/settings': async () => {
     const cred = await getSetting('client_cred');
-    return { clientCred: cred, logo: await getSetting('logo') };
+    return { clientCred: cred, logo: await getSetting('logo'), verifiers: publicVerifiers(await getVerifiers()), certificate: await certSettings() };
+  },
+  'POST admin/verifiers': async ({ body, user }) => {
+    const old = await getVerifiers(), list = Array.isArray(body.verifiers) ? body.verifiers : [];
+    if (list.length !== 2) fail(400, 'Both verifiers are required.');
+    const out = list.map((v, i) => {
+      const id = (str(v && v.id, 40) || '').toLowerCase(), name = str(v && v.name, 120), designation = str(v && v.designation, 160) || '';
+      if (!id || id.length < 3 || !/^[a-z0-9._-]+$/.test(id)) fail(400, `Verifier ${i + 1}: login ID must be at least 3 letters/digits (no spaces).`);
+      if (!name) fail(400, `Verifier ${i + 1}: name is required.`);
+      const prev = old.find(x => x.slot === i + 1);
+      if (v.password) { if (typeof v.password !== 'string' || v.password.length < 8) fail(400, `Verifier ${i + 1}: password must be at least 8 characters.`); const c = makeCred(id, v.password); return { slot: i + 1, id, name, designation, salt: c.salt, hash: c.hash }; }
+      if (!prev || !prev.hash || prev.id !== id) fail(400, `Verifier ${i + 1}: enter a password.`);
+      return { slot: i + 1, id, name, designation, salt: prev.salt, hash: prev.hash };
+    });
+    if (out[0].id === out[1].id) fail(400, 'The two verifiers need different login IDs.');
+    await putSetting('verifiers', out);
+    await adminLog(user, 'VERIFIERS_SET', { verifiers: out.map((x, i) => ({ slot: x.slot, id: x.id, name: x.name, designation: x.designation, passwordChanged: !!list[i].password })) });
+    return { ok: true };
+  },
+  'POST admin/certificate': async ({ body, user }) => {
+    const list = (Array.isArray(body.signatories) ? body.signatories : []).map(x => ({ name: str(x && x.name, 120), designation: str(x && x.designation, 160) || '' })).filter(x => x.name);
+    if (list.length > 10) fail(400, 'At most 10 signatories.');
+    await putSetting('certificate', { signatories: list });
+    await adminLog(user, 'CERTIFICATE_SIGNATORIES_SET', { signatories: list });
+    return { ok: true };
   },
   'POST admin/client-cred': async ({ body, user }) => {
     const u = str(body.username, 60); if (!u || typeof body.password !== 'string' || body.password.length < 8) fail(400, 'Username and a password of at least 8 characters are required.');
@@ -482,7 +518,8 @@ const routes = {
     await adminLog(mobile && u ? mobile : id, 'CLIENT_ONLINE_LOGIN', { account, name, installId, examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null,
       clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
     // No password hash is sent to the PC any more: signing in always needs the internet.
-    return { token, account, cred: { username: mobile && u ? mobile : id, name, kind: account }, name, exams, revoked: [], logo: await getSetting('logo'), serverTime: Date.now() };
+    return { token, account, cred: { username: mobile && u ? mobile : id, name, kind: account }, name, exams, revoked: [], logo: await getSetting('logo'),
+      certificate: await certSettings(), verifiersReady: verifiersReady(await getVerifiers()), serverTime: Date.now() };
   },
   /* "Clear this PC" on a Randomization PC (password already checked with client/login): recorded before the PC wipes itself */
   'POST client/pc-cleared': async ({ body, req, user }) => {
@@ -493,11 +530,31 @@ const routes = {
       logEntriesDeleted: n(body.logEntries), logHead: str(body.logHead, 80), hadUnsyncedData: body.unsynced === true, ...logInfo(info) });
     return { ok: true };
   },
+  /* Committee sign-in on a Randomization PC: both verifiers enter their own login ID and password (online) before any draw */
+  'POST client/verifiers': async ({ body, req, user }) => {
+    const info = requestInfo(req, body), all = await getVerifiers();
+    if (!verifiersReady(all)) fail(409, 'The two verifiers are not set up yet. The Admin sets them in Settings → Committee verifiers.');
+    const given = [body.v1, body.v2].map(x => ({ id: (str(x && x.id, 40) || '').toLowerCase(), password: x && typeof x.password === 'string' ? x.password : '' }));
+    const found = given.map((g, i) => {
+      const v = all.find(x => x.id === g.id);
+      if (!v || !checkPw(v, g.password)) return { i, bad: true, id: g.id };
+      return { i, v };
+    });
+    const bad = found.filter(x => x.bad);
+    if (bad.length) {
+      await adminLog(user, 'CLIENT_VERIFIER_LOGIN_FAILED', { attempted: bad.map(x => ({ position: x.i + 1, id: x.id })), installId: str(body.installId, 64), ...logInfo(info) });
+      fail(403, `Verifier ${bad.map(x => x.i + 1).join(' and ')}: wrong login ID or password.`);
+    }
+    if (found[0].v.id === found[1].v.id) fail(400, 'The two verifiers must be different people.');
+    const at = Date.now(), verifiers = found.map(x => ({ slot: x.v.slot, id: x.v.id, name: x.v.name, designation: x.v.designation || '', at }));
+    await adminLog(user, 'CLIENT_VERIFIERS_SIGNED_IN', { verifiers: verifiers.map(v => ({ id: v.id, name: v.name })), installId: str(body.installId, 64), ...logInfo(info) });
+    return { verifiers, serverTime: at };
+  },
   /* "Update exams" on the Randomization PC, and automatically whenever its internet comes back */
   'POST client/exams': async ({ body, req, user }) => {
     const info = requestInfo(req, body), exams = await publishedExams();
     await adminLog(user, 'CLIENT_EXAMS_UPDATED', { installId: str(body.installId, 64), examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
-    return { exams, logo: await getSetting('logo'), serverTime: Date.now() };
+    return { exams, logo: await getSetting('logo'), certificate: await certSettings(), verifiersReady: verifiersReady(await getVerifiers()), serverTime: Date.now() };
   },
   'POST client/sync': async ({ body, user }) => {
     const installId = str(body.installId, 64); if (!installId) fail(400, 'Missing install id.');

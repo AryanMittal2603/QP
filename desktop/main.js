@@ -3,7 +3,7 @@
    Runs the same page as the website (app/index.html, copied from ../index.html at build time) inside a locked-down
    window. Calls to /api/* are relayed to the UPESSC server, so Admin, Randomizer and Approver logins all work against
    the same setup. Everything the page stores (sessions, exams, rolls, audit log) stays in this app's data folder. */
-const { app, BrowserWindow, protocol, net, ipcMain, powerMonitor, shell, Menu, session } = require('electron');
+const { app, BrowserWindow, protocol, net, ipcMain, powerMonitor, shell, Menu, session, dialog } = require('electron');
 const path = require('node:path'), fs = require('node:fs'), os = require('node:os'), crypto = require('node:crypto');
 const { execFile } = require('node:child_process');
 
@@ -63,8 +63,34 @@ function windowsTimeChanges(sinceIso) {
   }));
 }
 
+/* QP-Draw certificate: the page hands over the finished certificate HTML; it is rendered in a hidden window with
+   scripts off, then saved as a real PDF (Chromium's print engine) or sent to the printer with the system dialog. */
+async function renderHidden(html) {
+  const file = path.join(app.getPath('temp'), `qpr-certificate-${process.pid}-${Date.now()}.html`);
+  fs.writeFileSync(file, html);
+  const w = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { javascript: false, sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  try { await w.loadFile(file); return w; } finally { try { fs.unlinkSync(file); } catch {} }
+}
+async function savePdf(html, name) {
+  if (typeof html !== 'string' || html.length > 20e6) return { error: 'bad input' };
+  const safe = String(name || 'certificate.pdf').replace(/[^\w.-]+/g, '_').slice(0, 140);
+  let target = null;
+  if (process.env.QPR_TEST_PDF_DIR) target = path.join(process.env.QPR_TEST_PDF_DIR, safe);   // automated tests only
+  else { const r = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath('documents'), safe), filters: [{ name: 'PDF', extensions: ['pdf'] }] }); if (r.canceled || !r.filePath) return { canceled: true }; target = r.filePath; }
+  const w = await renderHidden(html);
+  try {
+    const buf = await w.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(target, buf); return { saved: target, bytes: buf.length };
+  } catch (err) { return { error: String(err.message || err) }; } finally { w.destroy(); }
+}
+async function printHtml(html) {
+  if (typeof html !== 'string' || html.length > 20e6) return { error: 'bad input' };
+  const w = await renderHidden(html);
+  return new Promise(resolve => w.webContents.print({ silent: false, printBackground: true }, (ok, reason) => { w.destroy(); resolve(ok ? { ok: true } : { ok: false, error: reason && reason !== 'cancelled' ? reason : null }); }));
+}
+
 protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
-const CSP = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ${PUBLIC_PROBES}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+const CSP = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ${PUBLIC_PROBES}; frame-src 'self' about: blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
 
 async function handle(req) {
   const u = new URL(req.url);
@@ -127,6 +153,8 @@ else {
     ipcMain.handle('qpr:network', () => { const a = adapters(); return { link: a.length > 0, adapters: a }; });
     ipcMain.handle('qpr:clock', () => ({ uptimeMs: Math.round(os.uptime() * 1000), resumeCount, lastResumeAt }));
     ipcMain.handle('qpr:time-changes', (_e, since) => windowsTimeChanges(since));
+    ipcMain.handle('qpr:save-pdf', (_e, html, name) => savePdf(html, name));
+    ipcMain.handle('qpr:print-html', (_e, html) => printHtml(html));
     powerMonitor.on('resume', () => { resumeCount++; lastResumeAt = Date.now(); send('qpr:time-changed'); });
     setInterval(() => { const k = adapters().join('|'); if (k !== adapterKey) { adapterKey = k; send('qpr:network-changed'); } }, 2000);
     adapterKey = adapters().join('|');

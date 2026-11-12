@@ -173,6 +173,8 @@ td.final .chip{border:1.5px solid var(--amber);box-shadow:0 0 0 3px rgba(201,150
 .modal{background:#FBFCFB;border:1px solid var(--line);border-radius:12px;padding:26px 28px;width:min(500px,100%);max-height:92vh;overflow:auto;
   box-shadow:0 36px 90px -24px rgba(20,40,68,.5);animation:rise .45s var(--ease)}
 .modal.wide{width:min(740px,100%)}
+.modal.wide:has(.certframe){width:min(1000px,100%)}
+.verif{display:inline-flex;align-items:center;gap:6px}
 .modal>h3{font-size:21px;letter-spacing:-.02em}
 .form{display:flex;flex-direction:column;gap:15px;margin-top:16px}
 .fld{display:flex;flex-direction:column;gap:7px}
@@ -297,7 +299,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
 const enc = new TextEncoder();
 const ITER = 150000;
-const APP_VERSION = '2.1.1';
+const APP_VERSION = '2.2.0';
 const SEAL = 'data:image/png;base64,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';   // UPESSC seal, recoloured to the navy ink (#142844), 2x for sharp rendering        // shown to the approver with every sign-up request
 const ATTEMPTS = 5;                 // Mode A: the 5th attempt is final
 const MIN_FINAL = 3, MAX_FINAL = 7;  // Mode B: the final iteration is drawn at random in this range on the Randomization PC, before any roll
@@ -305,7 +307,7 @@ const FINAL_EVENTS = new Set(['FINAL_ITERATION_RANDOMIZED', 'FINAL_ITERATION_CHO
 const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
 const attemptLabel = (a, total) => a === total ? `Final (${ORD[a - 1]})` : `${ORD[a - 1]} Attempt`;
 const isClientMode = e => e && e.finalMode === 'client';
-const modeText = (e, total) => isClientMode(e) ? (total ? `Final iteration: ${ORD[total - 1]} (drawn at random, locked)` : `Final iteration: drawn at random (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}) before the first roll`) : 'Final iteration: 5th (fixed)';
+const modeText = (e, total) => e && e.finalMode === 'best5' ? 'Best of 5: most frequent colour of 5 spins is final (tie → tie-breaker spin)' : isClientMode(e) ? (total ? `Final iteration: ${ORD[total - 1]} (drawn at random, locked)` : `Final iteration: drawn at random (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}) before the first roll`) : 'Final iteration: 5th (fixed)';
 const PRESETS = [['Red','#d92d20'],['Blue','#1d4ed8'],['Green','#16a34a'],['Yellow','#facc15'],['Pink','#ec4899'],['Orange','#f97316'],['Purple','#7e22ce'],['White','#ffffff'],['Grey','#6b7280'],['Brown','#8b5a2b'],['Sky Blue','#38bdf8'],['Maroon','#7f1d1d']];
 const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
@@ -736,6 +738,8 @@ async function renderBanners() {
       if (!c.ok && c.tc && !onShift) b.push(['bad', `⛔ Randomization blocked: ${c.reason} ${c.fix}`]);
       else if (!c.ok && !onShift) b.push(['warn', `⚠ ${c.reason} ${c.fix}`]);
       if (!tzInfo().isIST) b.push(['warn', `⚠ This PC's time zone is ${tzInfo().utcOffset} (${tzInfo().timezone || 'unknown'}), not India Standard Time. All times here are shown and checked in IST, but please set Windows to (UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi.`]);
+      if (!hasVerifiers()) b.push(['bad', (await idb.get('meta', 'verifiers_ready')) === false ? '⛔ Randomization needs two committee verifiers, and the Admin has not set them up yet (Admin → Settings → Committee verifiers). Then press “Update exams” and sign the verifiers in.'
+        : '⛔ Both committee verifiers must sign in on this PC before randomization (needs the internet).', 'verifiers', 'Verifier sign-in']);
       if (integrityIssue) b.push(['bad', '⛔ Audit integrity check failed: ' + integrityIssue + '. See Audit Log tab.']);
       const rr = await idb.get('meta', 'reset_required');
       if (rr) b.push(['bad', `⛔ The exam data on the server was reset on ${fmtTs(rr.at)} IST. This PC still holds data from before that, so it does not sync. Export the audit log if you need it, then clear this PC.`, 'clearpc', 'Clear this PC…']);
@@ -743,7 +747,7 @@ async function renderBanners() {
   }
   const el = $('#banners');
   el.innerHTML = b.map(([c, t, act, label]) => `<div class="banner ${c}">${esc(t)}${act ? ` <button class="btn sm" data-act="${act}">${esc(label)}</button>` : ''}</div>`).join('');
-  bind(el, { reauth: () => promptReauth(), clearpc: () => { cstate.view = 'audit'; renderClient(); clearThisPc(); } });
+  bind(el, { reauth: () => promptReauth(), verifiers: () => promptVerifiers(), clearpc: () => { cstate.view = 'audit'; renderClient(); clearThisPc(); } });
 }
 
 /* Signed in, but the server no longer accepts the session (expired / disabled): ask for the password again.
@@ -1068,12 +1072,15 @@ async function logout(force = false) {
   reauthNeeded = null; setSession(null); cstate.view = 'exams'; astate.examId = null; renderLanding();
 }
 
-const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description },
+const examFields = (e = {}) => [{ row: [{ name: 'name', label: 'Exam name', value: e.name, required: true, placeholder: 'e.g. TGT Recruitment Exam 2026' }, { name: 'code', label: 'Exam code', value: e.code, required: true, placeholder: 'e.g. TGT-2026' }] },
+  { name: 'advertNo', label: 'Advertisement No. (printed on the QP-Draw certificate)', value: e.advertNo, placeholder: 'e.g. 03/2026' }, { name: 'description', label: 'Description / notes', type: 'textarea', value: e.description },
   { name: 'finalMode', label: 'Final colour selection', type: 'select', value: e.finalMode || 'fixed5',
-    options: [['fixed5', 'Default — the 5th attempt gives the final colour'], ['client', `Random — the final iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}) is drawn at random before the first roll`]],
-    hint: `In random mode, the Randomization Console draws the final iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}, each equally likely) offline before the first roll. It applies to every shift and subject of the exam and is locked. The mode cannot be changed once randomization has started.` }];
-const shiftFields = (s = {}) => [{ name: 'name', label: 'Shift name', value: s.name, required: true, placeholder: 'e.g. Shift 1 – Morning' }, { row: [{ name: 'date', label: 'Exam date', type: 'date', value: s.date, required: true }, { name: 'start', label: 'Randomization allowed from', type: 'time', value: s.start, required: true }, { name: 'end', label: 'Randomization allowed until', type: 'time', value: s.end, required: true }] }];
-const shiftValidate = v => v.end <= v.start ? 'The randomization end time must be after the start time.' : null;
+    options: [['fixed5', 'Default — the 5th attempt gives the final colour'], ['client', `Random — the final iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}) is drawn at random before the first roll`],
+      ['best5', 'Best of 5 — 5 spins; the most frequent colour is final; a tie is settled by a tie-breaker spin among the tied colours']],
+    hint: `In Best of 5, each subject is spun 5 times and the colour that comes up most often is final; if two or more colours tie, one more spin among only the tied colours decides. In random mode, the Randomization Console draws the final iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}, each equally likely) offline before the first roll. It applies to every shift and subject of the exam and is locked. The mode cannot be changed once randomization has started.` }];
+const shiftFields = (s = {}) => [{ name: 'name', label: 'Shift name', value: s.name, required: true, placeholder: 'e.g. Shift 1 – Morning' }, { row: [{ name: 'date', label: 'Exam date', type: 'date', value: s.date, required: true }, { name: 'start', label: 'Randomization allowed from', type: 'time', value: s.start, required: true }, { name: 'end', label: 'Randomization allowed until', type: 'time', value: s.end, required: true }] },
+  { row: [{ name: 'examStart', label: 'Exam starts (for the certificate)', type: 'time', value: s.examStart }, { name: 'examEnd', label: 'Exam ends', type: 'time', value: s.examEnd }] }];
+const shiftValidate = v => v.end <= v.start ? 'The randomization end time must be after the start time.' : (!!v.examStart !== !!v.examEnd) ? 'Enter both exam start and end times, or neither.' : v.examStart && v.examEnd <= v.examStart ? 'The exam end time must be after its start time.' : null;
 const subjectFields = (s = {}) => [{ row: [{ name: 'name', label: 'Subject name', value: s.name, required: true, placeholder: 'e.g. Mathematics' }, { name: 'code', label: 'Subject code', value: s.code, placeholder: 'e.g. MATH-01' }] }, { name: 'colours', label: 'Question paper colours for this subject', type: 'colours', value: s.colours || [], hint: 'Add every question paper colour supplied by the Commission for this subject (minimum 2).' }];
 function subjectValidate(v) {
   if (v.colours.length < 2) return 'Add at least 2 colours.';
@@ -1093,7 +1100,7 @@ async function renderExamList(v) {
   bind(v, {
     new: async () => {
       const r = await formModal('Create exam', examFields()); if (!r) return;
-      const e = { id: uid(), name: r.name, code: r.code, description: r.description, finalMode: r.finalMode, createdAt: Date.now(), shifts: [] };
+      const e = { id: uid(), name: r.name, code: r.code, advertNo: r.advertNo, description: r.description, finalMode: r.finalMode, createdAt: Date.now(), shifts: [] };
       if (await apiOrAlert('admin/exams', { method: 'PUT', body: { exam: e, event: 'EXAM_CREATED', details: { name: e.name } } })) { astate.examId = e.id; renderAdmin(); }
     },
     open: d => { astate.examId = d.id; renderAdmin(); }
@@ -1110,11 +1117,11 @@ async function renderExamEditor(v) {
       ${e.publishedAt ? '<button class="btn sm danger" data-act="unpublish">Unpublish</button>' : ''}
       <button class="btn primary" data-act="publish">⬆ ${e.publishedAt ? 'Re-publish' : 'Publish'} to Randomization Console</button></div>
   <div class="card"><div class="row"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h2>${esc(e.name)}</h2>${e.description ? `<div class="muted">${esc(e.description)}</div>` : ''}
-    <div class="sm" style="margin-top:4px"><b>${modeText(e)}</b></div>
+    <div class="sm" style="margin-top:4px"><b>${modeText(e)}</b>${e.advertNo ? ` · Advertisement No. ${esc(e.advertNo)}` : ''}</div>
     <div class="muted sm" style="margin-top:4px">Created ${fmtTs(e.createdAt)} · Last updated ${fmtTs(e.updatedAt)} · ${publishBadge(e)}${e.publishedAt ? ` <span class="muted">at ${fmtTs(e.publishedAt)}</span>` : ''}</div></div>
     <div><button class="btn sm" data-act="editExam">Edit</button> <button class="btn sm danger" data-act="delExam">Delete</button></div></div></div>
   <div class="toolbar" style="margin-top:30px"><div class="head"><div class="eyebrow">Exam setup</div><h3 style="margin:0;font-size:24px;letter-spacing:-.025em">Shifts &amp; <em>subjects</em></h3></div><div class="sp"></div><button class="btn primary sm" data-act="addShift">+ Add shift</button></div>
-  ${shifts.length ? shifts.map(s => `<div class="card"><div class="row"><div class="grow"><h4>${esc(s.name)}</h4><div class="muted sm">📅 ${fmtDate(s.date)} · Randomization window ${s.start} – ${s.end}</div></div>
+  ${shifts.length ? shifts.map(s => `<div class="card"><div class="row"><div class="grow"><h4>${esc(s.name)}</h4><div class="muted sm">📅 ${fmtDate(s.date)} · Randomization window ${s.start} – ${s.end}${examTiming(s) ? ' · Exam ' + examTiming(s) : ''}</div></div>
       <div><button class="btn sm primary" data-act="addSub" data-s="${s.id}">+ Subject</button> <button class="btn sm" data-act="editShift" data-s="${s.id}">Edit</button> <button class="btn sm" data-act="dupShift" data-s="${s.id}">Duplicate</button> <button class="btn sm danger" data-act="delShift" data-s="${s.id}">Delete</button></div></div>
       ${s.subjects.length ? `<table class="tbl"><thead><tr><th>Subject</th><th>Code</th><th>Question paper colours</th><th style="width:150px"></th></tr></thead><tbody>
         ${s.subjects.map(sb => `<tr><td><b>${esc(sb.name)}</b></td><td>${esc(sb.code || '—')}</td><td><div class="swatches">${sb.colours.map(swMini).join('')}</div></td>
@@ -1125,7 +1132,7 @@ async function renderExamEditor(v) {
   const S = id => e.shifts.find(x => x.id === id);
   bind(v, {
     back: () => { astate.examId = null; renderAdmin(); },
-    editExam: async () => { const r = await formModal('Edit exam', examFields(e)); if (!r) return; Object.assign(e, r); saveExam(e, 'EXAM_UPDATED', { name: r.name, code: r.code, finalMode: r.finalMode }); },
+    editExam: async () => { const r = await formModal('Edit exam', examFields(e)); if (!r) return; Object.assign(e, r); saveExam(e, 'EXAM_UPDATED', { name: r.name, code: r.code, advertNo: r.advertNo, finalMode: r.finalMode }); },
     delExam: async () => { if (!await confirmModal('Delete exam?', `<p>Delete <b>${esc(e.name)}</b>? It will no longer be sent to the Randomization Console. Synced results remain in the database.</p>`, 'Delete', 'danger')) return;
       if (await apiOrAlert('admin/exams?id=' + encodeURIComponent(e.id), { method: 'DELETE' })) { astate.examId = null; renderAdmin(); } },
     addShift: async () => { const r = await formModal('Add shift', shiftFields(), { validate: shiftValidate }); if (!r) return; const s = { id: uid(), ...r, subjects: [] }; e.shifts.push(s); saveExam(e, 'SHIFT_CREATED', { shiftId: s.id, ...r }); },
@@ -1146,14 +1153,33 @@ async function renderExamEditor(v) {
 }
 
 async function renderAdminSettings(v) {
-  const { clientCred: cred } = await api('admin/settings');
+  const { clientCred: cred, verifiers = [], certificate = {} } = await api('admin/settings');
+  const V = n => verifiers.find(x => x.slot === n) || {}, sig = certificate.signatories || [];
   v.innerHTML = `<div class="toolbar">${pageHead('Admin console', 'Settings')}</div><div class="card"><div class="row"><div class="grow"><h3>Shared Randomization login (older)</h3><p class="muted sm">The single shared username/password from before. It still works on the Randomization Console. Randomizers can also have their own mobile-number logins, approved in the Approver Console.</p>
       <div>${cred ? `Current username: <b>${esc(cred.username)}</b>` : '<span class="badge b-prog">Not configured</span>'}</div></div><div><button class="btn primary" data-act="cred">${cred ? 'Change' : 'Create'} login</button></div></div></div>
+    <div class="card"><div class="row"><div class="grow"><h3>Committee verifiers</h3><p class="muted sm">Before any draw, both verifiers sign in on the Randomization PC with these login IDs and passwords. Their names and designations are printed on the QP-Draw certificate.</p>
+      ${[1, 2].map(n => `<div style="margin-top:4px">Verifier ${n}: ${V(n).id ? `<b>${esc(V(n).name)}</b>${V(n).designation ? ', ' + esc(V(n).designation) : ''} <span class="mono muted">(ID ${esc(V(n).id)})</span>` : '<span class="badge b-prog">Not set</span>'}</div>`).join('')}</div>
+      <div><button class="btn primary" data-act="verifiers">${verifiers.length ? 'Change' : 'Set up'} verifiers</button></div></div></div>
+    <div class="card"><div class="row"><div class="grow"><h3>QP-Draw certificate signatures</h3><p class="muted sm">Printed as signature lines at the end of every QP-Draw certificate. The Randomization PC picks up changes at its next sign-in or “Update exams”.</p>
+      ${sig.length ? `<ol style="margin:6px 0 0 18px">${sig.map(x => `<li><b>${esc(x.name)}</b>${x.designation ? ' — ' + esc(x.designation) : ''}</li>`).join('')}</ol>` : '<span class="muted">None</span>'}</div>
+      <div><button class="btn" data-act="sig">Edit</button></div></div></div>
     <div class="card"><div class="row"><div class="grow"><h3>Your password</h3><p class="muted sm">Logged in as <b>${esc(session.name ? `${session.name} (${session.user})` : session.user)}</b>.</p></div><div><button class="btn" data-act="pw">Change password</button></div></div></div>`;
   bind(v, {
     cred: async () => { const r = await formModal('Randomization Console login', [{ name: 'u', label: 'Username', value: cred && cred.username, required: true }, { name: 'p', label: 'Password (min 8 characters)', type: 'password', required: true }, { name: 'p2', label: 'Confirm password', type: 'password', required: true }],
         { validate: x => x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : null }); if (!r) return;
       if (await apiOrAlert('admin/client-cred', { method: 'POST', body: { username: r.u, password: r.p } })) { toast('Login saved. The client PC picks it up at its next online login.'); renderAdmin(); } },
+    verifiers: async () => {
+      const f = n => [{ row: [{ name: 'i' + n, label: `Verifier ${n} — login ID`, value: V(n).id, required: true, placeholder: 'verifier' + n }, { name: 'n' + n, label: 'Full name (as printed)', value: V(n).name, required: true }] },
+        { row: [{ name: 'd' + n, label: 'Designation', value: V(n).designation, placeholder: 'e.g. Examination Controller' }, { name: 'p' + n, label: V(n).id ? 'New password (blank = keep)' : 'Password (min 8)', type: 'password' }] }];
+      const r = await formModal('Committee verifiers', [...f(1), ...f(2)], { validate: x => [1, 2].map(n => x['p' + n] && x['p' + n].length < 8 ? `Verifier ${n}: password must be at least 8 characters.` : !x['p' + n] && (!V(n).id || V(n).id !== x['i' + n].trim().toLowerCase()) ? `Verifier ${n}: enter a password.` : null).find(Boolean) || null });
+      if (!r) return;
+      const body = { verifiers: [1, 2].map(n => ({ id: r['i' + n].trim(), name: r['n' + n].trim(), designation: (r['d' + n] || '').trim(), password: r['p' + n] || undefined })) };
+      if (await apiOrAlert('admin/verifiers', { method: 'POST', body })) { toast('Verifiers saved'); renderAdmin(); } },
+    sig: async () => {
+      const r = await formModal('QP-Draw certificate signatures', [{ name: 'l', label: 'One per line:  Name | Designation', type: 'textarea', value: sig.map(x => `${x.name} | ${x.designation || ''}`).join('\n'), hint: 'Up to 10 lines, printed in this order.' }]);
+      if (!r) return;
+      const signatories = r.l.split('\n').map(x => x.split('|')).map(([n, d]) => ({ name: (n || '').trim(), designation: (d || '').trim() })).filter(x => x.name);
+      if (await apiOrAlert('admin/certificate', { method: 'POST', body: { signatories } })) { toast('Signatures saved'); renderAdmin(); } },
     pw: async () => { const r = await formModal('Change admin password', [{ name: 'o', label: 'Current password', type: 'password', required: true }, { name: 'p', label: 'New password (min 8)', type: 'password', required: true }, { name: 'p2', label: 'Confirm new password', type: 'password', required: true }],
         { validate: async x => x.p.length < 8 ? 'Password must be at least 8 characters.' : x.p !== x.p2 ? 'Passwords do not match.' : (await api('admin/password', { method: 'POST', body: { old: x.o, password: x.p } }).then(() => null, err => err.message)) }); if (!r) return;
       toast('Password changed'); }
@@ -1166,28 +1192,39 @@ async function renderResults(v) {
   const D = new Map(r.draws.map(d => [d.key, d]));
   const examsWithDraws = r.exams.filter(e => r.draws.some(d => d.examId === e.id));
   const C = new Map((r.choices || []).map(c => [c.exam_id, c]));
-  const totalOf = e => isClientMode(e) ? (C.get(e.id) || {}).final_attempt || null : ATTEMPTS;
+  const totalOf = e => isBestMode(e) ? BEST_SPINS : isClientMode(e) ? (C.get(e.id) || {}).final_attempt || null : ATTEMPTS;
   v.innerHTML = `<div class="toolbar">${pageHead('Admin console · synced from Randomization PCs', 'Results <em>&amp; sync</em>')}<div class="sp"></div><button class="btn" data-act="reload">↻ Refresh</button><button class="btn primary" data-act="csv">⬇ Results CSV</button></div>
     <div class="card"><h3>Randomization PCs</h3>${r.syncs.length ? `<table class="tbl"><thead><tr><th>PC install ID</th><th>User</th><th>Last sync</th><th>Audit entries</th><th>Chain</th><th></th></tr></thead><tbody>
       ${r.syncs.map(s => `<tr><td class="mono">${esc(s.install_id)}</td><td>${esc(s.actor)}</td><td>${fmtTs(new Date(s.last_sync).getTime())}</td><td>${s.entries}</td><td>${s.chain_ok ? '<span class="badge b-open">✔ intact</span>' : `<span class="badge" style="background:var(--badbg);color:var(--bad)">⛔ ${esc((s.issues || [])[0] || 'broken')}</span>`}</td>
       <td><button class="btn sm" data-act="clog" data-id="${esc(s.install_id)}">⬇ Audit log</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">No Randomization PC has synced yet. A PC syncs automatically when it comes back online after randomization.</p>'}</div>
     ${r.conflicts.length ? `<div class="card" style="border-color:#f3c3be"><h3 style="color:var(--bad)">⚠ Sync conflicts</h3><table class="tbl"><thead><tr><th>Time</th><th>PC</th><th>Type</th><th>Detail</th></tr></thead><tbody>
       ${r.conflicts.map(c => `<tr><td>${fmtTs(new Date(c.created_at).getTime())}</td><td class="mono">${esc(c.install_id)}</td><td><b>${esc(c.kind)}</b></td><td class="mono">${esc(JSON.stringify(c.detail))}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    ${examsWithDraws.length ? examsWithDraws.map(e => { const T = totalOf(e), cols = Array.from({ length: T || MAX_FINAL }, (_, i) => i + 1);
-      return e.shifts.filter(s => r.draws.some(d => d.shiftId === s.id)).map(s => `<div class="card"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)} · ${modeText(e, T)}</div><h3>${esc(s.name)} <span class="muted sm">${fmtDate(s.date)} · ${s.start}–${s.end}</span></h3>
-      <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject</th>${cols.map(a => `<th class="${a === T ? 'final' : ''}">${T ? attemptLabel(a, T) : ORD[a - 1] + ' Attempt'}</th>`).join('')}</tr></thead><tbody>
-      ${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b> <span class="muted sm">${esc(sb.code || '')}</span></td>${cols.map(a => { const d = D.get(dkey(e.id, s.id, sb.id, a));
-        return d ? `<td class="${a === T ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${fmtTs(d.ts)}</div></td>` : `<td class="${a === T ? 'final' : ''}" style="color:var(--rule)">—</td>`; }).join('')}</tr>`).join('')}
+    ${examsWithDraws.length ? examsWithDraws.map(e => { const T = totalOf(e), cols = T ? gridColumns(e, T) : Array.from({ length: MAX_FINAL }, (_, i) => ({ a: i + 1, label: ORD[i] + ' Attempt' }));
+      return e.shifts.filter(s => r.draws.some(d => d.shiftId === s.id)).map(s => `<div class="card"><div class="row" style="align-items:baseline"><div class="grow"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)} · ${modeText(e, T)}</div><h3>${esc(s.name)} <span class="muted sm">${fmtDate(s.date)} · ${s.start}–${s.end}</span></h3></div>
+      ${T && shiftProgress(e, s, D, T).complete ? `<button class="btn sm primary" data-act="cert" data-e="${e.id}" data-s="${s.id}">📄 QP-Draw certificate</button>` : ''}</div>
+      <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject</th>${cols.map(c => `<th class="${c.final ? 'final' : ''}">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>
+      ${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b> <span class="muted sm">${esc(sb.code || '')}</span></td>${cols.map(c => viewCell(e, s, sb, D, T, c, fmtTs)).join('')}</tr>`).join('')}
       </tbody></table></div></div>`).join(''); }).join('') : '<div class="empty">No randomization results synced yet.</div>'}`;
   bind(v, {
     reload: () => renderAdmin(),
+    cert: async d => {
+      const e = r.exams.find(x => x.id === d.e), s = e && e.shifts.find(x => x.id === d.s); if (!s) return;
+      const T = totalOf(e), mine = r.draws.filter(x => x.examId === e.id && x.shiftId === s.id), pcId = (mine[mine.length - 1] || {}).installId;
+      const sy = r.syncs.find(x => x.install_id === pcId), st = await apiOrAlert('admin/settings'); if (!st) return;
+      const app = (mine.find(x => x.app) || {}).app || {};
+      const m = await certModel({ e, s, D, T, signatories: (st.certificate || {}).signatories || [], pc: { installId: pcId, computer: app.computer, version: app.version, buildHash: app.buildHash },
+        chain: sy ? { ok: !!sy.chain_ok, detail: sy.chain_ok ? `verified by the server at the last sync, ${fmtTs(new Date(sy.last_sync).getTime())} IST (${sy.entries} entries)` : 'the server found problems at the last sync' } : null,
+        source: 'Server copy of the synced draws (Admin console)', generatedBy: session.name || session.user });
+      await showCertificate(m);
+    },
     csv: () => {
-      const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final colour', 'Status', 'PC install ID']];
+      const rows = [['Exam', 'Exam code', 'Mode', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final colour', 'Decided by', 'Status', 'PC install ID']];
       r.exams.forEach(e => { const T = totalOf(e); e.shifts.forEach(s => s.subjects.forEach(sb => {
         const cells = []; let n = 0, pc = '';
         for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) { n++; pc = d.installId; } cells.push(d ? d.colour.name : '', d ? fmtTs(d.ts) : ''); }
-        const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
-        if (n) rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not drawn yet', fd ? fd.colour.name : '', T && n === T ? 'FINAL LOCKED' : `In progress (${n}/${T || '?'})`, pc]);
+        const st = T ? subjectState(e, s, sb, D, T) : null;
+        if (n) rows.push([e.name, e.code, isBestMode(e) ? 'Best of 5' : isClientMode(e) ? 'Random final iteration' : 'Fixed 5th', s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells,
+          isBestMode(e) ? '6th = tie-breaker' : T ? ORD[T - 1] : 'not drawn yet', st && st.complete ? st.finalColour.name : '', st && st.complete ? st.decidedBy : '', st && st.complete ? 'FINAL LOCKED' : `In progress (${n}/${st ? st.total : '?'})`, pc]);
       })); });
       download(`UPESSC_QPR_SERVER_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
     },
@@ -1243,13 +1280,14 @@ async function exportAudit(scope, kind) {
 }
 async function exportResults() {
   const exams = await idb.all('client_exams'), draws = await idb.all('draws'), choices = await choiceMap(); const D = new Map(draws.map(d => [d.key, d]));
-  const rows = [['Exam', 'Exam code', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final colour', 'Status']];
+  const rows = [['Exam', 'Exam code', 'Mode', 'Shift', 'Date', 'Subject', 'Subject code', ...ORD.flatMap(o => [`${o} attempt`, `${o} time`]), 'Final iteration', 'Final colour', 'Decided by', 'Status']];
   exams.forEach(e => { const T = totalFor(e, choices); e.shifts.forEach(s => s.subjects.forEach(sb => {
     const cells = []; let n = 0;
     for (let a = 1; a <= MAX_FINAL; a++) { const d = D.get(dkey(e.id, s.id, sb.id, a)); if (d) n++; cells.push(d ? d.colour.name : '', d ? fmtTs(d.ts) : ''); }
-    const fd = T && D.get(dkey(e.id, s.id, sb.id, T));
-    rows.push([e.name, e.code, s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells, T ? ORD[T - 1] : 'not drawn yet', fd ? fd.colour.name : '',
-      !T ? 'Final iteration not drawn yet' : n === T ? 'FINAL LOCKED' : n ? `In progress (${n}/${T})` : 'Not started']);
+    const st = T ? subjectState(e, s, sb, D, T) : null;
+    rows.push([e.name, e.code, isBestMode(e) ? 'Best of 5' : isClientMode(e) ? 'Random final iteration' : 'Fixed 5th', s.name, fmtDate(s.date), sb.name, sb.code || '', ...cells,
+      isBestMode(e) ? '6th = tie-breaker' : T ? ORD[T - 1] : 'not drawn yet', st && st.complete ? st.finalColour.name : '', st && st.complete ? st.decidedBy : '',
+      !T ? 'Final iteration not drawn yet' : st.complete ? 'FINAL LOCKED' : n ? `In progress (${n}/${st.total})` : 'Not started']);
   })); });
   await appendLog('client', 'RESULTS_EXPORTED', { rows: rows.length - 1 });
   download(`UPESSC_QPR_RESULTS_${stamp()}.csv`, toCsv(rows), 'text/csv');
@@ -1301,6 +1339,231 @@ async function clearThisPc() {
         } catch (err) { busy = false; showErr(er, err.network ? 'Internet is required.' : err.message); btn.disabled = false; }
       };
     } }));
+}
+
+/* =========================================================
+   QP-Draw certificate: one per shift, available once every subject of the shift has its final colour.
+   Built as A4 pages (paginated here), printed from the page, and saved as PDF: the Windows app saves a real
+   PDF through its own print engine; a browser renders each page to an image and wraps the pages in a PDF.
+   ========================================================= */
+const CERT_CSS = `
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff}
+.page,.m{font-family:Arial,Helvetica,'Liberation Sans',sans-serif;color:#1b2333;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{position:relative;width:210mm;height:296mm;overflow:hidden;background:#fff;page-break-after:always;break-after:page}
+.page:last-child{page-break-after:auto;break-after:auto}
+.ph{position:absolute;top:8mm;left:13mm;right:13mm;text-align:center;font:700 8.5pt Arial,sans-serif;color:#b8860b;border-bottom:1px solid #c9a227;padding-bottom:3px;letter-spacing:.2px}
+.pf{position:absolute;bottom:7mm;left:13mm;right:13mm;text-align:center;font:400 7.5pt Arial,sans-serif;color:#566;border-top:1px solid #c9a227;padding-top:4px}
+.pc{position:absolute;top:17mm;left:13mm;right:13mm;bottom:15mm}
+.wm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-38deg);font:800 46pt Arial,sans-serif;color:rgba(20,40,75,.045);white-space:nowrap;letter-spacing:4px;pointer-events:none}
+.blk{padding-bottom:5mm}
+.hero{display:flex;align-items:center;gap:5mm;background:#16213a;color:#fff;padding:4mm 6mm}
+.hero img{width:21mm;height:21mm;background:#fff;border-radius:2mm;padding:1mm;object-fit:contain}
+.hero .t{flex:1;text-align:center}
+.hero h1{font:800 15pt/1.2 Arial,sans-serif;letter-spacing:.3px}
+.hero .c{font:700 9.5pt Arial,sans-serif;margin-top:2mm;letter-spacing:1px}
+.hero .k{font:700 10.5pt Arial,sans-serif;margin-top:2mm;color:#f2d27a;letter-spacing:.5px}
+.sec{background:#16213a;color:#e9c46a;font:700 9.5pt Arial,sans-serif;padding:2.2mm 4mm;letter-spacing:.4px;border-bottom:2px solid #c9a227}
+table.t{width:100%;border-collapse:collapse;font-size:8.8pt}
+table.t td,table.t th{border:1px solid #d8c27a;padding:1.7mm 2.6mm;vertical-align:middle}
+table.t th{background:#2a3550;color:#d9dfeb;font-weight:700;font-size:7.8pt;text-transform:uppercase;letter-spacing:.4px;text-align:center}
+table.kv td:first-child{width:34%;background:#eef1f7;color:#4c5b78;font-weight:700;font-size:7.8pt;text-transform:uppercase;letter-spacing:.3px}
+table.kv td:last-child{font-weight:700}
+table.c td{text-align:center;font-weight:700}
+.sw{display:inline-block;width:3.6mm;height:3.6mm;border-radius:.8mm;border:1px solid rgba(0,0,0,.25);vertical-align:-.7mm;margin-right:1.6mm}
+tr.tied td{background:#fdf6dc}tr.win td{background:#e3f4e8}tr.tb td{background:#fde8e8;color:#9b1c1c}tr.fin td{background:#e6ecff}
+.freq{border:1px solid #d8c27a;border-top:0;background:#f6f7fa;font:700 7.8pt Arial,sans-serif;color:#4c5b78;text-align:center;padding:1.8mm 3mm}
+.res{border:1px solid #c9a227;border-top:0;padding:2.6mm 4mm;text-align:center;color:#fff}
+.res b{display:block;font:800 12.5pt Arial,sans-serif}.res span{display:block;font:400 8.5pt Arial,sans-serif;margin-top:1mm}
+.seal{background:#16213a;color:#e9c46a;padding:3mm 4mm;font:700 8pt Arial,sans-serif;line-height:1.55;border:1px solid #c9a227}
+.seal code{display:block;font:400 7.6pt 'Courier New',monospace;color:#c8d3ea;word-break:break-all;margin-bottom:1mm}
+.txt{font:400 8.8pt/1.6 Arial,sans-serif;text-align:justify;color:#2b3448}
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:15mm 14mm;padding-top:13mm}
+.sig div{border-top:1px solid #333;padding-top:2mm;font:700 9pt Arial,sans-serif}.sig span{display:block;font:400 8.3pt Arial,sans-serif;color:#2c4a8a;margin-top:1mm}
+.warn{color:#9b1c1c}
+@page{size:A4;margin:0}
+@media screen{body.preview{background:#c9ced8;padding:18px 0}body.preview .page{margin:0 auto 18px;box-shadow:0 2px 14px rgba(0,0,0,.25)}}
+`;
+const CERT_W_PX = 794, CERT_H_PX = 1119;   // 210 x 296 mm at 96 dpi
+const ink2 = hexc => { const n = parseInt(String(hexc || '#888888').slice(1), 16); return ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000 > 150 ? '#111' : '#fff'; };
+const swc = c => `<span class="sw" style="background:${esc(c.hex)}"></span>${esc(c.name)}`;
+
+/* Everything printed on the certificate, from the exam, the draws and where it is generated */
+async function certModel({ e, s, D, T, signatories, pc, source, chain, generatedBy }) {
+  const subs = s.subjects.map(sb => ({ sb, st: subjectState(e, s, sb, D, T) }));
+  const draws = subs.flatMap(x => [...x.st.spins, x.st.tie].filter(Boolean));
+  const seal = draws.reduce((m, d) => (!m || (d.logSeq || 0) > (m.logSeq || 0) ? d : m), null);
+  const uniq = (arr, key) => { const m = new Map(); arr.forEach(x => { if (x && !m.has(key(x))) m.set(key(x), x); }); return [...m.values()]; };
+  const verifiers = uniq(draws.flatMap(d => d.verifiers || []), v => v.id + '|' + v.signedInAt);
+  const operators = uniq(draws.map(d => d.operator), o => o.user + '|' + (o.signedInAt || ''));
+  const dates = [...new Set(e.shifts.map(x => x.date))].sort();
+  const finals = subs.map(({ sb, st }) => ({ subject: sb.name, colour: st.finalColour && st.finalColour.name }));
+  const certId = (await sha256(JSON.stringify({ examId: e.id, shiftId: s.id, finals, seal: seal && seal.logHash }))).slice(0, 16).toUpperCase();
+  return { e, s, T, subs, draws, seal, verifiers, operators, dates, signatories: signatories || [], pc: pc || {}, source, chain, generatedBy, generatedAt: Date.now(), certId,
+    completedAt: seal ? seal.ts : null };
+}
+
+function certBlocks(m) {
+  const { e, s } = m, B = [];
+  const kv = rows => `<table class="t kv">${rows.filter(r => r[1] !== null && r[1] !== undefined && r[1] !== '').map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('')}</table>`;
+  B.push({ html: `<div class="hero"><img src="${SEAL}" alt=""><div class="t"><h1>UTTAR PRADESH EDUCATION SERVICE<br>SELECTION COMMISSION</h1><div class="c">PRAYAGRAJ</div><div class="k">QUESTION PAPER DRAW — QP-DRAW CERTIFICATE</div></div></div>` });
+  B.push({ html: `<div class="sec">EXAMINATION DETAILS</div>` + kv([
+    ['Examination name', esc(e.name)], ['Advertisement No.', esc(e.advertNo || '')], ['Exam code', esc(e.code)],
+    ['Examination date(s)', esc(m.dates.map(fmtDate).join(', '))],
+    ['Shift', esc([fmtDate(s.date), s.name, examTiming(s)].filter(Boolean).join('  |  '))],
+    ['Randomization mode', esc(modeLong(e, m.T))],
+    ['Randomization window (IST)', esc(`${fmtDate(s.date)}  ${fmt12(s.start)} – ${fmt12(s.end)}`)],
+    ['Draw completed (IST)', esc(m.completedAt ? fmtTs(m.completedAt) + ' IST' : '—')],
+    ['Certificate ID', `<span style="font-family:'Courier New',monospace">${m.certId}</span>`]]) });
+  B.push({ kind: 'table', title: 'SELECTED QUESTION PAPER COLOURS — FINAL RESULT', cls: 'c',
+    head: '<tr><th style="width:8%">#</th><th>Subject</th><th>Subject code</th><th>Final colour</th><th>Decided by</th></tr>',
+    rows: m.subs.map(({ sb, st }, i) => `<tr class="fin"><td>${i + 1}</td><td>${esc(sb.name)}</td><td>${esc(sb.code || '—')}</td><td>${st.finalColour ? swc(st.finalColour) : '—'}</td><td>${esc(st.decidedBy || '—')}</td></tr>`) });
+  m.subs.forEach(({ sb, st }, i) => {
+    const rows = [];
+    if (st.best) {
+      st.spins.forEach((d, k) => { if (!d) return; const n = st.counts.get(d.colourIndex), isLead = st.leaders.includes(d.colourIndex);
+        const status = st.leaders.length > 1 && isLead ? 'TIED' : isLead ? `WINNER (${n}/${BEST_SPINS})` : `${n}/${BEST_SPINS}`;
+        rows.push(`<tr class="${st.leaders.length > 1 && isLead ? 'tied' : isLead ? 'win' : ''}"><td>Spin ${k + 1}</td><td>${swc(d.colour)}</td><td>${esc(fmtTs(d.ts))}</td><td>#${d.logSeq}</td><td>${status}</td></tr>`); });
+      if (st.tie) rows.push(`<tr class="tb"><td>Tie-breaker</td><td>${swc(st.tie.colour)}</td><td>${esc(fmtTs(st.tie.ts))}</td><td>#${st.tie.logSeq}</td><td>TIE-BREAKER WINNER</td></tr>`);
+    } else st.spins.forEach((d, k) => { if (d) rows.push(`<tr class="${k + 1 === m.T ? 'fin' : ''}"><td>${esc(attemptLabel(k + 1, m.T))}</td><td>${swc(d.colour)}</td><td>${esc(fmtTs(d.ts))}</td><td>#${d.logSeq}</td><td>${k + 1 === m.T ? 'FINAL' : 'Attempt'}</td></tr>`); });
+    const freq = st.best ? `FREQUENCY:  ${[...st.counts.entries()].sort((a, b) => b[1] - a[1]).map(([ci, n]) => `${esc(sb.colours[ci] ? sb.colours[ci].name : '#' + ci)}: ${n}/${BEST_SPINS}${n === st.max ? (st.leaders.length > 1 ? ' MAX (TIE)' : ' MAX') : ''}`).join('  |  ')}${st.tie ? `  |  TIE-BREAKER WINNER: ${esc(st.tie.colour.name)}` : ''}` : '';
+    const fc = st.finalColour;
+    const res = fc ? `<div class="res" style="background:${esc(fc.hex)};color:${ink2(fc.hex)}"><b>FINAL COLOUR: ${esc(fc.name)}</b><span>${esc(sb.name)} — ${esc(st.decidedBy)}${st.best && st.tie ? ` (spins 1–5 tied: ${st.leaders.map(ci => esc(sb.colours[ci].name)).join(' vs ')}, ${st.max} each)` : ''} · ${esc(fmtTs(st.seal.ts))} IST</span></div>` : '';
+    B.push({ kind: 'table', title: `SUBJECT ${i + 1}: ${esc(sb.name.toUpperCase())}${sb.code ? ' (' + esc(sb.code) + ')' : ''} — ALL DRAWS`, cls: 'c',
+      head: `<tr><th>${st.best ? 'Spin' : 'Attempt'}</th><th>Colour</th><th>Time (IST)</th><th>Audit log</th><th>Status</th></tr>`, rows, tail: (freq ? `<div class="freq">${freq}</div>` : '') + res });
+  });
+  const vrows = [];
+  m.verifiers.forEach((v, i) => { vrows.push([`Verifier ${i + 1}`, esc([v.name, v.designation].filter(Boolean).join(', ')) + ` <span style="font-weight:400">(ID: ${esc(v.id)})</span>`], [`Verifier ${i + 1} sign-in (IST)`, esc(fmtTs(Date.parse(v.signedInAt))) + ' IST']); });
+  if (!m.verifiers.length) vrows.push(['Verifiers', '<span class="warn">No verifier sign-in recorded with these draws</span>']);
+  m.operators.forEach((o, i) => vrows.push([`Randomizer${m.operators.length > 1 ? ' ' + (i + 1) : ''}`, esc(o.name ? `${o.name} (${o.user})` : o.user) + (o.signedInAt ? ` · signed in ${esc(fmtTs(Date.parse(o.signedInAt)))} IST` : '')]));
+  if (m.verifiers.length > 2) vrows.push(['Note', 'The verifiers changed during this shift; every sign-in is listed.']);
+  B.push({ html: `<div class="sec">COMMITTEE &amp; SIGN-IN RECORD</div>` + kv(vrows) });
+  B.push({ html: `<div class="sec">RANDOMIZATION PC &amp; AUDIT</div>` + kv([
+    ['Randomization PC', esc([m.pc.computer, m.pc.installId && 'install ID ' + m.pc.installId].filter(Boolean).join(' · ') || '—')],
+    ['Application', esc([m.pc.version && 'version ' + m.pc.version, m.pc.buildHash && 'build ' + m.pc.buildHash.slice(0, 16)].filter(Boolean).join(' · ') || '—')],
+    ['Audit log check', m.chain ? (m.chain.ok ? `Hash chain intact (${esc(m.chain.detail)})` : `<span class="warn">PROBLEMS FOUND: ${esc(m.chain.detail)}</span>`) : '—'],
+    ['Certificate generated from', esc(m.source)]]) });
+  if (m.seal) B.push({ html: `<div class="sec">HASH-CHAIN SEAL (SHA-256, TAMPER-EVIDENT)</div><div class="seal">PREVIOUS ENTRY HASH:<code>${esc(m.seal.prevHash || '—')}</code>SEALING ENTRY HASH (last draw of this shift):<code>${esc(m.seal.logHash)}</code>AUDIT LOG ENTRY #${m.seal.logSeq}  |  SEALED AT ${esc(fmtTs(m.seal.ts))} IST</div>` });
+  B.push({ html: `<p class="txt">Certified that the question paper colour shown above for each subject of this shift was selected on the Randomization PC named above by the stated randomization mode, after both verifiers named above had signed in on that PC. Every draw used cryptographically secure random numbers (Web Crypto <i>crypto.getRandomValues</i> with rejection sampling, so that every colour in the pool had an equal chance), was made while the PC had no internet connection and inside the shift's randomization window (IST), and was locked and written to the PC's audit log at the moment it was made. Each audit log entry carries the SHA-256 hash of the previous entry, so any later change to a recorded draw breaks the chain and is detected when the log is verified. This certificate is generated by the system from those records.</p>` });
+  if (m.signatories.length) B.push({ html: `<div class="sig">${m.signatories.map(x => `<div>${esc(x.name)}<span>${esc(x.designation || '')}</span></div>`).join('')}</div>` });
+  return B;
+}
+
+/* Lays the blocks out on A4 pages (tables continue on the next page with their header repeated) */
+async function certHtml(m) {
+  const fr = document.createElement('iframe');
+  fr.style.cssText = 'position:fixed;left:-12000px;top:0;width:900px;height:1200px;visibility:hidden';
+  fr.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>${CERT_CSS}</style></head><body><div class="m" style="width:184mm"></div></body></html>`;
+  document.body.appendChild(fr);
+  await new Promise(r => fr.onload = r);
+  try {
+    const box = fr.contentDocument.querySelector('.m');
+    const H = 264 * 3.7795 - 2;   // content area: 296 mm − 17 mm top − 15 mm bottom
+    const hOf = html => { box.innerHTML = `<div class="blk">${html}</div>`; return box.firstChild.getBoundingClientRect().height; };
+    const tableHtml = (b, rows, cont, last) => `<div class="sec">${b.title}${cont ? ' (continued)' : ''}</div><table class="t ${b.cls || ''}"><thead>${b.head}</thead><tbody>${rows.join('')}</tbody></table>${last ? b.tail || '' : ''}`;
+    const pages = [[]]; let used = 0;
+    const place = (html, h) => { if (used + h > H && pages[pages.length - 1].length) { pages.push([]); used = 0; } pages[pages.length - 1].push(html); used += h; };
+    for (const b of certBlocks(m)) {
+      if (b.kind !== 'table') { place(b.html, hOf(b.html)); continue; }
+      if (!b.rows.length) { const html = tableHtml(b, [], false, true); place(html, hOf(html)); continue; }
+      let i = 0, cont = false;
+      while (i < b.rows.length) {
+        const rest = b.rows.length - i;
+        let take = rest, html = tableHtml(b, b.rows.slice(i), cont, true), h = hOf(html);
+        if (used + h > H) {   // fit as many rows as possible here; the rest (with the table's footer) continues on the next page
+          take = 0;
+          for (let t = rest - 1; t >= 1; t--) { const x = tableHtml(b, b.rows.slice(i, i + t), cont, false), xh = hOf(x); if (used + xh <= H) { take = t; html = x; h = xh; break; } }
+          if (!take && used > 0) { pages.push([]); used = 0; continue; }
+          if (!take) { take = 1; html = tableHtml(b, b.rows.slice(i, i + 1), cont, rest === 1); h = hOf(html); }
+        }
+        place(html, h); i += take; cont = true;
+      }
+    }
+    const n = pages.length, head = `UPESSC — QP-DRAW CERTIFICATE — ${esc(m.e.name)} | ${esc(m.s.name)}`;
+    const foot = i => `Generated: ${esc(fmtTs(m.generatedAt))} IST${m.generatedBy ? ' by ' + esc(m.generatedBy) : ''}  |  UPESSC, Prayagraj, Uttar Pradesh  |  Certificate ID ${m.certId}  |  Page ${i + 1} of ${n}`;
+    const body = pages.map((p, i) => `<section class="page"><div class="wm">CONFIDENTIAL — QUESTION PAPER DRAW</div><div class="ph">${head}</div><div class="pc">${p.map(h => `<div class="blk">${h}</div>`).join('')}</div><div class="pf">${foot(i)}</div></section>`).join('');
+    return `<!doctype html><html><head><meta charset="utf-8"><title>QP-Draw Certificate — ${esc(m.e.code)} — ${esc(m.s.name)}</title><style>${CERT_CSS}</style></head><body>${body}</body></html>`;
+  } finally { fr.remove(); }
+}
+const certFileName = m => `QP-Draw-Certificate_${safeName(m.e.code)}_${safeName(m.s.name)}_${m.s.date}`;
+
+/* Browser: each page → image (SVG foreignObject → canvas) → JPEG pages in a PDF */
+async function rasterPdf(doc) {
+  const pages = [...doc.querySelectorAll('.page')], ser = new XMLSerializer(), out = [];
+  for (const p of pages) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CERT_W_PX}" height="${CERT_H_PX}"><foreignObject x="0" y="0" width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>${CERT_CSS.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</style>${ser.serializeToString(p)}</div></foreignObject></svg>`;
+    const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
+    const k = 2, c = document.createElement('canvas'); c.width = CERT_W_PX * k; c.height = CERT_H_PX * k;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.scale(k, k); x.drawImage(img, 0, 0, CERT_W_PX, CERT_H_PX);
+    out.push({ jpg: unb64(c.toDataURL('image/jpeg', 0.9).split(',')[1]), w: c.width, h: c.height });
+  }
+  return jpegPdf(out);
+}
+function jpegPdf(imgs) {
+  const W = 595.28, H = 595.28 * 296 / 210, parts = [], offs = []; let len = 0;
+  const add = x => { const b = typeof x === 'string' ? Uint8Array.from(x, ch => ch.charCodeAt(0) & 255) : x; parts.push(b); len += b.length; };
+  const obj = (n, body) => { offs[n] = len; add(`${n} 0 obj\n`); body.forEach(add); add('\nendobj\n'); };
+  add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const kids = imgs.map((_, i) => `${3 + i * 3} 0 R`).join(' ');
+  obj(1, ['<< /Type /Catalog /Pages 2 0 R >>']);
+  obj(2, [`<< /Type /Pages /Count ${imgs.length} /Kids [${kids}] >>`]);
+  imgs.forEach((im, i) => {
+    const p = 3 + i * 3, c = `q ${W.toFixed(2)} 0 0 ${H.toFixed(2)} 0 0 cm /Im${i} Do Q`;
+    obj(p, [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${H.toFixed(2)}] /Resources << /XObject << /Im${i} ${p + 2} 0 R >> >> /Contents ${p + 1} 0 R >>`]);
+    obj(p + 1, [`<< /Length ${c.length} >>\nstream\n${c}\nendstream`]);
+    obj(p + 2, [`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.jpg.length} >>\nstream\n`, im.jpg, '\nendstream']);
+  });
+  const n = 3 + imgs.length * 3, xref = len;
+  add(`xref\n0 ${n}\n0000000000 65535 f \n` + Array.from({ length: n - 1 }, (_, i) => String(offs[i + 1]).padStart(10, '0') + ' 00000 n \n').join(''));
+  add(`trailer\n<< /Size ${n} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts, { type: 'application/pdf' });
+}
+
+/* Preview with Print and Download PDF. onEvent(kind) records the action (Randomization PC log). */
+async function showCertificate(m, onEvent) {
+  const html = await certHtml(m), name = certFileName(m);
+  await new Promise(resolve => openModal(`<div class="row" style="align-items:center;margin-bottom:10px"><div class="grow"><div class="eyebrow">${esc(m.e.code)} · ${esc(m.s.name)} · ${fmtDate(m.s.date)}</div><h3 style="margin:0">QP-Draw certificate</h3></div>
+      <button class="btn" data-print>🖨 Print</button><button class="btn primary" data-pdf>⬇ Download PDF</button><button class="btn ghost" data-x>Close</button></div>
+      <iframe class="certframe" style="width:100%;height:68vh;border:1px solid var(--rule);border-radius:8px;background:#c9ced8"></iframe>`, {
+    wide: true, onDismiss: resolve, onMount: (box, close) => {
+      const fr = box.querySelector('.certframe');
+      fr.srcdoc = html.replace('<body>', '<body class="preview">');
+      box.querySelector('[data-x]').onclick = () => { close(); resolve(); };
+      box.querySelector('[data-print]').onclick = async () => {
+        if (onEvent) await onEvent('CERTIFICATE_PRINTED');
+        if (DESK && DESK.printHtml) { const r = await DESK.printHtml(html); if (r && r.error) toast('Print failed: ' + r.error); }
+        else fr.contentWindow.print();
+      };
+      box.querySelector('[data-pdf]').onclick = async ev => {
+        const b = ev.currentTarget; b.disabled = true;
+        try {
+          if (DESK && DESK.savePdf) {
+            const r = await DESK.savePdf(html, name + '.pdf');
+            if (r && r.saved) { toast('Saved: ' + r.saved, 4000); if (onEvent) await onEvent('CERTIFICATE_DOWNLOADED', { file: r.saved }); }
+            else if (r && r.error) toast('Could not save the PDF: ' + r.error, 4000);
+          } else {
+            const blob = await rasterPdf(fr.contentDocument);
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + '.pdf'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+            if (onEvent) await onEvent('CERTIFICATE_DOWNLOADED', { file: name + '.pdf', bytes: blob.size });
+          }
+        } catch (err) { console.error(err); toast('Could not make the PDF: ' + (err.message || err), 4000); }
+        finally { b.disabled = false; }
+      };
+    } }));
+}
+
+/* Randomization PC: certificate for a locked shift, from this PC's own records */
+async function openShiftCertificate(examId, shiftId) {
+  const e = await idb.get('client_exams', examId), s = e && e.shifts.find(x => x.id === shiftId);
+  if (!s) return;
+  const T = (await finalPlan(e)).total, D = await drawMap(e.id);
+  if (!shiftProgress(e, s, D, T).complete) return toast('The certificate is available once every subject of the shift has its final colour.');
+  const x = await verifyChain('client'), cs = (await idb.get('meta', 'certificate')) || {};
+  await loadBuildInfo();
+  const m = await certModel({ e, s, D, T, signatories: cs.signatories || [], chain: { ok: x.ok, detail: x.ok ? `${x.count} entries verified when this certificate was generated` : x.issues.join('; ') },
+    pc: { installId: await installId(), computer: BUILD.computer, version: APP_VERSION, buildHash: BUILD.hash }, source: 'Randomization PC (its own audit log)', generatedBy: session.name || session.user });
+  await appendLog('client', 'CERTIFICATE_GENERATED', { examCode: e.code, shiftId, shiftName: s.name, certificateId: m.certId, sealEntry: m.seal && m.seal.logSeq });
+  await showCertificate(m, (event, extra = {}) => appendLog('client', event, { examCode: e.code, shiftName: s.name, certificateId: m.certId, ...extra }));
 }
 
 /* =========================================================
@@ -1415,16 +1678,69 @@ const dkey = (e, s, b, a) => `${e}|${s}|${b}|${a}`;
 /* Shift windows are IST times, so a PC set to another time zone still opens and closes them at the right moment */
 function shiftWindow(s) { return { start: Date.parse(`${s.date}T${s.start}:00+05:30`), end: Date.parse(`${s.date}T${s.end}:59.999+05:30`) }; }
 function windowState(s, now = Date.now()) { const w = shiftWindow(s); return now < w.start ? 'upcoming' : now > w.end ? 'closed' : 'open'; }
+/* ---------- final-colour modes ----------
+   fixed5 : 5 attempts, the 5th gives the final colour
+   client : the final iteration (3rd–7th) is drawn at random once per exam; that attempt gives the final colour
+   best5  : 5 spins; the colour that came up most often is final; a tie is settled by one tie-breaker spin among the tied colours */
+const BEST_SPINS = 5, TIE_ATTEMPT = 6;
+const isBestMode = e => e && e.finalMode === 'best5';
+const spinLabel = a => a === TIE_ATTEMPT ? 'Tie-breaker' : `${ORD[a - 1]} Spin`;
+const modeLong = (e, T) => isBestMode(e) ? 'Best of 5: the colour that comes up most often in 5 spins is final; a tie is settled by one tie-breaker spin among the tied colours'
+  : isClientMode(e) ? `Random final iteration: the ${T ? ORD[T - 1] : '(not drawn yet)'} attempt gives the final colour (drawn at random from ${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]})`
+  : 'Fixed: the 5th attempt gives the final colour';
+/* One subject: its draws, what comes next, and its final colour once decided */
+function subjectState(e, s, sb, D, T) {
+  const get = a => D.get(dkey(e.id, s.id, sb.id, a)) || null;
+  if (isBestMode(e)) {
+    const spins = Array.from({ length: BEST_SPINS }, (_, i) => get(i + 1)), made = spins.filter(Boolean), tie = get(TIE_ATTEMPT);
+    const counts = new Map(); made.forEach(d => counts.set(d.colourIndex, (counts.get(d.colourIndex) || 0) + 1));
+    const max = made.length ? Math.max(...counts.values()) : 0;
+    const leaders = [...counts.keys()].filter(i => counts.get(i) === max).sort((a, b) => a - b);
+    const st = { best: true, spins, tie, counts, max, leaders, done: made.length + (tie ? 1 : 0), total: BEST_SPINS, next: null, needsTie: false, final: null, decidedBy: null, seal: null };
+    if (made.length < BEST_SPINS) st.next = spins.findIndex(d => !d) + 1;
+    else if (leaders.length === 1) Object.assign(st, { final: made.find(d => d.colourIndex === leaders[0]), decidedBy: `most frequent (${max} of ${BEST_SPINS})`, seal: spins[BEST_SPINS - 1] });
+    else if (tie) Object.assign(st, { final: tie, decidedBy: 'tie-breaker spin', seal: tie });
+    else Object.assign(st, { needsTie: true, next: TIE_ATTEMPT });
+    if (st.needsTie || tie) st.total = BEST_SPINS + 1;
+    st.complete = !!st.final; st.finalColour = st.final ? st.final.colour : null;
+    return st;
+  }
+  const spins = Array.from({ length: T || 0 }, (_, i) => get(i + 1)), fin = T ? get(T) : null, nx = spins.findIndex(d => !d);
+  return { best: false, spins, tie: null, done: spins.filter(Boolean).length, total: T || 0, next: nx < 0 ? null : nx + 1, final: fin, finalColour: fin ? fin.colour : null,
+    decidedBy: fin ? `${ORD[T - 1]} attempt (final)` : null, seal: fin, complete: !!fin };
+}
+/* Columns of a results grid: attempts/spins, plus the tie-breaker and the final colour in Best-of-5 */
+function gridColumns(e, T) {
+  if (isBestMode(e)) return [...Array.from({ length: BEST_SPINS }, (_, i) => ({ a: i + 1, label: spinLabel(i + 1) })), { a: TIE_ATTEMPT, label: 'Tie-breaker', tie: true }, { result: true, label: 'Final colour', final: true }];
+  return Array.from({ length: T || 0 }, (_, i) => ({ a: i + 1, label: attemptLabel(i + 1, T), final: i + 1 === T }));
+}
+const countsText = (sb, st) => [...st.counts.entries()].sort((a, b) => b[1] - a[1]).map(([i, n]) => `${sb.colours[i] ? sb.colours[i].name : '#' + i} ${n}`).join(' · ');
+/* View-only cell (Results tab, admin results) */
+function viewCell(e, s, sb, D, T, col, timeFmt = fmtTime) {
+  const st = subjectState(e, s, sb, D, T);
+  if (col.result) {
+    if (st.complete) return `<td class="final"><div class="chip" style="--c:${st.finalColour.hex}"><span class="sw"></span><span><b>${esc(st.finalColour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${esc(st.decidedBy)}</div></td>`;
+    return `<td class="final pending" style="color:var(--muted)">${st.needsTie ? `Tie: ${st.leaders.map(i => esc(sb.colours[i].name)).join(', ')}` : st.done ? esc(countsText(sb, st)) : '—'}</td>`;
+  }
+  const d = D.get(dkey(e.id, s.id, sb.id, col.a));
+  if (d) return `<td class="${col.final ? 'final' : ''}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span></div><div class="ts">${timeFmt(d.ts)}${d.logSeq ? ' · #' + d.logSeq : ''}</div></td>`;
+  return `<td class="${col.final ? 'final' : ''} pending" style="color:var(--rule)">${col.tie && st.complete && !st.tie ? '<span class="muted sm">not needed</span>' : '—'}</td>`;
+}
+const fmt12 = hm => { if (!/^\d{2}:\d{2}$/.test(hm || '')) return ''; let [h, m] = hm.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${pad(m)} ${ap}`; };
+const examTiming = s => s.examStart && s.examEnd ? `${fmt12(s.examStart)} – ${fmt12(s.examEnd)}` : '';
+
 async function drawMap(examId) { const m = new Map(); (await idb.all('draws')).filter(d => d.examId === examId).forEach(d => m.set(d.key, d)); return m; }
 /* Number of attempts for an exam: 5 in Mode A; the locked random draw in Mode B (null until drawn) */
-const totalFor = (e, choices) => isClientMode(e) ? ((choices.get(e.id) || {}).finalAttempt || null) : ATTEMPTS;
-async function finalPlan(e) { const choice = isClientMode(e) ? await idb.get('choices', e.id) : null; return { mode: isClientMode(e) ? 'client' : 'fixed', total: isClientMode(e) ? (choice ? choice.finalAttempt : null) : ATTEMPTS, choice }; }
+const totalFor = (e, choices) => isBestMode(e) ? BEST_SPINS : isClientMode(e) ? ((choices.get(e.id) || {}).finalAttempt || null) : ATTEMPTS;
+async function finalPlan(e) {
+  if (isBestMode(e)) return { mode: 'best5', total: BEST_SPINS, choice: null };
+  const choice = isClientMode(e) ? await idb.get('choices', e.id) : null; return { mode: isClientMode(e) ? 'client' : 'fixed', total: isClientMode(e) ? (choice ? choice.finalAttempt : null) : ATTEMPTS, choice }; }
 async function choiceMap() { return new Map((await idb.all('choices')).map(c => [c.examId, c])); }
 function shiftProgress(e, s, D, T) {
   if (!T) return { done: 0, total: 0, complete: false };
-  let done = 0; const total = s.subjects.length * T;
-  s.subjects.forEach(sb => { for (let a = 1; a <= T; a++) if (D.has(dkey(e.id, s.id, sb.id, a))) done++; });
-  return { done, total, complete: total > 0 && done === total };
+  let done = 0, total = 0, complete = s.subjects.length > 0;
+  s.subjects.forEach(sb => { const st = subjectState(e, s, sb, D, T); done += st.done; total += st.total; if (!st.complete) complete = false; });
+  return { done, total, complete };
 }
 function stateBadge(s, prog) {
   if (prog.complete) return '<span class="badge b-lock">🔒 LOCKED</span>';
@@ -1450,7 +1766,7 @@ async function submitClientLogin(f, er, btn) {
     await idb.del('meta', 'client_auths'); await idb.del('meta', 'client_auth');   // older versions kept password hashes here for offline logins; not any more
     await idb.put('meta', r.token, 'client_token');
     reauthNeeded = null;
-    setSession({ role: 'client', user: id, name: r.name || null });
+    setSession({ role: 'client', user: id, name: r.name || null, loginAt: new Date(t1).toISOString(), verifiers: [] });
     await checkClock('login'); await loadBuildInfo();
     await appendLog('client', 'CLIENT_LOGIN', { mode: 'online', name: r.name || null, account: r.account || (r.cred && r.cred.kind) || 'shared', clockReading: new Date(t1).toISOString(), localClock: fmtTs(t1) + ' IST',
       serverClock: new Date(r.serverTime).toISOString(), clockDriftSeconds: Math.round(((t0 + t1) / 2 - r.serverTime) / 1000), ...tzInfo(), timezoneOffsetMinutes: new Date().getTimezoneOffset(),
@@ -1463,10 +1779,55 @@ async function submitClientLogin(f, er, btn) {
     cstate.view = 'exams'; renderHeader(); renderClient();
     refreshNet('after-login');
     syncNow(true);
+    if (r.verifiersReady) promptVerifiers();
 }
+/* Committee verification: after the Randomizer signs in, both verifiers sign in on the same PC with their own login ID
+   and password (checked by the server, so it needs the internet). No draw is possible until both have signed in.
+   Their names and sign-in times go into every draw and onto the QP-Draw certificate. They stay signed in with the
+   Randomizer, until "Log out". */
+const hasVerifiers = () => !!(session && session.role === 'client' && Array.isArray(session.verifiers) && session.verifiers.length === 2);
+const verifierNames = () => hasVerifiers() ? session.verifiers.map(v => v.name).join(' & ') : '';
+async function promptVerifiers() {
+  if (!session || session.role !== 'client' || modalOpen()) return;
+  if (!net.internet) return alertModal('Internet needed', '<p>Verifier sign-in needs the internet: the server checks both passwords. Connect, let both verifiers sign in, then disconnect to randomize.</p>');
+  const token = await idb.get('meta', 'client_token');
+  if (!token) { needReauth('Sign in again first.'); return promptReauth(); }
+  const pair = n => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label class="fld"><span>Verifier ${n} — login ID</span><input name="i${n}" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+    <label class="fld"><span>Verifier ${n} — password</span><input name="p${n}" type="password" autocomplete="off"></label></div>`;
+  await new Promise(resolve => openModal(`<div class="eyebrow">Before randomization</div><h3>Committee verification</h3>
+    <p class="muted sm">Both verifiers sign in on this PC with their own login ID and password. Their names and sign-in times are recorded with every draw and printed on the QP-Draw certificate.</p>
+    <form class="form" novalidate>${pair(1)}${pair(2)}<div class="err" hidden></div>
+      <div class="actions"><button type="button" class="btn ghost" data-later>Later</button><button class="btn primary">Verify both</button></div></form>`, {
+    onDismiss: resolve, onMount: (m, close) => {
+      const f = m.querySelector('form'), er = m.querySelector('.err'), btn = f.querySelector('.btn.primary');
+      f.i1.focus();
+      m.querySelector('[data-later]').onclick = () => { close(); resolve(); };
+      f.onsubmit = async ev => {
+        ev.preventDefault(); er.hidden = true;
+        const v1 = { id: f.i1.value.trim(), password: f.p1.value }, v2 = { id: f.i2.value.trim(), password: f.p2.value };
+        if (!v1.id || !v1.password || !v2.id || !v2.password) return showErr(er, 'Enter the login ID and password of both verifiers.');
+        if (v1.id.toLowerCase() === v2.id.toLowerCase()) return showErr(er, 'The two verifiers must be different people.');
+        btn.disabled = true;
+        try {
+          const r = await api('client/verifiers', { method: 'POST', token, body: { v1, v2, installId: await installId(), device: await deviceInfo('randomizer') } });
+          const verifiers = r.verifiers.map(v => ({ id: v.id, name: v.name, designation: v.designation || '', signedInAt: new Date(v.at).toISOString() }));
+          setSession({ ...session, verifiers });
+          await appendLog('client', 'VERIFIERS_SIGNED_IN', { verifiers, network: netSnapshot() });
+          close(); resolve(); toast(`Verified: ${verifierNames()} ✔`);
+          if (clientIdle()) renderClient();
+        } catch (err) {
+          if (!err.network && err.status !== 409) await appendLog('client', 'VERIFIER_SIGN_IN_FAILED', { reason: err.message });
+          showErr(er, err.network ? 'Internet is required.' : err.message); btn.disabled = false;
+        }
+      };
+    } }));
+}
+
 /* Exams, shifts and the logo from the server: at login, with "Update exams", and automatically when the internet comes back */
 async function applyDownload(r, source) {
   r.logo ? await idb.put('meta', r.logo, 'logo') : await idb.del('meta', 'logo');
+  if (r.certificate) await idb.put('meta', r.certificate, 'certificate');
+  if (typeof r.verifiersReady === 'boolean') await idb.put('meta', r.verifiersReady, 'verifiers_ready');
   const summary = [];
   for (const ex of r.exams || []) { const m = await mergeExam(ex, { packageVersion: ex.packageVersion, exportedAt: ex.exportedAt, source: 'online' }); summary.push({ code: ex.code, version: ex.packageVersion, ...m }); }
   await idb.put('meta', { at: Date.now(), count: (r.exams || []).length, source }, 'last_exams_update');
@@ -1555,10 +1916,12 @@ async function renderClient() {
   const syncInfo = ls ? `Last sync ${fmtTs(ls.at)}${pending ? ' · <b>unsynced changes</b>' : ' ✔'}` : 'Not yet synced';
   app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div>
     <span class="muted sm">${syncInfo}</span>
+    <span class="muted sm verif">${hasVerifiers() ? `Verifiers: <b>${esc(verifierNames())}</b>` : '<b style="color:var(--bad)">Verifiers not signed in</b>'}</span>
+    <button class="btn sm" data-act="verifiers" ${net.internet ? '' : 'disabled title="Needs the internet"'}>${hasVerifiers() ? 'Change verifiers' : 'Verifier sign-in'}</button>
     <button class="btn sm" data-act="update" ${net.internet ? '' : 'disabled'} title="${net.internet ? 'Download the latest published exams, shifts and colours' : 'Connect to the internet to update exams'}${up ? ' · last updated ' + fmtTs(up.at) + ' IST' : ''}">⇣ Update exams</button>
     <button class="btn sm" data-act="sync" ${net.internet ? '' : 'disabled title="Connect to the internet to sync"'}>⟳ Sync now</button>
     <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
-  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout: () => logout(), sync: () => syncNow(false), update: () => refreshExams(false) });
+  bind(app, { tab: d => { cstate.view = d.k; renderClient(); }, logout: () => logout(), sync: () => syncNow(false), update: () => refreshExams(false), verifiers: () => promptVerifiers() });
   renderBanners();
   const v = $('#view');
   if (cstate.view === 'audit') return renderAudit(v, 'client');
@@ -1589,18 +1952,16 @@ async function renderClientResults(v) {
   const shown = sel === 'all' ? exams : exams.filter(e => e.id === sel);
   const block = e => {
     const T = totalFor(e, choices), drawn = draws.filter(d => d.examId === e.id);
-    const cols = Math.max(T || 0, ...drawn.map(d => d.attempt), 0);
+    const grid = T ? gridColumns(e, T) : [];
     const shifts = [...e.shifts].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
     return `<div class="card"><div class="row" style="align-items:baseline"><div class="grow"><div class="eyebrow">${esc(e.code)}</div><h3>${esc(e.name)}</h3></div>
       <span class="muted sm">${modeText(e, T)} · ${drawn.length} roll(s) on this PC</span></div>
       ${shifts.map(s => {
         const p = shiftProgress(e, s, D, T);
-        return `<div class="res-shift"><h4>${esc(s.name)}</h4><span class="muted sm">${fmtDate(s.date)} · window ${s.start}–${s.end} IST</span>${stateBadge(s, p)}</div>
-          ${cols ? `<div class="rgrid-wrap"><table class="rgrid compact"><thead><tr><th>Subject</th>${Array.from({ length: cols }, (_, i) => `<th class="${i + 1 === T ? 'final' : ''}">${T ? attemptLabel(i + 1, T) : ORD[i]}</th>`).join('')}</tr></thead>
-          <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}</td>${Array.from({ length: cols }, (_, i) => {
-            const d = D.get(dkey(e.id, s.id, sb.id, i + 1)), fin = i + 1 === T ? 'final' : '';
-            return d ? `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span></div><div class="ts">${fmtTime(d.ts)} IST · #${d.logSeq}</div></td>` : `<td class="${fin} pending" style="color:var(--rule)">—</td>`;
-          }).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted sm">${T ? 'No rolls yet.' : 'Final iteration not drawn yet.'}</p>`}`;
+        return `<div class="res-shift"><h4>${esc(s.name)}</h4><span class="muted sm">${fmtDate(s.date)} · window ${s.start}–${s.end} IST</span>${stateBadge(s, p)}
+            ${p.complete ? `<button class="btn sm primary" data-act="cert" data-e="${e.id}" data-s="${s.id}">📄 QP-Draw certificate</button>` : ''}</div>
+          ${grid.length ? `<div class="rgrid-wrap"><table class="rgrid compact"><thead><tr><th>Subject</th>${grid.map(c => `<th class="${c.final ? 'final' : ''}">${esc(c.label)}</th>`).join('')}</tr></thead>
+          <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}</td>${grid.map(c => viewCell(e, s, sb, D, T, c, t => fmtTime(t) + ' IST')).join('')}</tr>`).join('')}</tbody></table></div>` : `<p class="muted sm">${T ? 'No rolls yet.' : 'Final iteration not drawn yet.'}</p>`}`;
       }).join('')}</div>`;
   };
   v.innerHTML = `<div class="toolbar">${pageHead('Stored on this PC · offline', 'Roll <em>results</em>')}<div class="sp"></div>
@@ -1609,7 +1970,7 @@ async function renderClientResults(v) {
     <p class="muted sm">Every roll made on this PC, turn by turn: which colour came up on which attempt, shift-wise and exam-wise. Times are IST; # is the audit log entry. These records stay on this PC and are also synced to the server when it is online.</p>
     ${shown.length ? shown.map(block).join('') : '<div class="empty">No exams on this PC yet.</div>'}`;
   const selEl = v.querySelector('[data-exam]'); if (selEl) selEl.onchange = () => { cstate.resultsExam = selEl.value; renderClient(); };
-  bind(v, { csv: exportResults, print: async () => { await appendLog('client', 'RESULTS_PRINTED', { exam: sel }); window.print(); } });
+  bind(v, { csv: exportResults, print: async () => { await appendLog('client', 'RESULTS_PRINTED', { exam: sel }); window.print(); }, cert: d => openShiftCertificate(d.e, d.s) });
 }
 
 async function renderClientExam(v) {
@@ -1628,51 +1989,58 @@ async function renderShift(v) {
   if (!s) { cstate.view = 'exams'; return renderClient(); }
   const T = (await finalPlan(e)).total;
   const D = await drawMap(e.id), p = shiftProgress(e, s, D, T), w = windowState(s), ck = await clockState(s);
-  const netOk = net.checked && !net.internet, canRoll = !!T && w === 'open' && !p.complete && netOk && ck.ok;
+  const netOk = net.checked && !net.internet, canRoll = !!T && w === 'open' && !p.complete && netOk && ck.ok && hasVerifiers();
   let note;
-  if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final colours have been selected. No further changes are possible.</div>`;
+  if (p.complete) note = `<div class="notice lock">🔒 This shift is permanently LOCKED. All final colours have been selected. No further changes are possible. <button class="btn sm primary" data-act="cert" style="margin-left:8px">📄 QP-Draw certificate</button></div>`;
+  else if (w === 'open' && !hasVerifiers()) note = `<div class="notice bad">👥 Both committee verifiers must sign in on this PC before randomization. <button class="btn sm" data-act="verifiers" style="margin-left:8px" ${net.internet ? '' : 'disabled'}>Verifier sign-in</button>${net.internet ? '' : ' <span class="sm">(connect to the internet for the sign-in, then disconnect)</span>'}</div>`;
   else if (w === 'open' && net.internet) note = `<div class="notice warn">🔌 The randomization window is open, but this PC can reach the INTERNET. Disconnect Wi-Fi / LAN cable / mobile hotspot to enable the dice. Randomization is only allowed offline.</div>`;
   else if (w === 'open' && !ck.ok) note = `<div class="notice bad">⏱ Rolls are blocked: ${esc(ck.reason)} ${esc(ck.fix)}</div>`;
   else if (w === 'open' && !net.checked) note = `<div class="notice info">Checking the network…</div>`;
   else if (w === 'open') note = `<div class="notice ok">● Randomization window is OPEN until ${s.end} IST on ${fmtDate(s.date)}. Each draw is final and is locked immediately.</div>`;
   else if (w === 'upcoming') note = `<div class="notice info">Randomization for this shift opens at <b>${s.start} IST</b> on <b>${fmtDate(s.date)}</b>.</div>`;
   else note = `<div class="notice warn">The randomization window (${s.start} – ${s.end} IST on ${fmtDate(s.date)}) has closed. Results are view-only.</div>`;
-  const canPick = !T && w === 'open' && netOk && ck.ok;
+  const canPick = !T && w === 'open' && netOk && ck.ok && hasVerifiers();
   const checks = `<div class="checks">
       <span class="${!net.checked ? 'w' : net.internet ? 'n' : 'y'}"><i></i>${!net.checked ? 'Network: checking…' : net.internet ? `Internet CONNECTED${net.downKbps != null ? ' · ' + fmtSpeed(net.downKbps) : ''}` : net.link ? 'Network adapter on · no internet' : 'Offline'}${net.checkedAt ? ` (checked ${fmtTime(net.checkedAt)})` : ''}</span>
       <span class="${ck.ok ? 'y' : 'n'}"><i></i>${ck.tc ? `Clock checked with server ${fmtTs(ck.tc.at)} IST · offset ${Math.round(ck.tc.offsetMs / 1000)} s` : 'Clock not checked with the server yet'}${ck.ok ? '' : ' · not valid for this shift'}</span>
       <span class="${tzInfo().isIST ? 'y' : 'w'}"><i></i>Time zone ${tzInfo().utcOffset}${tzInfo().isIST ? ' (IST)' : ' (not IST)'}</span>
       ${ck.flags ? `<span class="w"><i></i>${ck.flags} clock change(s) flagged on this PC · see audit log</span>` : ''}</div>`;
-  const finals = T ? s.subjects.filter(sb => D.has(dkey(e.id, s.id, sb.id, T))).length : 0;
+  const finals = T ? s.subjects.filter(sb => subjectState(e, s, sb, D, T).complete).length : 0;
   const stats = `<div class="stats">
       <div class="stat"><div class="v">${p.done}<small>/ ${p.total || '—'}</small></div><div class="l">rolls recorded in this shift</div></div>
-      <div class="stat amber"><div class="v">${T ? ORD[T - 1] : '—'}</div><div class="l">final iteration ${isClientMode(e) ? (T ? '· drawn at random' : '· not drawn yet') : '· fixed'}</div></div>
+      ${isBestMode(e) ? `<div class="stat amber"><div class="v">5<small>+ tie</small></div><div class="l">spins per subject · most frequent colour is final</div></div>`
+        : `<div class="stat amber"><div class="v">${T ? ORD[T - 1] : '—'}</div><div class="l">final iteration ${isClientMode(e) ? (T ? '· drawn at random' : '· not drawn yet') : '· fixed'}</div></div>`}
       <div class="stat green"><div class="v">${finals}<small>/ ${s.subjects.length}</small></div><div class="l">subjects with a final colour</div></div>
       <div class="stat ${w === 'open' ? 'blue' : 'rust'}"><div class="v">${s.start}<small>– ${s.end}</small></div><div class="l">randomization window (IST) · ${fmtDate(s.date)} · ${w}</div></div></div>`;
   const choosePanel = T ? '' : `<div class="card callout"><h3>Draw the final iteration for this exam</h3>
       <p>This exam uses a <b>randomly drawn final iteration</b>. Before the first roll, the system draws at random which iteration (${ORD[MIN_FINAL - 1]}–${ORD[MAX_FINAL - 1]}, each equally likely) gives the FINAL question paper colour.
       The result applies to <b>every shift and every subject</b> of ${esc(e.name)} and is <b>locked permanently</b>.</p>
       <div class="row" style="align-items:center"><button class="btn gold" data-act="pickFinal" ${canPick ? '' : 'disabled'}>🎲 Draw final iteration</button>${canPick ? '' : '<span class="muted sm">Available offline while the randomization window is open and the clock check is valid.</span>'}</div></div>`;
-  const cell = (sb, a) => {
-    const d = D.get(dkey(e.id, s.id, sb.id, a)); const fin = a === T ? 'final' : '';
+  const cell = (sb, c) => {
+    const st = subjectState(e, s, sb, D, T);
+    if (c.result) return viewCell(e, s, sb, D, T, c);
+    const d = D.get(dkey(e.id, s.id, sb.id, c.a)); const fin = c.final ? 'final' : '';
     if (d) return `<td class="${fin}"><div class="chip" style="--c:${d.colour.hex}"><span class="sw"></span><span><b>${esc(d.colour.name)}</b></span>${LOCK_SVG}</div><div class="ts">${fmtTime(d.ts)} · #${d.logSeq}</div></td>`;
-    let next = 1; while (next <= T && D.has(dkey(e.id, s.id, sb.id, next))) next++;
-    if (a === next) return `<td class="${fin}"><button class="btn ${a === T ? 'gold' : 'primary'}" data-act="roll" data-b="${sb.id}" data-a="${a}" ${canRoll ? '' : 'disabled'}>🎲 ${a === T ? 'Final roll' : 'Roll'}</button></td>`;
-    return `<td class="${fin} pending" style="color:var(--rule)">—</td>`;
+    if (c.a === st.next) {
+      const big = c.final || c.tie, label = c.tie ? 'Tie-breaker spin' : st.best ? 'Spin' : c.final ? 'Final roll' : 'Roll';
+      return `<td class="${fin}"><button class="btn ${big ? 'gold' : 'primary'}" data-act="roll" data-b="${sb.id}" data-a="${c.a}" ${canRoll ? '' : 'disabled'}>🎲 ${label}</button>${c.tie ? `<div class="ts">${st.leaders.map(i => esc(sb.colours[i].name)).join(' vs ')}</div>` : ''}</td>`;
+    }
+    return `<td class="${fin} pending" style="color:var(--rule)">${c.tie && st.complete ? '<span class="muted sm">not needed</span>' : '—'}</td>`;
   };
-  const cols = Array.from({ length: T || 0 }, (_, i) => i + 1);
+  const cols = T ? gridColumns(e, T) : [];
   v.innerHTML = `<div class="toolbar"><button class="btn" data-act="back">← Shifts</button><div class="grow head"><div class="eyebrow">${esc(e.name)} · ${esc(e.code)}</div><h2>${esc(s.name)} <span style="font-size:13px">${stateBadge(s, p)}</span></h2><div class="muted sm">${modeText(e, T)}</div></div><div class="sp"></div>
       <button class="btn" data-act="audit">Audit log</button></div>
     ${stats}${checks}${choosePanel}${note}
-    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & question paper colours</th>${T ? cols.map(a => `<th class="${a === T ? 'final' : ''}">${attemptLabel(a, T)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
-    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(a => cell(sb, a)).join('') : '<td class="muted">Draw the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
-    <p class="muted sm" style="margin-top:12px">Each roll is an independent, unbiased draw (crypto.getRandomValues) and is saved to the audit log before the dice stop.</p>`;
-  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), pickFinal: () => drawFinalIteration(e.id, s.id) });
+    <div class="rgrid-wrap"><table class="rgrid"><thead><tr><th>Subject & question paper colours</th>${T ? cols.map(c => `<th class="${c.final ? 'final' : ''}">${esc(c.label)}</th>`).join('') : '<th>Attempts</th>'}</tr></thead>
+    <tbody>${s.subjects.map(sb => `<tr><td class="subj"><b>${esc(sb.name)}</b>${sb.code ? ` <span class="muted sm">${esc(sb.code)}</span>` : ''}<div class="swatches" style="margin-top:5px">${sb.colours.map(swMini).join('')}</div></td>${T ? cols.map(c => cell(sb, c)).join('') : '<td class="muted">Draw the final iteration first</td>'}</tr>`).join('')}</tbody></table></div>
+    <p class="muted sm" style="margin-top:12px">Each roll is an independent, unbiased draw (crypto.getRandomValues) and is saved to the audit log before the dice stop.${isBestMode(e) ? ' Best of 5: after 5 spins the colour that came up most often is final; if colours tie, one tie-breaker spin among only the tied colours decides.' : ''}</p>`;
+  bind(v, { back: () => { cstate.view = 'exam'; renderClient(); }, audit: () => { cstate.view = 'audit'; renderClient(); }, roll: d => doDraw(e.id, s.id, d.b, +d.a), pickFinal: () => drawFinalIteration(e.id, s.id), cert: () => openShiftCertificate(e.id, s.id), verifiers: () => promptVerifiers() });
 }
 
 /* Checked right before every roll (and again after the confirmation): fresh internet probe, clock checks, shift window.
    Returns null when the roll may go ahead, otherwise { event, msg }. */
 async function rollGuard(s, context, quick = false) {
+  if (!hasVerifiers()) return { event: 'VERIFIERS_NOT_SIGNED_IN', msg: 'Both committee verifiers must sign in on this PC before randomization (Verifier sign-in; needs the internet).' };
   await clockTick(context);
   if (!quick) await checkWindowsTimeLog(context);
   if (!quick || Date.now() - net.checkedAt > 15000) await refreshNet(context);
@@ -1719,7 +2087,7 @@ async function drawFinalIteration(examId, shiftId) {
     // Persist FIRST (choice + audit entry in one atomic transaction), then animate.
     const entry = await appendLog('client', 'FINAL_ITERATION_RANDOMIZED', { examId, examCode: e.code, examName: e.name, finalAttempt: n, pool: pool.map(x => ORD[x - 1]), poolSize: pool.length,
       drawIndex: rnd.value, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, drawnBy: session.user, shiftId, shiftName: s.name,
-      clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap, ...buildLog() },
+      clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap, verifiers: session.verifiers, ...buildLog() },
       { extra: en => ({ store: 'choices', value: { examId, examCode: e.code, finalAttempt: n, method: 'random', drawnBy: session.user, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
     await animateFinalIteration(e, s, pool, rnd.value, entry);
   } catch (err) {
@@ -1736,17 +2104,24 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
   if (busy) return; busy = true;
   try {
     const e = await idb.get('client_exams', examId), s = e.shifts.find(x => x.id === shiftId), sb = s.subjects.find(x => x.id === subjectId);
-    const plan = await finalPlan(e), T = plan.total;
+    const plan = await finalPlan(e), T = plan.total, best = isBestMode(e);
     if (!T) { toast('Draw the final iteration first.'); return renderClient(); }
-    if (attempt < 1 || attempt > T) { toast('Invalid attempt.'); return renderClient(); }
+    let st = subjectState(e, s, sb, await drawMap(examId), T);
+    if (st.complete || attempt !== st.next) { toast(st.complete ? 'This subject is already locked.' : 'Previous spins must be completed first.'); return renderClient(); }
+    const isTie = best && attempt === TIE_ATTEMPT;
+    const label = best ? spinLabel(attempt) : attemptLabel(attempt, T);
     const info = { examCode: e.code, shiftName: s.name, subject: sb.name, attempt };
     let g = await withChecking(() => rollGuard(s, 'pre-draw'));
     if (g) return blocked('DRAW_BLOCKED_', g, info);
-    const n = sb.colours.length;
-    const ok = await confirmModal(`${sb.name} — ${attemptLabel(attempt, T)}`,
-      `<p>${esc(e.name)} · ${esc(s.name)}</p><p>Pool of ${n} question paper colours (each has a 1 in ${n} chance):</p><div class="swatches">${sb.colours.map(swMini).join('')}</div>
-       <p style="margin-top:12px"><b>${attempt === T ? 'This is the FINAL draw. The selected colour becomes the final question paper colour for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.'}</b></p>`,
-      attempt === T ? '🎲 Roll FINAL' : '🎲 Roll the dice', attempt === T ? 'gold' : 'primary');
+    const poolIdx = isTie ? st.leaders : sb.colours.map((_, i) => i), pool = poolIdx.map(i => sb.colours[i]), n = pool.length;
+    const lastAttempt = best ? attempt === BEST_SPINS || isTie : attempt === T;
+    const warn = isTie ? `Spins 1–5 ended in a tie (${st.leaders.map(i => esc(sb.colours[i].name)).join(', ')}: ${st.max} each). This tie-breaker spin is between the tied colours only, and its result becomes the FINAL question paper colour. The subject is then permanently locked.`
+      : best ? `${attempt === BEST_SPINS ? 'This is the 5th and last spin. After it, the colour that came up most often becomes the final question paper colour (a tie needs one tie-breaker spin). ' : ''}The result of this spin is locked permanently and cannot be redone.`
+      : attempt === T ? 'This is the FINAL draw. The selected colour becomes the final question paper colour for this subject and the subject will be permanently locked.' : 'The result of this attempt will be locked permanently and cannot be redone.';
+    const ok = await confirmModal(`${sb.name} — ${label}`,
+      `<p>${esc(e.name)} · ${esc(s.name)}${hasVerifiers() ? ` · verified by ${esc(verifierNames())}` : ''}</p><p>Pool of ${n} question paper colours (each has a 1 in ${n} chance):</p><div class="swatches">${pool.map(swMini).join('')}</div>
+       <p style="margin-top:12px"><b>${warn}</b></p>`,
+      isTie ? '🎲 Tie-breaker spin' : lastAttempt ? '🎲 Roll FINAL' : best ? '🎲 Spin' : '🎲 Roll the dice', lastAttempt ? 'gold' : 'primary');
     if (!ok) { await appendLog('client', 'DRAW_CANCELLED', { examCode: e.code, shiftName: s.name, subject: sb.name, attempt }); return; }
     g = await withChecking(() => rollGuard(s, 'draw-confirmed', true));
     if (g) return blocked('DRAW_BLOCKED_', g, info);
@@ -1755,24 +2130,34 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
     const key = dkey(examId, shiftId, subjectId, attempt);
     const D = await drawMap(examId);
     if (D.has(key)) { toast('This attempt is already locked.'); return renderClient(); }
-    for (let a = 1; a < attempt; a++) if (!D.has(dkey(examId, shiftId, subjectId, a))) { toast('Previous attempts must be completed first.'); return renderClient(); }
+    st = subjectState(e, s, sb, D, T);
+    if (st.complete || st.next !== attempt) { toast('Previous spins must be completed first.'); return renderClient(); }
 
     // ---- random selection ----
-    const rnd = secureRandomInt(n), colour = cleanColour(sb.colours[rnd.value]);
+    const rnd = secureRandomInt(n), colourIndex = poolIdx[rnd.value], colour = cleanColour(sb.colours[colourIndex]);
+    const verifiers = session.verifiers || [], operator = { user: session.user, name: session.name || null, signedInAt: session.loginAt || null };
     const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
-      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: attemptLabel(attempt, T), pool: sb.colours.map(c => c.name), poolSize: n,
-      colourIndex: rnd.value, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap, ...buildLog(), finalAttempt: T, finalMode: plan.mode, isFinal: attempt === T };
+      subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: label, pool: pool.map(c => c.name), poolSize: n, ...(isTie ? { tieBreak: true, tiedColours: poolIdx.map(i => sb.colours[i].name), tiedCount: st.max } : {}),
+      colourIndex, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap,
+      verifiers, operator, ...buildLog(), finalAttempt: T, finalMode: plan.mode, isFinal: !best && attempt === T };
     // Persist FIRST (draw + audit entry in one atomic transaction), then animate.
-    const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex: rnd.value, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash } }) });
-    await animateRoll(e, s, sb, attempt, rnd.value, entry, T);
+    const entry = await appendLog('client', 'RANDOMIZATION_DRAW', details, { extra: en => ({ store: 'draws', value: { key, examId, shiftId, subjectId, subjectName: sb.name, attempt, colourIndex, colour, ts: en.ts, logSeq: en.seq, logHash: en.hash, prevHash: en.prevHash,
+      tieBreak: isTie || undefined, verifiers, operator, app: { version: APP_VERSION, buildHash: BUILD.hash, computer: BUILD.computer || null } } }) });
+    const D2 = await drawMap(examId), after = subjectState(e, s, sb, D2, T);
+    await animateRoll(e, s, sb, attempt, rnd.value, entry, T, { pool, label, best, after });
 
-    if (attempt === T) {
-      await appendLog('client', 'SUBJECT_FINAL_LOCKED', { examCode: e.code, shiftName: s.name, subjectName: sb.name, finalColour: colour, drawSeq: entry.seq });
-      const D2 = await drawMap(examId);
+    if (after.complete) {
+      await appendLog('client', 'SUBJECT_FINAL_LOCKED', { examCode: e.code, shiftName: s.name, subjectName: sb.name, finalColour: after.finalColour, decidedBy: after.decidedBy,
+        ...(best ? { counts: Object.fromEntries([...after.counts].map(([i, c]) => [sb.colours[i].name, c])) } : {}), drawSeq: entry.seq });
       if (shiftProgress(e, s, D2, T).complete) {
-        await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => ({ subject: x.name, colour: D2.get(dkey(examId, shiftId, x.id, T)).colour.name })) });
-        await alertModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final colour. The shift is now permanently locked.</p><p class="muted">Please export the audit log (Audit Log tab) and store it on secure media. Results will sync to the server automatically when the PC is reconnected.</p>`);
+        await appendLog('client', 'SHIFT_LOCKED', { examCode: e.code, shiftId, shiftName: s.name, finals: s.subjects.map(x => { const z = subjectState(e, s, x, D2, T); return { subject: x.name, colour: z.finalColour.name, decidedBy: z.decidedBy }; }) });
+        if (await confirmModal('Shift locked', `<p>All subjects of <b>${esc(s.name)}</b> have their final colour. The shift is now permanently locked.</p><p class="muted">The QP-Draw certificate can now be printed or saved as PDF. Results sync to the server automatically when the PC is reconnected.</p>`, '📄 Open QP-Draw certificate', 'primary')) {
+          busy = false; await openShiftCertificate(examId, shiftId);
+        }
       }
+    } else if (best && after.needsTie) {
+      await appendLog('client', 'TIE_AFTER_FIVE_SPINS', { examCode: e.code, shiftName: s.name, subjectName: sb.name, tiedColours: after.leaders.map(i => sb.colours[i].name), each: after.max });
+      await alertModal('Tie — one more spin', `<p>After 5 spins, <b>${after.leaders.map(i => esc(sb.colours[i].name)).join('</b> and <b>')}</b> came up ${after.max} times each.</p><p>Use the <b>Tie-breaker spin</b> for ${esc(sb.name)}. It is between the tied colours only, and its result is final.</p>`);
     }
   } catch (err) {
     console.error(err);
@@ -1819,25 +2204,30 @@ function spinModal({ head, shape, from, to, wide, caption, status, resultHtml, c
   });
 }
 
-function animateRoll(e, s, sb, attempt, k, entry, total = ATTEMPTS) {
-  const N = sb.colours.length, isFinal = attempt === total, colour = sb.colours[k];
+function animateRoll(e, s, sb, attempt, k, entry, total = ATTEMPTS, opt = {}) {
+  const pool = opt.pool || sb.colours, N = pool.length, colour = pool[k], after = opt.after;
+  const isFinal = opt.best ? !!(after && after.complete) : attempt === total;
+  const finalColour = isFinal && after ? after.finalColour : colour;
   // Exactly 6 colours → classic Ludo cube (one face per colour). Any other count → N-sided rolling
   // prism ("long dice"), so every colour of the subject is on exactly one face.
   const useCube = N === 6;
   let shape, from, to;
   if (useCube) {
-    const faces = [colour, ...sb.colours.filter((_, i) => i !== k).sort(() => Math.random() - .5)];
+    const faces = [colour, ...pool.filter((_, i) => i !== k).sort(() => Math.random() - .5)];
     shape = `<div class="dice">${faces.map((c, i) => faceHtml(i + 1, c)).join('')}</div>`;
     const tx = 360 * (3 + Math.floor(Math.random() * 2)), ty = 360 * (2 + Math.floor(Math.random() * 2));
     from = 'rotateX(-110deg) rotateY(150deg) rotateZ(35deg)'; to = `rotateX(${-tx}deg) rotateY(${ty}deg) rotateZ(360deg)`;
-  } else ({ shape, from, to } = prismShape(sb.colours.map(c => ({ hex: c.hex, label: c.name })), k));
+  } else ({ shape, from, to } = prismShape(pool.map(c => ({ hex: c.hex, label: c.name })), k));
+  const majority = opt.best && isFinal && attempt !== TIE_ATTEMPT;   // Best of 5 decided by the 5th spin: the final colour is the most frequent one
+  const tally = opt.best && after && after.counts.size ? `<div class="muted sm" style="margin:6px 0">Spins so far: ${esc(countsText(sb, after))}${after.needsTie ? ' — tie, a tie-breaker spin is needed' : ''}</div>` : '';
   return spinModal({
-    head: `<div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${attemptLabel(attempt, total)}</h3>`,
-    shape, from, to, wide: !useCube, caption: `${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per colour`, status: isFinal ? '' : 'RESULT',
-    resultHtml: `${isFinal ? '<div class="finalbanner">★ FINAL QUESTION PAPER COLOUR ★</div>' : ''}
-      <div class="result ${isFinal ? 'final' : ''}" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? 'Final selected colour' : 'Selected colour'}</div><div class="rname">${esc(colour.name)}</div></div></div>
-      ${lockLine(entry)}`,
-    confettiColours: isFinal ? [colour.hex, '#c9a227', '#0b2a5b', '#e6c65a', ...sb.colours.map(c => c.hex)] : null
+    head: `<div class="eyebrow">${esc(e.name)} · ${esc(s.name)}</div><h3>${esc(sb.name)} — ${esc(opt.label || attemptLabel(attempt, total))}</h3>`,
+    shape, from, to, wide: !useCube, caption: `${useCube ? 'Ludo dice' : `${N}-sided dice`} · one face per colour${attempt === TIE_ATTEMPT && opt.best ? ' (tied colours only)' : ''}`, status: isFinal && !majority ? '' : 'RESULT',
+    resultHtml: `${majority ? `<div class="result" style="--c:${colour.hex}"><div class="bsw"></div><div><div class="muted sm">This spin</div><div class="rname">${esc(colour.name)}</div></div></div>` : ''}
+      ${isFinal ? `<div class="finalbanner">★ FINAL QUESTION PAPER COLOUR ★</div>` : ''}
+      <div class="result ${isFinal ? 'final' : ''}" style="--c:${finalColour.hex}"><div class="bsw"></div><div><div class="muted sm">${isFinal ? (majority ? `Final colour — ${esc(after.decidedBy)}` : opt.best ? 'Final colour — tie-breaker' : 'Final selected colour') : 'Selected colour'}</div><div class="rname">${esc(finalColour.name)}</div></div></div>
+      ${tally}${lockLine(entry)}`,
+    confettiColours: isFinal ? [finalColour.hex, '#c9a227', '#0b2a5b', '#e6c65a', ...sb.colours.map(c => c.hex)] : null
   });
 }
 
