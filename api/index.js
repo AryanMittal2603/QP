@@ -248,6 +248,9 @@ const certSettings = async () => ({ signatories: DEFAULT_SIGNATORIES, ...((await
 const getVerifiers = async () => (await getSetting('verifiers')) || [];
 const publicVerifiers = v => v.map(x => ({ slot: x.slot, id: x.id, name: x.name, designation: x.designation || '', hasPassword: !!x.hash }));
 const verifiersReady = v => v.length === 2 && v.every(x => x.id && x.hash);
+/* Best of 5 needs app 2.2.0 or later: an older Randomization PC would run it as "5th attempt is final", so it does not get those exams */
+const verLess = (a, b) => { const x = String(a || '0').split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== y[i]) return (x[i] || 0) < y[i]; } return false; };
+const examsFor = (exams, info) => verLess(info.device.appVersion, '2.2.0') ? exams.filter(e => e.finalMode !== 'best5') : exams;
 const publishedExams = async () => (await sql`select published_doc, published_version, published_at from exams where not deleted and published_doc is not null`)
   .map(r => ({ ...cleanDoc(r.published_doc), packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
 const getSetting = async k => (await sql`select value from settings where key = ${k}`)[0]?.value ?? null;
@@ -514,7 +517,8 @@ const routes = {
       token = sign({ sub: id, role: 'client', acct: 'legacy', exp: Date.now() + sessionHours('randomizer', info) * 3600e3 }); account = 'shared';
     }
     // Latest published exams, shifts and settings are downloaded at every login (and with "Update exams").
-    const exams = await publishedExams();
+    const all = await publishedExams(), exams = examsFor(all, info);
+    if (exams.length < all.length) await adminLog(mobile && u ? mobile : id, 'EXAMS_WITHHELD_OLD_APP', { appVersion: info.device.appVersion || null, withheld: all.filter(e => !exams.includes(e)).map(e => e.code), reason: 'Best of 5 needs app 2.2.0 or later', ...logInfo(info) });
     await adminLog(mobile && u ? mobile : id, 'CLIENT_ONLINE_LOGIN', { account, name, installId, examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null,
       clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
     // No password hash is sent to the PC any more: signing in always needs the internet.
@@ -552,7 +556,8 @@ const routes = {
   },
   /* "Update exams" on the Randomization PC, and automatically whenever its internet comes back */
   'POST client/exams': async ({ body, req, user }) => {
-    const info = requestInfo(req, body), exams = await publishedExams();
+    const info = requestInfo(req, body), all = await publishedExams(), exams = examsFor(all, info);
+    if (exams.length < all.length) await adminLog(user, 'EXAMS_WITHHELD_OLD_APP', { appVersion: info.device.appVersion || null, withheld: all.filter(e => !exams.includes(e)).map(e => e.code), reason: 'Best of 5 needs app 2.2.0 or later', ...logInfo(info) });
     await adminLog(user, 'CLIENT_EXAMS_UPDATED', { installId: str(body.installId, 64), examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
     return { exams, logo: await getSetting('logo'), certificate: await certSettings(), verifiersReady: verifiersReady(await getVerifiers()), serverTime: Date.now() };
   },
