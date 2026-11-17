@@ -1,15 +1,15 @@
 {
   "name": "upessc-qpr-desktop",
   "productName": "UPESSC QPR",
-  "version": "2.2.0",
-  "description": "UPESSC Question Paper Randomization: Windows app for Admin, Randomizer and Approver logins",
+  "version": "3.0.0",
+  "description": "UPESSC Question Paper Randomization: Windows app that works on its own on one computer (logins, exams, randomization, results, certificates)",
   "author": "UPESSC",
   "private": true,
   "main": "main.js",
   "scripts": {
     "prepare-app": "node build/prepare.js",
     "start": "node build/prepare.js && electron .",
-    "dist": "node build/prepare.js && electron-builder --win portable --x64 --publish never"
+    "dist": "node build/prepare.js && node build/dist.js"
   },
   "devDependencies": {
     "electron": "43.8.0",
@@ -19,7 +19,7 @@
   "build": {
     "appId": "in.upessc.qpr",
     "productName": "UPESSC QPR",
-    "artifactName": "UPESSC-QPR-${version}-portable.exe",
+    "artifactName": "UPESSC-QPR-Setup-${version}.exe",
     "directories": {
       "output": "../release",
       "buildResources": "build"
@@ -27,15 +27,21 @@
     "files": [
       "main.js",
       "preload.js",
+      "local-db.mjs",
       "app/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/@electric-sql/pglite/dist/*.tar.gz",
+      "!node_modules/@electric-sql/pglite/dist/**/*.map",
+      "!node_modules/@electric-sql/pglite/dist/**/*.d.ts",
+      "!node_modules/@electric-sql/pglite/dist/**/*.d.cts",
+      "!build/**"
     ],
     "asar": true,
     "afterPack": "build/after-pack.js",
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
@@ -44,8 +50,26 @@
       "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
-    "portable": {
-      "requestExecutionLevel": "user"
-    }
+    "asarUnpack": [
+      "node_modules/@electric-sql/pglite/dist/*.wasm",
+      "node_modules/@electric-sql/pglite/dist/*.data"
+    ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "UPESSC QPR",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "UPESSC QPR"
+    },
+    "publish": null
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.16"
   }
 }

@@ -1,39 +1,72 @@
 'use strict';
-/* UPESSC QPR — Windows app.
-   Runs the same page as the website (app/index.html, copied from ../index.html at build time) inside a locked-down
-   window. Calls to /api/* are relayed to the UPESSC server, so Admin, Randomizer and Approver logins all work against
-   the same setup. Everything the page stores (sessions, exams, rolls, audit log) stays in this app's data folder. */
-const { app, BrowserWindow, protocol, net, ipcMain, powerMonitor, shell, Menu, session, dialog } = require('electron');
+/* UPESSC QPR — Windows app (3.x). Works on its own, on one computer, with no server and no internet needed.
+   It runs the same page as the website (app/index.html, copied from ../index.html at build time) in a locked-down
+   window, and answers the page's /api/* calls itself with the same API code as the website (app/api.mjs, copied
+   from ../api/index.js), backed by a PostgreSQL database in the app's data folder (local-db.mjs).
+   So logins, exams, rolls, results, audit logs and certificates all stay on this computer. The website keeps its
+   own, separate data online. */
+const { app, BrowserWindow, protocol, ipcMain, powerMonitor, shell, Menu, session, dialog } = require('electron');
 const path = require('node:path'), fs = require('node:fs'), os = require('node:os'), crypto = require('node:crypto');
-const { execFile } = require('node:child_process');
+const { pathToFileURL } = require('node:url');
 
-const DEFAULT_SERVER = 'https://upessc-qpr.vercel.app';
 const APP_DIR = path.join(__dirname, 'app');
-const PUBLIC_PROBES = 'https://www.gstatic.com https://www.google.com https://1.1.1.1';
+const PUBLIC_PROBES = 'https://www.gstatic.com https://www.google.com https://1.1.1.1';   // only to tell whether this PC has internet (rolls need it OFF)
 
-/* Data folder: %APPDATA%\UPESSC QPR by default. A folder named "QPR-data" next to the .exe keeps all data with the .exe instead. */
-const exePath = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
-const portableData = path.join(path.dirname(exePath), 'QPR-data');
-try { if (fs.statSync(portableData).isDirectory()) app.setPath('userData', portableData); } catch {}
-
-/* Server: the UPESSC deployment, or "server" in config.json in the data folder (https only; http only for localhost testing) */
-function serverUrl() {
-  const ok = u => typeof u === 'string' && (/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(u) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(u));
-  try { const c = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8')); if (ok(c.server)) return c.server; } catch {}
-  if (ok(process.env.QPR_SERVER)) return process.env.QPR_SERVER;
-  return DEFAULT_SERVER;
+/* Data folder: %APPDATA%\UPESSC QPR 3 (QPR_USER_DATA overrides it, for automated tests).
+   Version 2.x kept its data (a copy of the online data) in %APPDATA%\UPESSC QPR; 3.0 starts fresh and removes it once. */
+const OLD_DATA = path.join(app.getPath('appData'), 'UPESSC QPR');
+app.setPath('userData', process.env.QPR_USER_DATA || path.join(app.getPath('appData'), 'UPESSC QPR 3'));
+const DATA = app.getPath('userData');
+function firstStart() {
+  const marker = path.join(DATA, 'first-start.json');
+  if (fs.existsSync(marker)) return;
+  fs.mkdirSync(DATA, { recursive: true });
+  let removedOld = false;
+  if (!process.env.QPR_USER_DATA && fs.existsSync(OLD_DATA)) { try { fs.rmSync(OLD_DATA, { recursive: true, force: true }); removedOld = true; } catch {} }
+  fs.writeFileSync(marker, JSON.stringify({ version: app.getVersion(), at: new Date().toISOString(), removedVersion2Data: removedOld }, null, 2));
 }
 
-/* Build identity: SHA-256 of the page actually loaded (checked against the hash recorded at build time) and of the .exe */
-const sha256File = file => new Promise(resolve => {
-  const h = crypto.createHash('sha256'), s = fs.createReadStream(file);
-  s.on('data', d => h.update(d)); s.on('end', () => resolve(h.digest('hex'))); s.on('error', () => resolve(null));
-});
+/* Secret that signs this computer's sign-in sessions; made once per installation, kept in the data folder */
+function authSecret() {
+  const f = path.join(DATA, 'auth-secret');
+  try { const s = fs.readFileSync(f, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(s)) return s; } catch {}
+  const s = crypto.randomBytes(32).toString('hex');
+  fs.writeFileSync(f, s, { mode: 0o600 });
+  return s;
+}
+
+/* The API, run here on the local database. Started once, in the background, as soon as the app opens. */
+let apiReady = null, db = null;
+function localApi() {
+  apiReady ??= (async () => {
+    Object.assign(process.env, { QPR_LOCAL: '1', DATABASE_URL: 'local', AUTH_SECRET: authSecret() });
+    db = await import(pathToFileURL(path.join(__dirname, 'local-db.mjs')).href);
+    await db.open(path.join(DATA, 'database'));
+    return (await import(pathToFileURL(path.join(APP_DIR, 'api.mjs')).href)).default;
+  })().catch(e => { apiReady = null; throw e; });
+  return apiReady;
+}
+const json = (status, o) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+async function callApi(req, u) {
+  let handler;
+  try { handler = await localApi(); }
+  catch (e) { return json(500, { error: 'The app could not open its database: ' + String(e && e.message || e).slice(0, 300) }); }
+  const query = Object.fromEntries(u.searchParams); query.path = u.pathname.replace(/^\/api\/?/, '');
+  let body = {};
+  if (!['GET', 'HEAD'].includes(req.method)) { const t = await req.text(); if (t) { try { body = JSON.parse(t); } catch { return json(400, { error: 'Bad request.' }); } } }
+  const headers = { authorization: req.headers.get('authorization') || '', 'user-agent': req.headers.get('user-agent') || '' };
+  return new Promise(resolve => {
+    const res = { code: 200, h: {}, status(c) { this.code = c; return this; }, setHeader(k, v) { this.h[String(k).toLowerCase()] = v; return this; },
+      json(o) { resolve(json(this.code, o)); }, send(b) { resolve(new Response(b, { status: this.code, headers: { ...this.h, 'cache-control': 'no-store' } })); } };
+    Promise.resolve(handler({ method: req.method, headers, query, body }, res)).catch(() => resolve(json(500, { error: 'Local data store error.' })));
+  });
+}
+
+/* Build identity: SHA-256 of the page actually loaded, and the hash recorded at build time */
 let buildJson = {}; try { buildJson = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'build.json'), 'utf8')); } catch {}
 const pageHash = (() => { try { return crypto.createHash('sha256').update(fs.readFileSync(path.join(APP_DIR, 'index.html'))).digest('hex'); } catch { return null; } })();
-const exeHash = app.isPackaged ? sha256File(exePath) : Promise.resolve(null);
 
-/* Power and network events for the page's clock and network checks */
+/* Power and network events: the page uses them to tell whether the PC is offline (rolls need it), and to note clock changes */
 let win = null, resumeCount = 0, lastResumeAt = null, adapterKey = '';
 function adapters() {
   const out = [];
@@ -41,27 +74,6 @@ function adapters() {
   return out.sort();
 }
 const send = (ch, ...a) => { if (win && !win.isDestroyed()) win.webContents.send(ch, ...a); };
-
-/* Clock changes recorded by Windows itself (System log, Microsoft-Windows-Kernel-General event 1), since a given time */
-function windowsTimeChanges(sinceIso) {
-  if (process.platform !== 'win32') return Promise.resolve({ ok: false, error: 'only on Windows' });
-  const since = new Date(sinceIso);
-  if (isNaN(since)) return Promise.resolve({ ok: false, error: 'bad date' });
-  const q = `*[System[Provider[@Name='Microsoft-Windows-Kernel-General'] and (EventID=1) and TimeCreated[@SystemTime>='${since.toISOString()}']]]`;
-  return new Promise(resolve => execFile('wevtutil.exe', ['qe', 'System', '/q:' + q, '/f:xml', '/c:50', '/rd:true'], { windowsHide: true, timeout: 10000, maxBuffer: 8 << 20 }, (err, out) => {
-    if (err) return resolve({ ok: false, error: String(err.message || err).slice(0, 300) });
-    const parseTime = v => Date.parse(String(v).replace(/[^\dTZ:.+-]/g, '').replace(/(\.\d{3})\d+/, '$1'));
-    const changes = [];
-    for (const ev of String(out).split(/<\/Event>/)) {
-      const get = n => { const m = ev.match(new RegExp(`<Data Name=['"]${n}['"]>([^<]*)</Data>`)); return m ? m[1].trim() : null; };
-      const n = parseTime(get('NewTime')), o = parseTime(get('OldTime'));
-      if (!Number.isFinite(n) || !Number.isFinite(o)) continue;
-      changes.push({ recordId: (ev.match(/<EventRecordID>(\d+)<\/EventRecordID>/) || [])[1] || null, newTime: new Date(n).toISOString(), oldTime: new Date(o).toISOString(),
-        deltaMs: n - o, reason: get('Reason'), process: get('ProcessName') });
-    }
-    resolve({ ok: true, changes });
-  }));
-}
 
 /* QP-Draw certificate: the page hands over the finished certificate HTML; it is rendered in a hidden window with
    scripts off, then saved as a real PDF (Chromium's print engine) or sent to the printer with the system dialog. */
@@ -95,16 +107,7 @@ const CSP = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 's
 async function handle(req) {
   const u = new URL(req.url);
   if (u.host !== 'qpr') return new Response('Not found', { status: 404 });
-  if (u.pathname === '/api' || u.pathname.startsWith('/api/')) {
-    const headers = { 'x-qpr-app': 'windows/' + app.getVersion() };
-    for (const k of ['content-type', 'authorization']) { const v = req.headers.get(k); if (v) headers[k] = v; }
-    const init = { method: req.method, headers, cache: 'no-store' };
-    if (!['GET', 'HEAD'].includes(req.method)) init.body = Buffer.from(await req.arrayBuffer());
-    try {
-      const r = await net.fetch(serverUrl() + u.pathname + u.search, init);
-      return new Response(r.body, { status: r.status, headers: { 'content-type': r.headers.get('content-type') || 'application/json', 'cache-control': 'no-store' } });
-    } catch { return Response.error(); }   // no internet: the page sees a network error, as in a browser
-  }
+  if (u.pathname === '/api' || u.pathname.startsWith('/api/')) return callApi(req, u);
   const rel = u.pathname === '/' ? 'index.html' : decodeURIComponent(u.pathname).replace(/^\/+/, '');
   const file = path.join(APP_DIR, rel);
   if (!file.startsWith(APP_DIR + path.sep) || !['index.html', 'build.json'].includes(rel)) return new Response('Not found', { status: 404 });
@@ -134,7 +137,7 @@ function createWindow() {
     else if (i.control && i.key === '-') { e.preventDefault(); wc.setZoomLevel(Math.max(wc.getZoomLevel() - 0.5, -3)); }
     else if (i.control && i.key === '0') { e.preventDefault(); wc.setZoomLevel(0); }
   });
-  // Windows tells every top-level window when the system time is changed (WM_TIMECHANGE)
+  // Windows tells every top-level window when the system time is changed (WM_TIMECHANGE); the page notes it in its audit log
   if (process.platform === 'win32') win.hookWindowMessage(0x001E, () => send('qpr:time-changed'));
   win.on('closed', () => { win = null; });
 }
@@ -144,15 +147,16 @@ else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.setAppUserModelId('in.upessc.qpr');
   Menu.setApplicationMenu(null);
+  try { firstStart(); } catch {}
   app.whenReady().then(() => {
     protocol.handle('app', handle);
+    localApi().catch(() => {});   // open the database while the window loads
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     session.defaultSession.on('will-download', (_e, item) => item.setSaveDialogOptions({ defaultPath: path.join(app.getPath('documents'), item.getFilename()) }));
-    ipcMain.handle('qpr:info', async () => ({ appVersion: app.getVersion(), buildHash: pageHash, buildHashExpected: buildJson.buildHash || null, builtAt: buildJson.builtAt || null,
-      exeHash: await exeHash, exeName: path.basename(exePath), electron: process.versions.electron, os: `${os.type()} ${os.release()} ${os.arch()}`, computer: os.hostname(), server: serverUrl() }));
+    ipcMain.handle('qpr:info', () => ({ appVersion: app.getVersion(), buildHash: pageHash, buildHashExpected: buildJson.buildHash || null, builtAt: buildJson.builtAt || null,
+      electron: process.versions.electron, os: `${os.type()} ${os.release()} ${os.arch()}`, computer: os.hostname(), local: true }));
     ipcMain.handle('qpr:network', () => { const a = adapters(); return { link: a.length > 0, adapters: a }; });
     ipcMain.handle('qpr:clock', () => ({ uptimeMs: Math.round(os.uptime() * 1000), resumeCount, lastResumeAt }));
-    ipcMain.handle('qpr:time-changes', (_e, since) => windowsTimeChanges(since));
     ipcMain.handle('qpr:save-pdf', (_e, html, name) => savePdf(html, name));
     ipcMain.handle('qpr:print-html', (_e, html) => printHtml(html));
     powerMonitor.on('resume', () => { resumeCount++; lastResumeAt = Date.now(); send('qpr:time-changed'); });
@@ -161,4 +165,11 @@ else {
     createWindow();
   });
   app.on('window-all-closed', () => app.quit());
+  // close the database cleanly before the app exits
+  let closing = false;
+  app.on('will-quit', e => {
+    if (closing || !db) return;
+    e.preventDefault(); closing = true;
+    db.close().catch(() => {}).finally(() => app.exit(0));
+  });
 }
