@@ -35,6 +35,7 @@ Other safeguards:
 - **Clear this PC** (website, Randomizer page, Audit Log tab): deletes the exams, rolls and audit log kept in that browser, for test PCs or after a server reset. Needs the internet, the Verifier's password and typing CLEAR; the server records it, and the PC gets a new install ID.
 - **Resetting the server:** `DATABASE_URL=… node tools/wipe-exam-data.mjs` deletes all exams and results (logins, settings and the server audit log are kept, and the wipe is recorded there). With `--logins` it also deletes every login, leaving only the built-in Verifier with its default password (which must be changed at the next sign-in). After a reset, a browser that still holds older data is refused at sync and told to use *Clear this PC*.
 - Windows apps older than 3.0 (which talked to the server) are refused by the server.
+- **Archive or delete an exam (Admin console).** An exam can be **deleted** until its randomization is complete; if spins were already made, the Admin has to type DELETE, and those spins stay in the audit logs and in the Randomizer page's Results, marked as deleted. Once an exam is **closed** (randomization complete, or every shift's window over) it can be **archived**: it becomes read-only and leaves the Randomizer page's exam list, while its results and QP-Draw certificates stay; *Restore* brings it back. A completed exam can only be archived, never deleted. The server enforces these rules and records each action in its audit log.
 - Audit logs can be exported as JSON or CSV, and results as CSV.
 
 ## Project layout

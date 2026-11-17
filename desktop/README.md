@@ -14,7 +14,9 @@ the logins, the exams, every roll, the results, the hash-chained audit logs and 
 - **Verifier console.** Creates the Admin logins, and sets the Controller of Examinations and Chairman logins
   (name, designation and password for each post).
 - **Admin.** Sets up exams, shifts, subjects and colours on this computer and publishes them; *Results & Sync* shows
-  every draw made on this computer, and the QP-Draw certificate.
+  every draw made on this computer, and the QP-Draw certificate. An exam can be deleted until its randomization is
+  complete, and archived once it is closed (randomization complete, or every shift's window over): archived exams are
+  read-only and leave the Randomizer page's exam list, but their results and certificates stay.
 - **Randomizer page.** Opened with the Verifier's login. Then step 1: the Controller of Examinations enters only
   their password; step 2: the Chairman enters only their password. Spins are possible only after both, and only
   while this computer has no internet connection (disconnect Wi-Fi / LAN cable / hotspot).

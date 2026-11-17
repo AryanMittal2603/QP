@@ -127,6 +127,8 @@ function ensureSchema() {
   schemaReady ??= (async () => {
     await sql`create table if not exists settings (key text primary key, value jsonb not null, updated_at timestamptz default now())`;
     await sql`create table if not exists exams (id text primary key, doc jsonb not null, published_version int not null default 0, published_doc jsonb, published_at timestamptz, deleted boolean not null default false, updated_at timestamptz default now())`;
+    await sql`alter table exams add column if not exists archived_at timestamptz`;   // archived: read-only, off the Randomizer page, results kept
+    await sql`alter table exams add column if not exists archived_by text`;
     await sql`create table if not exists admin_audit (seq int primary key, ts bigint not null, entry jsonb not null, hash text not null)`;
     await sql`create table if not exists client_audit (install_id text not null, seq int not null, entry jsonb not null, hash text not null, received_at timestamptz default now(), primary key (install_id, seq))`;
     await sql`create table if not exists draws (key text primary key, install_id text not null, exam_id text not null, shift_id text not null, subject_id text not null, attempt int not null, draw jsonb not null, log_hash text not null, received_at timestamptz default now())`;
@@ -202,8 +204,31 @@ const certSettings = async () => ({ signatories: DEFAULT_SIGNATORIES, ...((await
 /* Best of 5 needs app 2.2.0 or later: an older Randomization PC would run it as "5th attempt is final", so it does not get those exams */
 const verLess = (a, b) => { const x = String(a || '0').split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== y[i]) return (x[i] || 0) < y[i]; } return false; };
 const examsFor = (exams, info) => verLess(info.device.appVersion, '2.2.0') ? exams.filter(e => e.finalMode !== 'best5') : exams;
-const publishedExams = async () => (await sql`select published_doc, published_version, published_at from exams where not deleted and published_doc is not null`)
+const publishedExams = async () => (await sql`select published_doc, published_version, published_at from exams where not deleted and archived_at is null and published_doc is not null`)
   .map(r => ({ ...cleanDoc(r.published_doc), packageVersion: r.published_version, exportedAt: new Date(r.published_at).toISOString() }));
+/* Exams the Randomizer page must take off its list: deleted (removed, unless it already has spins for them) or archived (kept under Results) */
+const removedExams = async () => (await sql`select id, doc->>'code' as code, deleted from exams where deleted or archived_at is not null`).map(r => ({ id: r.id, code: r.code, reason: r.deleted ? 'deleted' : 'archived' }));
+/* How far randomization has got for an exam, from the draws that reached this database:
+   started  = any spin or final-iteration draw;  complete = every subject of every shift has its final colour;
+   closed   = complete, or every shift's randomization window is over (IST). */
+async function examProgress(ex) {
+  const doc = ex.published_doc || ex.doc, shifts = doc.shifts || [];
+  const rows = await sql`select shift_id, subject_id, attempt, (draw->>'colourIndex')::int as ci from draws where exam_id = ${ex.id}`;
+  const [ch] = await sql`select final_attempt from final_choices where exam_id = ${ex.id}`;
+  const mode = doc.finalMode || 'fixed5', T = mode === 'client' ? (ch ? ch.final_attempt : null) : 5;
+  const done = (s, b) => {
+    const d = new Map(rows.filter(r => r.shift_id === s.id && r.subject_id === b.id).map(r => [r.attempt, r.ci]));
+    if (mode !== 'best5') return !!T && d.has(T);
+    if (![1, 2, 3, 4, 5].every(a => d.has(a))) return false;
+    const c = new Map(); [1, 2, 3, 4, 5].forEach(a => c.set(d.get(a), (c.get(d.get(a)) || 0) + 1));
+    const max = Math.max(...c.values());
+    return [...c.values()].filter(n => n === max).length === 1 || d.has(6);   // one most frequent colour, or the tie-breaker spin
+  };
+  const subjects = shifts.flatMap(s => (s.subjects || []).map(b => [s, b]));
+  const complete = subjects.length > 0 && subjects.every(([s, b]) => done(s, b));
+  const windowsOver = shifts.length > 0 && shifts.every(s => Date.parse(`${s.date}T${s.end}:59.999+05:30`) < Date.now());
+  return { started: rows.length > 0 || !!ch, spins: rows.length, complete, closed: complete || windowsOver };
+}
 const getSetting = async k => (await sql`select value from settings where key = ${k}`)[0]?.value ?? null;
 const putSetting = (k, v) => sql`insert into settings (key, value, updated_at) values (${k}, ${JSON.stringify(v)}::jsonb, now()) on conflict (key) do update set value = excluded.value, updated_at = now()`;
 
@@ -303,7 +328,7 @@ const routes = {
     await adminLog(a.username, 'RANDOMIZER_PAGE_LOGIN', { name: a.name, installId, examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null,
       clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
     return { token: accountToken(a, 'client', sessionHours('randomizer', info)), user: a.username, name: a.name, mustChange: !!a.must_change, exams, logo: await getSetting('logo'),
-      certificate: await certSettings(), committee: await committeeInfo(), committeeReady: await committeeReady(), serverTime: Date.now() };
+      certificate: await certSettings(), committee: await committeeInfo(), committeeReady: await committeeReady(), removed: await removedExams(), serverTime: Date.now() };
   },
   /* Step 1 (Controller of Examinations) and step 2 (Chairman): each enters only their own password */
   'POST client/officer': async ({ body, req, user }) => {
@@ -322,8 +347,11 @@ const routes = {
   },
 
   'GET admin/exams': async () => {
-    const rows = await sql`select doc, published_version, published_at, (published_doc is not null and published_doc <> doc) as changed from exams where not deleted order by updated_at desc`;
-    return rows.map(r => ({ ...cleanDoc(r.doc), publishedVersion: r.published_version, publishedAt: r.published_at ? new Date(r.published_at).getTime() : null, changedSincePublish: !!r.changed }));
+    const rows = await sql`select id, doc, published_doc, published_version, published_at, archived_at, archived_by, (published_doc is not null and published_doc <> doc) as changed from exams where not deleted order by updated_at desc`;
+    const out = [];
+    for (const r of rows) out.push({ ...cleanDoc(r.doc), publishedVersion: r.published_version, publishedAt: r.published_at ? new Date(r.published_at).getTime() : null, changedSincePublish: !!r.changed,
+      archivedAt: r.archived_at ? new Date(r.archived_at).getTime() : null, archivedBy: r.archived_by || null, progress: await examProgress(r) });
+    return out;
   },
   'PUT admin/exams': async ({ body, user }) => {
     const { exam, event, details } = body;
@@ -332,8 +360,9 @@ const routes = {
     validateExam(raw);
     const doc = cleanDoc(raw);
     doc.updatedAt = Date.now();
-    const [ex] = await sql`select deleted, doc from exams where id = ${doc.id}`;
+    const [ex] = await sql`select deleted, doc, archived_at from exams where id = ${doc.id}`;
     if (ex && ex.deleted) fail(410, 'Exam was deleted.');
+    if (ex && ex.archived_at) fail(409, 'This exam is archived and read-only. Restore it first.');
     if (ex && (ex.doc.finalMode || 'fixed5') !== (doc.finalMode || 'fixed5')) {
       const [{ n }] = await sql`select (select count(*) from draws where exam_id = ${doc.id}) + (select count(*) from final_choices where exam_id = ${doc.id}) as n`;
       if (Number(n) > 0) fail(409, 'The final selection mode cannot be changed after randomization has started for this exam.');
@@ -342,15 +371,39 @@ const routes = {
     await adminLog(user, event, { examId: doc.id, examCode: doc.code, ...(details || {}) });
     return { ok: true };
   },
+  /* Delete: only before randomization is complete. Spins already made stay in the audit logs and results. */
   'DELETE admin/exams': async ({ query, user }) => {
-    const [ex] = await sql`update exams set deleted = true, updated_at = now() where id = ${query.id} returning doc`;
+    const [ex] = await sql`select * from exams where id = ${query.id} and not deleted`;
     if (!ex) fail(404, 'Exam not found.');
-    await adminLog(user, 'EXAM_DELETED', { examId: query.id, name: ex.doc.name, code: ex.doc.code });
+    if (ex.archived_at) fail(409, 'This exam is archived. Restore it first.');
+    const pr = await examProgress(ex);
+    if (pr.complete) fail(409, 'Randomization of this exam is complete, so it cannot be deleted. Archive it instead.');
+    await sql`update exams set deleted = true, updated_at = now() where id = ${ex.id}`;
+    await adminLog(user, 'EXAM_DELETED', { examId: ex.id, name: ex.doc.name, code: ex.doc.code, randomizationStarted: pr.started, spinsKept: pr.spins });
+    return { ok: true };
+  },
+  /* Archive: once the exam is closed (randomization complete, or every shift's window over). Read-only, off the
+     Randomizer page's exam list; results and certificates stay. Restore brings it back. */
+  'POST admin/archive': async ({ body, user }) => {
+    const [ex] = await sql`select * from exams where id = ${body.id} and not deleted`;
+    if (!ex) fail(404, 'Exam not found.');
+    if (body.archived === false) {
+      if (!ex.archived_at) return { ok: true };
+      await sql`update exams set archived_at = null, archived_by = null, updated_at = now() where id = ${ex.id}`;
+      await adminLog(user, 'EXAM_RESTORED', { examId: ex.id, code: ex.doc.code, name: ex.doc.name });
+      return { ok: true };
+    }
+    if (ex.archived_at) return { ok: true };
+    const pr = await examProgress(ex);
+    if (!pr.closed) fail(409, 'An exam can be archived once it is closed: randomization complete, or every shift\'s randomization window over.');
+    await sql`update exams set archived_at = now(), archived_by = ${user}, updated_at = now() where id = ${ex.id}`;
+    await adminLog(user, 'EXAM_ARCHIVED', { examId: ex.id, code: ex.doc.code, name: ex.doc.name, randomizationComplete: pr.complete, spins: pr.spins });
     return { ok: true };
   },
   'POST admin/publish': async ({ body, user }) => {
     const [ex] = await sql`select * from exams where id = ${body.id} and not deleted`;
     if (!ex) fail(404, 'Exam not found.');
+    if (ex.archived_at) fail(409, 'This exam is archived and read-only. Restore it first.');
     const p = publishProblems(ex.doc); if (p.length) fail(400, p.join('\n'));
     const v = ex.published_version + 1;
     await sql`update exams set published_version = ${v}, published_doc = doc, published_at = now() where id = ${body.id}`;
@@ -359,7 +412,7 @@ const routes = {
     return { publishedVersion: v };
   },
   'POST admin/unpublish': async ({ body, user }) => {
-    const [ex] = await sql`update exams set published_doc = null, published_at = null where id = ${body.id} returning doc, published_version`;
+    const [ex] = await sql`update exams set published_doc = null, published_at = null where id = ${body.id} and archived_at is null returning doc, published_version`;
     if (!ex) fail(404, 'Exam not found.');
     await adminLog(user, 'EXAM_UNPUBLISHED', { examId: body.id, examCode: ex.doc.code });
     return { ok: true };
@@ -390,7 +443,7 @@ const routes = {
     draws: (await sql`select key, install_id, draw, received_at from draws order by received_at`).map(r => ({ ...r.draw, installId: r.install_id, receivedAt: new Date(r.received_at).getTime() })),
     syncs: await sql`select install_id, actor, last_sync, entries, chain_ok, issues, head from sync_status order by last_sync desc`,
     conflicts: await sql`select id, install_id, kind, detail, created_at from sync_conflicts order by id desc limit 200`,
-    exams: (await sql`select doc from exams where not deleted`).map(r => cleanDoc(r.doc)),
+    exams: (await sql`select doc, archived_at from exams where not deleted`).map(r => ({ ...cleanDoc(r.doc), archivedAt: r.archived_at ? new Date(r.archived_at).getTime() : null })),
     choices: await sql`select exam_id, install_id, final_attempt, choice, received_at from final_choices`,
   }),
   'GET admin/client-audit': async ({ query }) => {
@@ -413,7 +466,7 @@ const routes = {
     const info = requestInfo(req, body), all = await publishedExams(), exams = examsFor(all, info);
     if (exams.length < all.length) await adminLog(user, 'EXAMS_WITHHELD_OLD_APP', { appVersion: info.device.appVersion || null, withheld: all.filter(e => !exams.includes(e)).map(e => e.code), reason: 'Best of 5 needs app 2.2.0 or later', ...logInfo(info) });
     await adminLog(user, 'CLIENT_EXAMS_UPDATED', { installId: str(body.installId, 64), examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
-    return { exams, logo: await getSetting('logo'), certificate: await certSettings(), committee: await committeeInfo(), committeeReady: await committeeReady(), serverTime: Date.now() };
+    return { exams, logo: await getSetting('logo'), certificate: await certSettings(), committee: await committeeInfo(), committeeReady: await committeeReady(), removed: await removedExams(), serverTime: Date.now() };
   },
   'POST client/sync': async ({ body, user }) => {
     const installId = str(body.installId, 64); if (!installId) fail(400, 'Missing install id.');
