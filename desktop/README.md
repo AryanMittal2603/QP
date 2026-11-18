@@ -9,7 +9,7 @@ From version 3.0 the app does not use the internet or the UPESSC server at all. 
 the logins, the exams, every roll, the results, the hash-chained audit logs and the QP-Draw certificates. The website
 (https://upessc-qpr.vercel.app) keeps its own, separate data online; the two are not connected.
 
-- **First start.** Only the built-in Verifier can sign in (*Other users → Verifier*): `upessc_verifier` with the default password `upessc@2026`,
+- **First start.** Only the built-in Verifier can sign in (settings icon at the top right → *Verifier sign-in*): `upessc_verifier` with the default password `upessc@2026`,
   which must be changed straight away. On this computer nobody else can reset the Verifier's password, so keep it safe.
 - **Verifier console.** Creates the Admin logins, and sets the Controller of Examinations and Chairman logins
   (name, designation and password for each post).
@@ -20,7 +20,7 @@ the logins, the exams, every roll, the results, the hash-chained audit logs and 
 - **Randomizer page.** The app opens on its sign-in: step 1, the Controller of Examinations enters only their
   password; step 2, the Chairman enters only their password. The page opens after both (no Verifier login).
   Spins are possible only while this computer has no internet connection (disconnect Wi-Fi / LAN cable / hotspot).
-  The Admin and Verifier sign in under *Other users*.
+  The Admin and Verifier sign in through the small settings icon at the top right.
 - **Stays signed in** until *Log out*, also across restarts.
 - **Clock.** Times are always shown and judged in IST. A change of the PC clock is written to the audit log and
   shown, but never blocks anything.

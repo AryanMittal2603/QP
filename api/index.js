@@ -96,7 +96,7 @@ async function officerCheck(post, password, info, event) {
   }
   await ensureVerifier();
   const a = await getAccount(post), label = POSTS[post].label;
-  if (!a || a.role !== post || !a.hash) fail(409, `The ${label} login is not set up yet. The Verifier sets it up (Other users → Verifier → Logins).`);
+  if (!a || a.role !== post || !a.hash) fail(409, `The ${label} login is not set up yet. The Verifier sets it up (settings icon → Verifier sign-in → Logins).`);
   if (a.status !== 'active') { await adminLog(post, `${event}_FAILED`, { reason: 'login disabled', ...logInfo(info) }); fail(403, `The ${label} login has been disabled by the Verifier.`); }
   if (typeof password !== 'string' || !checkPw(a, password)) { await adminLog(post, `${event}_FAILED`, { post: label, ...logInfo(info) }); fail(403, `Wrong password for the ${label}.`); }
   await sql`update accounts set last_login = now() where username = ${post}`;
