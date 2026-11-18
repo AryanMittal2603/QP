@@ -62,8 +62,9 @@ const str = (v, max = 200) => typeof v === 'string' && v.trim() && v.length <= m
    Accounts are re-checked on every request, so a disabled login or a changed password takes effect at once. */
 const DEFAULT_VERIFIER = { username: 'upessc_verifier', password: 'upessc@2026' };
 const POSTS = {
-  coe: { label: 'Controller of Examinations', name: 'Shri Devendra Pratap Singh', designation: 'Examination Controller, UPESSC, Prayagraj' },
+  coe: { label: 'Controller of Examinations', name: 'Shri Devendra Pratap Singh', designation: 'Controller of Examination, UPESSC, Prayagraj' },
   chairman: { label: 'Chairman', name: 'Dr. Prashant Kumar', designation: 'Honorable Chairman, UPESSC, Prayagraj' } };
+const OLD_COE_DESIGNATION = 'Examination Controller, UPESSC, Prayagraj';   // before 3.0.2; saved copies of this default are updated
 const ROLE_LABEL = { verifier: 'Verifier', admin: 'Admin', coe: POSTS.coe.label, chairman: POSTS.chairman.label };
 const TOKEN_ACCOUNT_ROLE = { verifier: 'verifier', admin: 'admin', client: 'verifier' };   // the Randomizer page is opened with the Verifier's login
 const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
@@ -138,6 +139,7 @@ function ensureSchema() {
     // Logins (see "accounts" above). status: active | disabled. must_change: the built-in Verifier until its default password is changed.
     await sql`create table if not exists accounts (username text primary key, role text not null, name text, designation text, salt text, hash text, status text not null default 'active',
       must_change boolean not null default false, created_at timestamptz default now(), created_by text, updated_at timestamptz, last_login timestamptz)`;
+    await sql`update accounts set designation = ${POSTS.coe.designation} where username = 'coe' and designation = ${OLD_COE_DESIGNATION}`;   // 3.0.2: new COE designation
     await ensureVerifier();
   })().catch(e => { schemaReady = null; throw e; });
   return schemaReady;
@@ -193,14 +195,21 @@ function cleanDoc(doc) {
   return { ...doc, shifts: doc.shifts.map(s => ({ ...s, subjects: (s.subjects || []).map(b => ({ ...b, colours: (b.colours || []).map(c => ({ name: c.name, hex: c.hex })) })) })) };
 }
 const EXAM_EVENTS = new Set(['EXAM_CREATED', 'EXAM_UPDATED', 'SHIFT_CREATED', 'SHIFT_UPDATED', 'SHIFT_DUPLICATED', 'SHIFT_DELETED', 'SUBJECT_CREATED', 'SUBJECT_UPDATED', 'SUBJECT_DELETED']);
-/* QP-Draw certificate: signature blocks printed on every certificate (Admin → Settings) */
+/* QP-Draw certificate: signature blocks printed on every certificate (Admin → Settings).
+   Printed two per row in this order; an odd last one spans the full width. */
 const DEFAULT_SIGNATORIES = [
-  { name: 'Dr. Prashant Kumar', designation: 'Honorable Chairman, UPESSC, Prayagraj' },
-  { name: 'Dr. Harendra Kumar Rai', designation: 'Honorable Senior-most Member, UPESSC, Prayagraj' },
+  { name: 'Dr. Sanjay Kumar Singh', designation: 'Deputy Secretary, UPESSC, Prayagraj' },
+  { name: 'Shri Devendra Pratap Singh', designation: 'Controller of Examination, UPESSC, Prayagraj' },
   { name: 'Shri Manoj Kumar', designation: 'Secretary, UPESSC, Prayagraj' },
-  { name: 'Shri Devendra Pratap Singh', designation: 'Examination Controller, UPESSC, Prayagraj' },
-  { name: 'Dr. Sanjay Kumar Singh', designation: 'Deputy Secretary, UPESSC, Prayagraj' }];
-const certSettings = async () => ({ signatories: DEFAULT_SIGNATORIES, ...((await getSetting('certificate')) || {}) });
+  { name: 'Dr. Harendra Kumar Rai', designation: 'Honorable Senior-most Member, UPESSC, Prayagraj' },
+  { name: 'Dr. Prashant Kumar', designation: 'Honorable Chairman, UPESSC, Prayagraj' }];
+/* A saved list that is still the pre-3.0.2 default (reverse order, old COE designation) becomes the new default */
+async function certSettings() {
+  const saved = (await getSetting('certificate')) || {};
+  let list = Array.isArray(saved.signatories) ? saved.signatories.map(x => x && x.designation === OLD_COE_DESIGNATION ? { ...x, designation: POSTS.coe.designation } : x) : null;
+  if (list && JSON.stringify(list.map(x => [x.name, x.designation])) === JSON.stringify([...DEFAULT_SIGNATORIES].reverse().map(x => [x.name, x.designation]))) list = DEFAULT_SIGNATORIES;
+  return { ...saved, signatories: list || DEFAULT_SIGNATORIES };
+}
 /* Best of 5 needs app 2.2.0 or later: an older Randomization PC would run it as "5th attempt is final", so it does not get those exams */
 const verLess = (a, b) => { const x = String(a || '0').split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== y[i]) return (x[i] || 0) < y[i]; } return false; };
 const examsFor = (exams, info) => verLess(info.device.appVersion, '2.2.0') ? exams.filter(e => e.finalMode !== 'best5') : exams;
