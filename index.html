@@ -206,13 +206,19 @@ td.final .chip{border:1.5px solid var(--amber);box-shadow:0 0 0 3px rgba(201,150
 .seal{display:block;width:88px;height:auto;margin:0 auto 14px}
 .seal.sm{width:58px;margin:0 0 16px}
 .signin>h3{text-align:center;margin:0 0 20px}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;margin-bottom:20px;background:rgba(20,40,68,.06);border:1px solid var(--line);border-radius:8px}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;padding:3px;margin-bottom:20px;background:rgba(20,40,68,.06);border:1px solid var(--line);border-radius:8px}
 .seg button{border:0;background:transparent;padding:9px 4px;border-radius:6px;font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--quiet);cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}
 .seg button:hover{color:var(--ink)}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(20,40,68,.14),0 0 0 1px var(--line)}
 .seg button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 .btn.block{width:100%;padding:11px 15px;margin-top:2px}
 .note{font-size:12.5px;line-height:1.45;color:var(--quiet);margin:0 0 6px}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;margin-bottom:18px;background:rgba(20,40,68,.06);border:1px solid var(--line);border-radius:8px}
+.steps span{padding:8px 4px;border-radius:6px;text-align:center;font:600 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--quiet)}
+.steps span.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(20,40,68,.14),0 0 0 1px var(--line)}.steps span.done{color:var(--ok)}
+.officer{text-align:center;margin:0 0 14px}.officer b{display:block;font-size:16px}.officer .muted{display:block}
+.linkbtn{background:none;border:0;padding:0;color:var(--blue);cursor:pointer;font:inherit;text-decoration:underline}
+.others{text-align:center;margin-top:18px;padding-top:12px;border-top:1px solid var(--line)}
 
 /* ── Toast ── */
 .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px 11px 16px;border-radius:6px;z-index:90;font-weight:600;font-size:13.5px;
@@ -290,7 +296,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app');
 const enc = new TextEncoder();
 const ITER = 150000;
-const APP_VERSION = '3.0.2';
+const APP_VERSION = '3.1.0';
 const SEAL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAADwCAMAAAAuJZhIAAAAkFBMVEUAAAATJ0MTJ0MTJ0MTJ0MTJ0MTJ0MTJ0MQJ0cAAH4COjoAAFQRKDsAVVUTHTwAAP8AADwmJkwVM0wUG08TJz4ANGk2NjYAf38pKSkAfwAzM2c3ADcAVQBVAFVVVVUA/wAkSEgASEgTJz9/AAB/fwAAPwAA//8qVVVVAAB/AH8AAAAAAAAAAAAAAAAAAAAAAAARO/JlAAAAMHRSTlMA+i+Pb0+vzxICBAMQAwoBBAYLCyYEBAIGAgQEAwMDAQcHQAICBAEGAwIAAAAAAAAauatOAAA4lklEQVR42u19iZbcNrIsmwBIAAS32rq12DN3edv//+CLSIAkwGJVt2zJku9xzdiWeqliAolcIiMTVfXP65/XP6/9y7n/SbJ0rup2Armuq3rX/c3FdF3fL3/2pxDCKb3safbrd/r+7ygnd0heX062ro1STdPmr6ZRShtT27n/+0mZNK+DZFqJXC8PXpQUctbDEKV0f5ud467p5rFkOzlFSkvx+u6XFk+k8xeo5INteyJy20DIwN/vf1XxaFGs7NxeKhw4JWcuvrT89X6DuZNRxl9wH3uPf124deUTU/nq2tqwe2ZrsRZG85DuN7Lu6Ft+rfPIpx8g3f5chXB2uUfEy/uO5iekrw327rS2Sttf6ji6saoCDGabCQebsRylzsMHdI4/Ja+xCrp9aerK+95H8QM9Sb6VeAOb1u2X2LxznUun4d3Et1ts1pGmnSDNS2Mrfs/1PkoZ6FTa7G1Mja/7n757PE6rbsatE/Xy3Zj92LgdKQg04kjqF23Xp++SkJYbuW2jrn38hJ9qWerVamLRL1a2Lnuoz4jKjgy/Va1x87ytg+s8/zjU2VGmMvxERaV4s25W02AQj0xnO6370tths5nz8sear1DZRtkYpfo1TIsxkK23bWwp4vhTRBx7Uc51rS9c/ZrPu2mvt2eGNJqOz0S7SQMTQ9EWSxIVWjZ9UWLKeK7NanIg4k8xNyJek2+eWHuFJw7JBZyCr8xiNhoxi9Urfqkp7aVepSzs1qapDb3GX+8X7WI5scQzj04bw2ptB9nDDt/XteYPGHzPzNuvev7dtC8qOUAKaUJuMB3Wb9xMs6zO+Jfazumik3gKps562Ay4LnuBapmvvtamqqGKeLIaB6qumrZezKHD/0LTWvkaF0bzGEvMU+ef4T/BgK3mWa2RwV8TUi/a2crRwhfqtokGtDZiBlUFPzCrF/u1bl7qvnkx64MPdsDXNHaxtnB92D0NLeBhNl62abr2y2lE/LCIqK2b/jKvuHysqieeGDeesHHB9lY3sOyKWgkBjcVXuRDYwUVAh13R/G3oZlvXjeSE7Yuuaqr6tARGbuqSnbL1YsfiWv4V4oW0fXIyOjEKtqW+4Xnx6A2euwn4C2wJ96mFgAoixCy4MtFl4puNxS4zSOMSGKxJSiIC1dG6RcTBtJk9Hb78+O1LS6rqao5P5KzT+Cu+oRiiNNi9+veKijeEejbYPQOdja+bxf4pOww4h/gF2VjNJWjNYp7rpqXdnFaTuh7Fxgzhx57F0X+ut+3rk2HrsV/8EuNLa/HUNXWOm1orZWsIh3+282NemsvMU4u9abmFEPXcwBSlgIdL0IjFiXbptfqyLCol736o9UynT5Z4M9yd1/waTEfdaOhdaLmLqjrjuTQkCfZFzelxncMSNLSyTeihfQ0WTL3V2w9UwdZRxLdq/ZDV56ra/UiwNq2kqm9Y19wpwrrg7FF4DXUcmnbAfyx3u6ZPCI0eluf3eJdG+5qhGkShl1DY1XRImUw1BtYT+mDCWPXDGLdy2cSm/vSjXOJURfWM2xfPS3ro12D5iIAHDS0HjAql5ebA8Rttb6aecjOFmC6YWiLPwMRCnGLUvYkqi8NGRytmJQbh3SmYJbAYflCK4aKa4MPTBwQIukZZcuaGGx18NCp8HqXbpgbmm6Esbjlaffpbr+EQX9ZIoJurGP50Kh31k0/HsV7VtOp/wPGzcQXx7vL27nPHo2GWaLmH48MRVXg0byEtYtL/rE8Im2n2ppN3KSf0gn/CZ6/RZahhUpXN9AR+H4EDIgTGc/USiNqT1Yualifk+8inF/V0CUyxdIj6ulhz2AmrYvwMBDCLu/rXZccCsz+kG91qoOKjD96uoagf65fGjcjvWxVdq04bdp2q0xIg1tXX74xLxDPOmHlxwNWblk9aVwD+wSBMQQANxfI3d/UxdXIzgtRaMLT4MhFpOyfY3ntfpCk1wyJfM0DvqfHyISlM8MtBNOH75kbJvGzbYolvQhZTpS10lubTToH5rEVSfxMPKfmgAPgHoD0FjXiin3KTLMWLF438Em+KP7VmTZhcsqatsd9VPpVUX4yF7ycRuDH4+CE9G+K1JgFJ1edqwsfPsJ972PMe6pYajJfKhFsXD7AwVtOqBjGMgZAvzDgFH+iqyyJh9733D8fdnrv+NuOz4LtoCCTYSos/wcBb2BAroMWpwMjeq02wAAPB1pwxBC4dMy5mu+c2fXqXWQNIeP4+7mKVL3M/0MbAGFLXL41dT+E4O8KArCt9WLgN3hed6xd/wpWj56ntOMDcCJI6+xgKnJIx1YOz30U+eVagfKyGEZJFWI3TaBSDSHrpDPG0zGF1823SbbBVWByl1eoCPWmp88ikrBwSHSPwzdTok+2+g/1sonzIw2P21rQK0SRPB9KAwGzILSib97YA8L/1hQB0kEx3shDNGTr6WszNle5feydetarSHprqO8kn7q8m2lwznFGS1GomtQyq64QSYgNN8yfEi040Q3vpV5k4wuE2TBkhYRUlDCnoN+fuT8o3KHmfgd7MUBKJwAC+COyCA1jHIMQPjIefi7dVsJ/+FEtoXdQ9KxUPE6N4Ih2q/hp1eFgk/FPpk6u8irpOnAlY3kgLplU8d/w8enYgov6zQNyPK7ixIr+8pETYPFwNAR/54J1sIgMkLdv3piQ4jdHPKuGfETCIrusYvowTAZLW8FDAGSy4DMw4qs+XB+KJC4Djv1vns5S5H+y5IK2onyH8bCKkc27od2PsFAOfWS9Rm/uT8ae20xTD5BlJ2kAfiDROclWWZHHy/mvNR3emP4G6XTyjfnl13QIGINI2h0LGnMziXJgBj9Gm5AvKUC/BYvKHTf1HtbSzJm2RHIgr1aVBooCvaK5xHaQG6AEDqsNNqKU0MTGOduM9XcEvQehB2TtmSvj2m3BsmBvWNDkaVY51/aN+8QH/4B6Kt2mGJVSBWI2dFCEWgmfy1dd5qg62j2W0c4yj3VpB27YQ1ZZxq5yNgpPfy4ijeIbtwvdHQslzAFQeCgsY4sLqP+buvTgIQMq3qPKU7+JMq+xJYG1lJjyey4ufWQlUqAQulWmolfsN9G+r8B2zKFvfe1CAFhXTzlnE0dyrvDQ3VTE/g7Ny366lnegdFFwEnKoz7SeQCWZpCNVanMRusNVn3d6ppn2jAEmOtZxmFxPKbGPJVxctlR8PZm+p5CS6mOcjoKlv9jAKab/9GI4wwzEpkQcAFcmw7KVp1TS5FIAlTGcru5OP4vWxBsacVj72TTImEkfWF93GWlXq4q6QZDPf+RpEoPTtrr8QClkPYIzoK3eOQVtTf6OA0zVGoDqmpDawDib+IQIXrXmNKOL+cUxfzf921VrRs9EVpPRP2DJ8bV+KQs5Xt6T3Yb9k2MQJ34HqXHu7pRtVJyKeV0MzfNP5m6wcwBCheUtg1xBYelGnmnWgMHZ2WHCu/MjYkMI2boehC2iSVOLdt6RexGzatT4ov4LdxNnfnUWacU8Nz5Jij4PjWauwCUoxAoF9WEFdiAdwKR4LVAZwDH5ef/FUQjctfuglL8VGxWEQInUx1GIomE5qmbYv8pwko5eIJrnLbkHd9gE7DIGdqh0Oq0wva9nb5Rj6bwlBjfzOfF7taWOxWBLEI4/pmcWX8kl45dImVMysIn1LMiwJ0063qVtefqE54Sf4/yYSY2JNv6v2ngdAeDVtjBTBf17WmmpM55pvAPWH+DtqPZGG2FaoqoRYYvuGxULfmTsvnCdunV42x98y0sn2X0c6l/wQoarEU0tRyi52aOodEFqzahyDtC7lTvrDO/g5PnyzBQhWAMrAcB4PXvfzhqQvS5wqC1HBKJfsXG1P0ROmjetWTleXEBiPk6xEXRvGPnje67iWYLIFNCu3oY7CCoIeUbuz2iFi7+bwZudbvEQ1zHFf9Bkm+lzKJ6cPz0u7RrQC7Ak4EkAAPsVk94Qn8EoBK3b2DbBbf6aPx8rJLyWahgMNodmpSBezCBzJeknWYqIdf/KjIZuvLq1EB5lW2Jt4BEaE3RvCp8I9LE6oO0kpr6F4OFKfAJiMlCJxLT2qRiHppsjg56oHvCIrL6EaRZSy3BA/+pxvIlC06BiYrCHQMMyhUN6YKjekqqr+kISoR6ttOZaABApFygsXbXZdsX9IwQmHdf4LU0KI10TKQIff9VTEHhb+ImyZFn5HlFjo2jXdNiFCy6rmFxJMqNmwVtHfudInLlpKOCo6MULNnyPjSH3ckjqJsRcF9Vl0+99CLBj6Uj9hVN0NZa5zd0pPSGOB4ETov1cbnSH3hpbqHLNxyXuSC6xhIwNr8iwFcPuJFCYupc0DGxa5oQ+Mhlk+Rt6Utn8Dxvzr+IEkUEkIIz+KauVGmUPZh3WdU+EftP1XJ9UVWgWFYFKxbtnFX/p/QoVSEb1l6T7aPadxanFuKDIpCeYaJsCq1Xilf6NFxWbZgg+w5LYnMd9KyuACAceizRiz3w/FpFLzT06F0uZH14b+Vvi/Re07mgQk3I2gm4sX4LlqyGFuovKoRYcUSAqkHRD6boU7eppZHxeXi2VCwd7OKRXJ1QWPdXZrlRKyK9I3/s0Taxc7030IRTPyIEi8kaL4/rrs7ifWlLL4bMnPSJyBymAL69vQiYDeSgHThFnOkWEtCukWtAma0TT0qQgktCIZqsV2YqWse/XXK96pqSUzShlHbtCwFIj7AUUZSfIV39OSzPga7QwTp48oaLPsC4NPc1q//doNfS5fjCW6c8VclFs4IDh0CArdRbh2MP/RvUHyJgs2oJUhykGkTVFGHqwx2O4qLBzFN6uSFpV7OHNNz7JjDH0bOq4FYpQVeKc2WrfrBk5eUiaakQQ5IJKuc/niA/sTGT+s5fKR5n8nngRkoHAtIH9sGfjqTJ6npRRONBD7RkTGnBCUUGG5iXg3urqopqHfFn2NvCfHCkwjeBoUGv+NP5XszDtb+CbR5kB58HlwN6QlaSZsY4zhmky+gY/rQCvn8zQJOEAWrMnzIbCBr1m4Bht4+iYaWbR/9D5Fmob202rDhMBYBqXiJ1lv4DtqYSnc7SHCF9dNmvJZcsaAMwRxZjGegZb0z3x85iKsVCIFKQAxQiD1BQQpC3Q8fooa5dMhZijzQp5FLcxegtIKZWoEkBGGmlkB5bGDYvNJsQAA6bDFi4IRi2hgf/QpuCxxf9ksJd/QCIbp6Re7LTl9HpJ+FheRykjEW5E5C5GHq4mMLTOg+KmO7gHeT9O6VEswCqCv52fJOaq/0CKEcIHdD4JWRMgiVLfafhWgH1unLV0IFmlhjk4xIWqwtPK8p0zCpg6z5IFifoX9cIk5iH4PRewiXHaRZWRECmse+B/NdHAY8gOo7BhrodEiWJ8l1CcUB2E4uI2it17AT9Us4H0TAVVIST9J9l7DU5hDEs4DjNAkSH0ifhNVa/loCQsM1dEyCmbs9oqFte9tYQLqtTSBydHWAEPjb9GknW2TZ9lihiAz7Uio7Ha2nUTZNRSMVAQrpW5JnNaXYBaSJ1YncoJoq7GH1oYM+ObRxrufJQLtryZXUqamzCCp4MzlYM57re2yhe7pBtbJOnOJzA3Fl1ZAzhAyDx/fBNVALjPU1593iCMjECPRZBOTwrrMyb2ANcwhjAA+Rv4JQ977U0UJ5cBMqUqSPt2GMZyqCIQJSY7lWD6KbOH/fngEKYEOqXwjisO4iQdjqM5+05LWCDfVzqyoLcYuZ7Sx+0xfZ0kK14N1829zAn7XNJNZP80o/KUKvmROACmE/A0qP8BIpqrUHzxjQP1QC3GatQtW9yIC9Ti351u0tYvkMBSnU2lwZvE85N4In8ng2NGaN9qV8sGhwELgiPHcaQG4kRldy88cu5j2XUVGDZYJtnJf6xtEwlaDJDzS92UL3IFW5IXhhqSEZmIYezAA03nyj4AY2jRJzbvuC6yvhQY1ErbDTkzbBuJcjNF4Nzh/4/16nQOeHOJFltPDhkCHJFHo+uJE7Q5Y4op/EhMNqoo0T25PIOfIk3sEcI3QIUvqqMhGPVbHHJppVKsPdELnFCIATDkc/TlzRfFnvPiqpvFhv140hSbBSK/zu/m1j5VT/aWawx2+D36cWWJ0e9a5u3/tJFBjksWNiSR3sfMP8kLHb6rzKK7Vki9Il1NJrDHdTpuCxkDOogKJBwNXbk8bmwPZlQxhP9Z47F5FRFVX/u65kPJDwuVU2XyRfSX0OVbVGsIB4J8Cz41baO+pbKNU+ePD327U6t/IbK0DPjR0uR9SwYlZM7RA9flgR+qocv7DRS2CvgybqsKOxpIP9OQCUzpG15wdExbmhGlMZ0tKjWH0ZR6l9k4A1BjJoWeK2hmp8n64MkZrMvXv4wGkgTnQOEIPpvvGkh06Qajxtd3D0/4c8Hb4IEKx/RYqErwEdq5EPAluNdP9EE2hPgpIjXwjMRpbqTeSY06cK6E6GzJCL8KPDbtdckN8zunbi65yFNeIr0xwqCpIkaprFksxlPqNYXBlIx6myTNLW6gOYPxzs2xtz2K/kbYAggrIA/zmIpTsMVQW8kHpSxsCdksMu90fIKzOottEle+IxoB0lHdXBkk688XsKHoTzBBr2rbJsrYJvjmKYiLoRfMbexrYbUUYb9N9ITWw0wXpDCDE3bsECT7+cPsG8iqYlKq/U1PRFuZEXWZnGF8Mv9OESsyNwLLjwIFL0tGdmXlNJkbQBiH3MEZfgMzNhMoSMJRXDK2su8M7lP1TdONAr1ddi4XrZ8tqTc064TU/LChwWQaiDiDkF27KfKoSMbm5g0jFxIiGsneKZGLlBHcfETfmG8gtnglFNPdlYwGb//3niEcIKe2wr/XxQKgwC5kxPy0M5YP0NNROmm+ofs0BQSgm/HrJel8az5W0sdxzK96T7sfTxe+DdunQCu/sn7zhs15AN2lCWTvdvwi6yK/6zc7gC7dqqac3gFe0kwgycl/cfZydSEOO+C7/Gcaa6da4BTH4iZFBME5Eo4a9FYQi1fujfT7dRznVs/YcYOg4h/seevSwaSUK1uVb6IW9iYgU2AA6bEAIYZlR9G0frgntTfbkSg1l9kI0mmZ16lfLJakLnaK630D6hztI62sdUwlBj/nUF6rRhb87xNr10SbT0uxWakLS0Yp3c5nFq4nPiEkEPKJjDLnQB3eJ/WZDmbfTuwg6A0gONZNmC9LERWjxvIWZAs9RHUF2p7p+JQhD/0ZZ2Z4srb7n+sIul/o+aJzpY3ehCAGXbQubLSIdejcOUFDmdjGZHxNwVBSPYiIRSdBvYqeAUpN1EBnU6waSk0dniyxtr2W9nJH7yoAVbIpkZyEr1ghRQ/wD+nYgandcn4yLvQn4hQkxVlXKBDpDujdoGHi+4uFNW6yKFSK0vyhdiKsRvQbzymwDq7SBSu9X+NLqgjq/6lYNajVl6kVK9onwn6uRfP+YOk9LqBc2/xoBoowhPijbwlh6GXtWtRQ5ewhrVjuanSFxDClNxp/Z9yaAaNTj1WrJCjg5gXe1RtYw7trdJUOPLNMoXJ3+G/+RFibGULe9hDfuV5FafPKEJFS08926hboTGkL/au0nz+RJ2qmCKh2Fm6OTGJYwRsUanJLcYlMI/MBIBYAJLYNZ99rrA7RuFDDVSXMP1dKuAnYD/xtix5at75Ib3+MYlnlmh6Bbxy3M6DnNNnlByG6NoCfJUeRNakYUsBOIHodpViQYkbA8APba9EFMKEkRhbsb5VjeO7cuyFSVvmYxjLwozdozICb2OKGKcuEusqv53pSe4PlwoD7l+MVI4MaIgJ/VdmqodajYsNQjVv81hZ1bOwCXYCWaSjsukmSwB3zcwboIs8UHqvIAg0Gt9sDTYkNFE43BaC5kJSysk/1Zi7ZiQ6+U/qiBHMZ/7ys+MdmgjrqlEThuEzn4SuJtVuPqrQ8Coea65ow1E6jvWZD6jyB5h6zBpqFEawBu733gFT/6qKhzo4RX7NeNYhkk0PCwCMWM4c6R6G7q/hEZF4tW7O1ZIlIX8mimseiQ0oTRGUJ0c1Yiy0tptDH6Tf6OdlmDJGGic6g3wuLK0hhYJCmSNiRTDfLr3QmcYuoKUQKXmIqJhgoAhd5o0VDDM1/rC3vnX+/y3C6Cpb6srQNI1dVpocqv+FAt5NRx3Gg4ZdYbA9Hl3ay9Lrh2t5jcFW2EeWMpYRdnmJiwlJBfbS40MRHdRiEUW+gBDxo6iOUUpmEdtr5zFwNLTqre1y51o3zG/cm2KSek+pT1+lW7tXTzXwsyLZfeuUzbP0sYReLVpdyuEMO8/SNeDItJfaCEQZseqsmW6xvOCqAJnMczvnMD8R00BbsLaD5JazkTIlfkhZLa0xJsliHYbj84KKlwM2zKneM0rtrYkGJ+MnL7LR50V8C8MQEDeOlLFE0YsDSgWupntbLSWUB2Hr4W2D3aB57CULR0Vz0YNnUCOF2powS6xRLY0lHsky5bhqOSC4b9KZJZPSvK00QPxLrJLhJOPwIrhhW7zV02MwXN1IxjyEuClJSsJkcGpQq08BDtoaLQik4x0U7jZPxCiy1bBujBgS5WpY5e7vEDl87oamUuEqe6w775ZkskaICpobtP3fKzOEqLLHzU/uR7oIxqmQFhTuR3mSimosR8H0qbEA5ud5DgZRvQgU/9XK65loh7Xk6ZHJ1P9+irq3RhZerFzT8g3r+seFtFGstQ5m+6pKNzP85S5oxYLfa8ZkbOkqEywoSFnIGz04xKhN9wkbbRc5WPiLonvtCOMoqaV+bPsvL3lWr5Vr+PY+63sDiCPWr/eL6ppPY3+zYemsZgYyk38JEV2o5UGvgXWbFoLOGMANlx9EHRmgahCO+J90XSQ4WCqxBXvx3CcBitx1gmquVrjGOOHK5XuZO40strs3NOj6ZNxiYlSY2Q6gsI0MT2PE16DLYSzvMiP2Kr3ei5XaF1M80kG50Tm/LlYWtP2uD2HJ3HrGQdngoontynIzgWvRntw6YlUg2wW/XJxsFVwnzVwg7l10ljE/GGy3HvCxvWC/fzexUdhc/z+gPuz2JGw+Yl1DGje7Uxel6OYJGKXmON8tngUKGgC8O5kSaFE5us40Fch1UeN9y1dC1mKJJ9xhm04tkhNEd+ImZMaXMprb5VT22MSSEdw5i+RJ3rO5p8KWMcdgscfOmEQycSF4qyPe2xM/ZfZ12sfDICUKHME+r5aOZUDlvYFTE8rGknRZc0hGpXZEpIBG31Xl9r1MlWd3F87HwBUq2NedZOyX7eUXKXuozWyJqdCvrTsfIlP/FpAZyOSWyrEZUAqY82JjuCdL2RteHf6W1tqaCx6QC/joP8dEkgnuSxk5BJp+zzbgT0BE4Y9NNYJvqJbhX22EuETECqBbsEcs/UyQM44QUH807z9ebTgCo3z7p4GRvcvFTJLUTNOq1vFQ9zveG7LxJFu6Ui3qdRiV3hCPXDNspcDfib9wKaNoVKp6UPsH0i4GuezTyQTpzG7NessIgriHjRynQLvrvZB3dfS3pR01MB3RaJxk9JqIjLQ6J25WywoPC7zHt9sJM64tp3sUE2GRb5B2cKbqf8zRQQNct2ixlYBUzPzrmzdaISpaQ+HU+ds4PQ69evM+wuTRaoCfiq016uaGhGSjkPVqL/wddi/Pdygp1vr1eMVdUP7JDQLC51lZ06piG7qQw0owXyFHGZYKS7DbEiefDRyKYoR9/Rn9w+1JaDJoVIveshWm3YCeZfc35OHKIyC5epPQhLBtMeDOywsdiPFgptrt3WxmqKR+uSgFXuJ6Q9cu0jYcTfJU+f7E+er/a2XgcMu9KZdknA/AjCBsyJmgWuM6fiIT26ggrt/ld3x5rnhzMfbPdd2iHSpuQx6dy1feu2UKM022fGsqdCQATHnS04NHgnrzaYpd0E5CQDVibOOwEjYojyR5EMSqE3/SI42niUQWWTz6SOfdfgW/aVJQapjFClfGyYooSrTPiEsdDRewGVLYnd8gQ2C2XSoKZsZiGLLi4TUCy8QL6FgG4VMNbOgBTpNFUkG6N5eRTKxfxxXPp+UNYivxnKfWnU2goFHfFFsIbS5E5A5uK52uPvUxGrrey2rMJfj07GNK0C9scCNiJgP0jJiyRHxChlh023b+TaVOmUG/cunHGG8f7z1CN9nBfCntKnwowqKRxgPm3IEqailaMhGnjaCUjAYs5Jp5fKFQJ2Md08UNExMnSAwb19hR9m6rf3Ofu21WW6V/ljyBMCl2nwAhn2KWouCK5RwEAB8x0sDHO7wp07AYMuMk23AciZgHneSAFj8oTiZ2SzGmWll2QXF83mQD5XsiAscnVp8yHbgtWBK+WBgMODHVxz1VBmpSLgcKeivmx51KHaCdgL4nQkoOPi4+Bg/hQxxVrdB35Xfdd57MqpkPjVALeuOVcBtqfR02u004cCuizaxvSCnGxNYY4FLHrm5FSaNsuab48ExGfBsrDPBXxAEqv0rnyZjWXYCKfuriOFh5jlC2J83qS8FgLO7wjIWKdoBxgOrGjYCyhvuxdQHRmZrsOwbTuwwni+oeJnr6a528Ju36Hj91w1SoQBcpajOYTnD7gspiv2HRXFw08ZUSKueTg4g4WKGg7oywSU2rY6chPAlxRZmzHKB7X7M/nl96VeXahHd09BYTGtGjm+CTcyBB2HhFhlHgi4+UF5+AVKVVKUPBTQmaJXD5lHnQs437mJaEXZroVz4q08IGpNnE5wZ0gzEOWlnLmxDosjdZ7F6uF8cjDz7PU5PxEw5I6eFQAtHYnWbQWmJGCkUbqigybqRRHJ9EQ39Z2AMo+SMS6osfPAIX8k2t+xil1JGXZ3iRlBayJQn+fZ2RjQaWmmNeU4UQp4H8kkbqkdvuZNZumDVorMJmHKGeq2CLbNjn3goo0z0gOZplRIPghU6X7I6XYCjvoYdUwkl7dpZMwl+4mLYFsaGrWWfGHbwfNBppc7+iybsDJ6EXzdrlx0nbKnMthmM4OSgR1N3qfJjk99D0NO+rGAI1VU5QmWQBw94996T/fTWpZ7y+Ve1wHg3Q5Wu88HB8HQr3f54Bwppft0yas2xNQkDWMkDFpz7J/2OzXsM57gnYCM9OozitoRRxQ90D3nOpbpUp8lvGU+uEd+83Qpm6LpDrols06eRiCtTPm+MqMf2G8mIysEChS4V+0jlVzAe0ZGEPCU4i3X+7BprWenl7LvZfTmYdWo8TsenjTw99sFVmulWDhOnWAyuYXvZYFhVWpBdgU6Q7U27yM7FHAfB1RfBjJNOauTrCyZD89+tFMllOr8TTRHMUhbwx6yOLDZCZMRGtcxfTOD5txaPOvLBBu/Tx4ZObS6iaqgD7DKrDfvLtCJ5ipW8jBWkJ2EwgRkzGzKH40VZpj807PiRFWgapEqOh6NBdJlMKp3jpANRQpjljlBjnO2W/lBL0BK9xBFPoRqGalN0h4AH9NKt6QJCyyZ1baBk6M0XYaiRwLqTECB7ufn0P2a8Wqzt36WjqaRZnnOQMCkBBHw7kO3cFHfj7a4WYZ3/E1hUyuZPUu2/w7ZFtzLjd+GbNtmdXwPiy/xXFvWGfpdnaqOxwHNqtJr5v8vH/Nyr4Q5qW9PonS/xyyyl9EyVFPpErwPtc0Kqm2QjD9QvSigiUisbR5M8sgQTE3I+NVRwFvOFyAQVckkqwTFS53NbDU2lxCJzKmufIfrsD2RkIuJ6ZCmKq3HF4n/TX69kU/hcL/30c+rS4N60HPXFRF7AkRUKHG1Rp0C3kHYVI38IDO6eq8QfUHU7SNz+63AP7vYnyHNSGwfhjz/WeKZ6A1IRBL31EtsNAsX0duHDVuDzh9qTkY6V9IOpwSNkvJMHFzRXGQU4GIaZuGiYRNft1q+EDqs0CnNOsUa5jlNWVDCV23r34CB6F1aMijp1BrLwtejqbatzUzqsYC3rMLhY7mzLBDKsfdUZXCqG5m0BPBd8GAfofcmkS8yLvlJBLQy016IIwK9zH03kf3DzjXO9+cssKYgz4tXQo2+y6sKz2r0C1z1cZbFjXGG3RlHZW9DLZadEbLCREmG5VW8vOek0uzezIhKKMnZqGkc+BKRDYBiOK8YFx4I35zjLkrKilGRhNjf1Z4PWRbLnkkFdH5ewxZjzIErd0wuYny2V3EL2bs7nKww8KmGEwaPcqRDt8W1pK907izhD9vkbS2zBgYB35iPMJPAXRVTHNxdGn8dewmfl+g3L/GaMZ2OO3tzsmGf1cjLLQwzJ7c3WmrtYt85fthwoDMADHOWMUy5lyAwqHuSKi9ExGXCVuQdc0gEu5E89aA1u2styMaLz/ksjnHCq8hkJwrSXg4P4ZzR+rqUmO7IhuizxfQX0LxfjMzg4ED4VEHCCAhyJwcUnjPci8ggR8oweCHBPTqzKfok6ihniZ5ZXijPl9z4IzygPI4J1SP3llVczZ5tuIvpVv53lSqsY3nLjf4CSrVu21gZhDRoMxJHxBZEY262VYWAlg9PmrOXmTcEKQMvxnmJb8ErjmSUxi4OdUt5N2PEHsUxmxF1B3zR6r6naYuQ+0SmKn4Ubba1jDx6idcsYem+XpMn4uVKNUeSyEHfBMQOYhsucr2WDG8IcdaZBLW0un1sntgF5GnmSdaDdjTYwadI1GdNDy/ZpTIPDyGGvaN8xWPgd5ZIDVcZthQBC4HlA8klnFGBQEdUNDuDaKpnDIupTHJotU39xnLhFNrlrnF6RUHoYHOi2FAaC6+ephLVvs/VxljGP2OSvOg4QECrfeMNTZrhaFO5eo9hFocxVPOtlisHrHRBlALK46PWSxiDxbo3GZBkYr9DmKX7QwlCnU3IEDJuPZac7fowjlFFBAC2xsNYxhXa7lLbhNoBLp7Ge5CwRiIRnr7LWbQOPC74Qvj2OnMTXhSQ1lbGenac/ifnL2LCQ2ygLzu8Y/uSduNYsO7tw9sHGvulZNQ9mMi96aiJVS6m7mW6R9iWrPdOxqfEB+U8wJqkrSEO63M2c/TsA6QTYTk7jj3iGZF7F630BA4zpBl3EYUWF0WyqG2ea6jZzUNwWfPZfT/fpqNntoNK1luymvvT0liQEGbJCMSl8cwwt8C4Ep33OkzXEymVcqxoN+nfWeI+C7u879+oE+dd9KWVRIDXvKvgsPdJ323u0DyahuQKfe8kEdO0EPnP4l5WfPYnspEHv4Qs8VaicI1dP5layUo6jnnUdN1qLWvrpbtAmrxL3q2V3iUT49BtraYPMLaXbPsBZTSLksXXT7cIXJz27dcyp6XnqKt2EVCzeQab27k8uIpBkxQ2APo0tEnpkA926z7bZ+AWg7+aS1rilydxWrcOtHA7Wqs+ngvoTYGlwB1wyJEtWpSRIjG+5oB3dLebBQhmF6kmc6LkdkdzBhWVCccR7RWHkuZ6OdvsAxRp9UlJ2DYX5QgZWdoAigjAPc7qiXQ1uYsep9QBakvf2lEVGQyhVwD9qErimNaSrR15BLmVeRUGPeQLcMHEAjiRI2nQGAa1t/4dRvMAMvWvrgB3zBN+lnnbZZKP51llPbyER080pJCm6w56eOmyOyoYFY/zGS3J6I1MOM9hQ0Ej2Oojs+UYqy1+3XdHvXo441SRU5HCHc5q7O/7IzdievfgTr4254i7W+xAs/doOSBETMbnEAy2GZFwgS9x/mZN8pHJrJXgZUj2Zbgjp3NqFZ22Da8MV857vCOOVipS3Rc9PJz7cx+jiqN4oKPZIATyZ2YX4nr2dwshe8O8EIQlDrfj7Yqo+iohH+UN8CJgDb1BQxOA8CA1N2jcSQbIOOf3G7j00Vch38AnGjruvnd66CgKZr2JTYaG2MhwMNmSLZjCt5d5ZPXEizA7QW+7wvhNEfRHEM6ZawxYhUI2kUtq9rCpxxA8eEF7qgoTejjZKGXWd9rrEi328TSrxZC6FFXICKVx1yBu4iSg2HfIm5+83GmXppTlEzFEQF7+2XFLtFxohDfgHeD7GSfdK+HeGADnNSpj3UOu78FwtWc6uo2ExpCTeLcGx2Vtq5Qauuz1gh3jjGKBaKkQvA5UL4zovD2cVQ3c0yvxnUaLqOc1ux28uav23nvmZAnjp7JOfIhoL6nwAQKTfP389ObWdWaQVHubNfAQlijr619k3JHcmkAO4clRwGiQMgG5NGCcYGRs2CZAIEqgAvzrXGreNYgLjIX46pzNk3HjQzztwL72aSJQ93iw8RrOoEG0QwKBPfiv8Lt0e4JpG0mYHL/GWagzr27vYhieGHsl9DunkTTVzcX54p9Bh2o4kHyw+xk1HEyQnjifCHS4Fa/mYUGmbp4MWN28NMKlIUHa1ELOZ3GsGKzM3CtvgZrkpgyBxpeb2rti7A6noSk2vsc7k72VWUn2y9SV83au8YPEpffZZKLjy+vWe74OxIjQ8we2EEv3OWbcYrptF6dWNik9dXGGGA7XIH0jvFlvmLYYcQmJupPkVmIMEN6JfbIcLeDy6+edxA+NeuMIx/7L9hR6HquHgOihA4lITfPohtRztnaD3MGCwS+Mr/rwlgZ7pKLuOFcyE9yLwiLgvHan3Q7CRXcArl+lu7AnczLOVcNINsJN9XpPn5tQfLwQXZtKttTxwGknaZFEXA9HGz4Yc5wv//IzHMwFb+jSdNPt1Ed9E81kBjX6u7eQwcPi7twsNqwhgoZyzGcjU0e6YU3tGjmpdjfrVx+5iGxklTu85kXMzNQ9mb+dD4dkRUImEVVyX7cy28GeP8vU+1SU8GO138F4sabzAu9TPPac+0XFlrzC/4dwj0CB4jTjMR//eezP4hT7B6l78jHoxH8wkOisSlY0aGlxeqMVqrjdXSomAwrIOKfA7EmxuY8GcfkmE2blwgnWBuPlibKMxJ0WAyoBhczSfy106PVx1Nw+HLZt9cuDar3wAfMP4K4AXKeFQ1mB/Ag7lPMf5KrFeF2I3XV0L4BXvPFGoM50cU86ZY1Q1QeRr4nDvwq6Irqzx4cCPB4Ru2zh8bfHnBiNwitGZnuWwAgE47qB4e4uR6Kb1N50JQqKTtn4QJuEi9eEuHmFoIlgwJz+LlOwKZ9OU0lCMZ+2e2InHo/adqN+edhphyKEzUcl8yahs5WiOSc9nKcH8/yka0vuPcnHgccvwPCS+5iFtD7govBL93k6WZkujxm//JEpv3sCMe6hBO7/6GMy6m4J2suDyXZ9MaU5apmXQBiHvr8PLLz1VZqoKRfPLnS9dLFUbd0duQpzIzkVaQiD8Nx5wL3MmcrGt77o8xMb8vzazNgXBu70s6soVlPql+Ybmag93d19bknPYmASO6ZQ0wXbXP59TqsxjvcsMwZA1xAvd2iU4yivyYZiCvXTaKt5dquGTzcz//ZIwOwgyI1WMr5XBnG2Moi7zPClHRncvFO81eq2zfiRMQmzfXDrPadby9Uj2t949cjkTbMbEP3kBM7PbyvQ0QscH9Nr2UIziM+cZCA2O8cL1R4ZTRO9UCref1IN3drmyKnfwCoOAw5/mnAfNGfdg4Eve/VaTNh/dJG5V8+nbGegaWse7fJo889amcnMkbTEWjaPDDCwQsldC41ISRJhzXkd8cYs1RwmBLhOm0Oe2eWzEFaKVT3ZJyOYX170e9e+SML1oJSW3Z6az/Pv7DkwbGnWu6zkDIoX5F0ZyJe0XAMi9kVqnHJZVntQ2+uGE+tuWjKS0N/x9VV9mo4FHNSH7suMpqg1n8bHx7DdXdSJBHG41SICb3Rdy6oERxoMlAP+BG1FJQb7diE7H8MU2KC6L+CSsutuJ96TR/P536mbs5TvwfMvlQHz7uTdscsv7TlIKMsrreJc9WqmbnPsfHbnyxg44AD7QRSRF2Nh/CDG2xgltGDp6LZ3w7i8TD7HP/MUJN79bddv8UCzhqH54IWnCXa7a03JApp9C5CL12NZElxUEyOzRfkGh7lNBEh52RQbIgAwDdJlxtEkOX7NtB4VJ4Y9rEn56RPv6ihu7QGg5R88VK0/fEl98vaPb4f5vLt3yca8x/fR1jBPstMgpQv3msYbAiFFuIoe2EBbhK1Dqf9is4FjnTtxRNdycRMvRql2N+hAvvM8PXXQOlQfuHtwlKBY2fHJEpQ3Z4VOOMaAJGUHVbrkNGnLmG45rwJG5WFoEjos6pnO/9/91xx7WXaP933LPF9fnobH916P6YGaj905nEKeJ6uxa3PiNVBUsO70OtdywwJv+8C8u7iB2J1OKP/X7jfcf4NwE0XaeYb7TimBFFQYlMtsC2pZKnuUN8gB0JgePHGiXqOFZKw+dr1itDO3R5ucz6UWY3qJBw6T7kISEZWzelj170rW6MgreXwcpHo7h+1p/UV4eTFF7qp/uXiDTnl7nXnk3ziHv33ZLvT88BXRTf350IwilJyHEHb3D9opoFHZIhzr5UFZn8dX0Wzj/e1289M8+NnPuOrIzj6cPPr15/nmPW8G4aT6Wi6Gs12wp7e3eZjnS9E1Ci0ZBntIVVomvDb1x2cluzhHoDvU90AiCZkIZUfuMtGIk1RaubttGbby9BWbgRrSEOj+1zfZv72KPEf3mNT6DRe3jxGAaeuhO+oK0i8/59Uexq7pxu5Yu/y4hElJDxITOCf1k+R7Uk36xltcOfa0eXQZXHd3vfBfI98jBVUbiaf6potq20f3hNuiJfivemUXtRcmT788gXqfXuMRAbzhoIg6vydhpDpFgk/qKIxwRZw70mxteOnH318wTk+fHtI9Ve3+wNh5/QhjHEJnns5wqoU9zwmeDFukBGH5YqWC7Epp7+S35C5ADI2tdfuufk6PQ7Rv8BAFptI8Oryds89MaWNjOxRpQIG3fAoHBmAMvow72cyA5BuDBYzwnBuZbPz0/Za07BHMdFxpev91jqS9y+Ha1U9MabsJSFzGdOQaNELmVWfOmJepI6xxexXvR1fhqUocy7fGxB+KsauHTQXNoXZUT54oCijDrKW9Hn+obYrM5feaVq4LkKuLTbTX6pv1c+2LV/aPyucG8/CGYn96LGEmoHS2/QYBB+mgBIccM36jB7IyXBn5/nsWBpdG+iczw1Rd/WEBN2Ki+xZfkQnIa0yt5Yz2ZPKY5IqRIdNCKMHmPQP6AOlMx7Yx1R9/uU9p6PjdEGZESPojKlqd/6OiHtSdzG+MY3LiJUDEGW3zAQGPCDFuiUBRp3HVn3lF+rMO+xtGnpm99rypqPRUQ+REuiftFSzgWviI8EFgysSSV/vyLUZmHZHTmurPvqKl2n2Ee+rq47kSAVMDYtxTOTBCDwf3iUz/Btcmyo8QR3smodn3hw+LfCf3J+VbBkAUe3jtnoajuEGYXeIzbh6Zl2nEgxRfoG3kF1pyuOgvoKtqiH94KmBTeDr3HfeP85rq/S3Mu9k6RyoV/TtWXi0NOHVAIUyxvwCZvlxfwtEswrMA+hT0e6nE5immVT49VO47iJgaXTct7SrzXuTP8beKNrNZxovJi73V9UUCMxX//hK/ot7zFTLHqMxIH8Q33/zCPRnxNiq13l9i3n2cZebryv9vYnNu/F75My9t+4HsZHMWKX75EAj60bg7wXLGvWtgftxL8c5cXl/RrFie+14SLhQVnoSz/yn5roxCs8O4THhozHeTLrdbUItT0O3PEZDeeAnKm7oaq+8rYXzrlkP4Zdz50UtuE5bq3/ITUhXc/iwDWfj/5Ysq/rzWj96z+LJdoO73b2X/IzFNXDxc/zWfcG38uEL9EU4erNSscfv2J7IvhM+FmvUXXkUwWydkhI4kI7d0XAC+6uSa1w5ki2CHdIHMNV0gtrxzoioMwa9QN57Bue8uIO7GaBbrhdvLuuxW2S/TJPgIHwCoPZolLcQA0HuS/qzaduyIkWcSVN5/mk5dNF8ncN28rEcAfA8ltFPer9BFhpAnX3sdsPKwxP4nX+sKqnB7Wz56uZGt4piySoICdgq8YsqBdHW2Sm7y7ZendtEQy08734EMiwFboAv7z0wthLtRbI5LjSF+jX55FF+rH/RaUpQjVJ8zVMkyJARDGS0bB9v6DaVs0uyPWlGH1HjFawt4X57MKD3enLDYbl6YNP4o+dYCdqsPLsLktZLohOf9k9yMVv5mec20komYrnP55mAP3y68tIcDqxiFN1KdP7bhKyr1J9Lbj71uq58d9ooibaoSnrHZ/6VNV65x0v2LKZlQaE/GCM0QB9CQssVb0WtpoKoPKixrnbf9UcevyJ/SJt6tJS8fMyxjSu81KAcy9yY22qWB91BckpvQCss+F9a8cQ0PuyfOrfqN/Wj4nc+lCD0vL1q3b/hx6rmGpv+a0yYCFfaTy2lCcteWpnI61XZyyx3LmtID2S4BZJDJDhx+wD5LJISxRQSsyfFrdYWKl+MrNloHNtlXf81rWVJp03TFBMY6/gsXobN3pGHiR4E4U+xSsw4YyBSWy8dZD3O4Cw9X+yAtDEGuvGlziIvtMmsZVNVD9Ze9lhsYWrn1c5lTNvLaLzcZQec1lbShoOzbF1TNxItWZRrLZKi1lhdL1+kWMnybA0pWQ9RJZXutP9Z/nXgy8NgsFQbj13tZEY/40FEWwEy4llOJgLJjMteKEL40bkFeQvtq6GXgDho+eRUap8aZpbV1JCN4SROxkLOr/spXR7Z1m02TFrcv7MNz9XpCn6/c5q45SYfTU3DB5DkEcoV4lQ2mhzKcZE8TVgMABgaZyLCkRQsxvtpnBYvm+6V+32Jt1gVOIlLGkQnyJFdhxh7Di0D21FfOBm0lrw9pfgyHphpOg2X1GvT13p7EufbRM7T5tHFX/YzXNga9kfpAAqCnwUsbodyOyfuJWvpGFGjT4LxPtYwIrHvOZZfiS+op96frSEbsHLa7K1rejf7jncMD6qrMjl9vihAOVxozRurPKXG6MBTOk/05sn9yjpgKKYe2kmEBEqYKL31My6Y2+jo5RWP3U+RLvSsbm6xtEjUGMVkVBseUAjnGPA+8aQo3aXlj2Bw4OtJnyZJd9dHH2zkZl+ZXZzX6Mv3hu9G/z4sKlV1pQ4LMMpfy4NTYt2gfr8sNrZ9Doir1FM8P+VUwXK/zTxYvXdeJ0DI7M+QbpokGPt1p3bnNWW4363ZRtEVYy7tGikn//hcQb93Fcu3JRU+9aEh7KWjHLVpduEdWC8kW2UIdCaUv+dHrfhHx1iw2mPz2jHT/WTFvgRIhcy9us6SRzXduM1e/jnhpU1IjT1vgv7GtR26buRbM8yBXv2m1uxmmjZcSQaF/LfHiBvXpJLV3OHds5BFkzUSxmoMLjHi13+UL38lVv+arky4ky5a59tvAU7m1z9jb7j7WX/Dl/Cu7B2NzWftB4ZrVu/Su+vVfImMVu1tkLx/tZrucUSt9UK9/C+mqcjAssTZeRaR1Yoc2TaKQ8jxismFSyPVqm7/VC148H0XageR7RvsZ2u667nUNd9zfUrbCSVLQ+1IC2nrd31uyf17/vP55/fPi6/8DqfIrO/qRQj0AAAAASUVORK5CYII=';   // UPESSC seal, recoloured to the navy ink (#142844), 2x for sharp rendering
 const ATTEMPTS = 5;                 // Mode A: the 5th attempt is final
 const MIN_FINAL = 3, MAX_FINAL = 7;  // Mode B: the final iteration is drawn at random in this range on the Randomization PC, before any roll
@@ -708,7 +714,7 @@ async function renderHeader() {
   $('#logo').innerHTML = `<img src="${SEAL}" alt="UPESSC seal">`;
   document.body.classList.toggle('signed-out', !session);
   const nm = session && session.name && session.name !== 'Verifier' ? session.name : null;   // the built-in Verifier login is just called "Verifier"
-  $('#who').innerHTML = session ? `${{ admin: 'Admin', verifier: 'Verifier', client: 'Randomizer' }[session.role] || ''} · <b>${esc(nm || session.user)}</b>${nm ? ` <span class="mono">${esc(session.user)}</span>` : ''}` : '';
+  $('#who').innerHTML = session ? `${{ admin: 'Admin', verifier: 'Verifier', client: 'Randomizer' }[session.role] || ''} · <b>${esc(nm || session.user)}</b>${nm && session.role !== 'client' ? ` <span class="mono">${esc(session.user)}</span>` : ''}` : '';
   paintNet();
   renderBanners();
 }
@@ -724,8 +730,7 @@ async function renderBanners() {
       if (!c.ok && c.tc && !onShift) b.push(['bad', `⛔ Randomization blocked: ${c.reason} ${c.fix}`]);
       else if (!c.ok && !onShift) b.push(['warn', `⚠ ${c.reason} ${c.fix}`]);
       if (!tzInfo().isIST) b.push(['warn', `⚠ This PC's time zone is ${tzInfo().utcOffset} (${tzInfo().timezone || 'unknown'}), not India Standard Time. All times here are shown and checked in IST, but please set Windows to (UTC+05:30) Chennai, Kolkata, Mumbai, New Delhi.`]);
-      if (!hasCommittee()) b.push(['bad', (await idb.get('meta', 'committee_ready')) === false ? '⛔ Randomization needs the Controller of Examinations and Chairman logins, and the Verifier has not set them up yet (Verifier login → Logins). Then press “Update exams” and sign in.'
-        : `⛔ The Controller of Examinations and the Chairman must sign in on this PC before randomization${LOCAL ? '' : ' (needs the internet)'}.`, 'committee', 'Committee sign-in']);
+      if (!hasCommittee()) b.push(['bad', `⛔ The Controller of Examinations and the Chairman must sign in on this PC before randomization${LOCAL ? '' : ' (needs the internet)'}.`, 'committee', 'COE & Chairman sign-in']);
       if (integrityIssue) b.push(['bad', '⛔ Audit integrity check failed: ' + integrityIssue + '. See Audit Log tab.']);
       const rr = await idb.get('meta', 'reset_required');
       if (rr && !LOCAL) b.push(['bad', `⛔ The exam data on the server was reset on ${fmtTs(rr.at)} IST. This PC still holds data from before that, so it does not sync. Export the audit log if you need it, then clear this PC.`, 'clearpc', 'Clear this PC…']);
@@ -742,7 +747,8 @@ let reauthOpen = false;
 function needReauth(msg) { reauthNeeded = msg || 'Your sign-in has expired on the server.'; renderBanners(); }
 async function promptReauth() {
   if (reauthOpen || !session) return; reauthOpen = true;
-  const role = session.role, label = { admin: 'Admin', verifier: 'Verifier', client: 'Verifier login · Randomizer page' }[role];
+  if (session.role === 'client') { try { await promptCommittee(reauthNeeded || 'The sign-in has expired.'); } finally { reauthOpen = false; renderBanners(); } return; }
+  const role = session.role, label = { admin: 'Admin', verifier: 'Verifier' }[role];
   try {
     await new Promise(resolve => openModal(`<h3>Sign in again</h3><p class="muted sm">${esc(reauthNeeded || 'Your sign-in has expired on the server.')} Enter the password for <b>${esc(session.name || session.user)}</b> (${label}). Everything on this PC is kept.</p>
       <form class="form" novalidate><label class="fld"><span>Password</span><input name="p" type="password" autocomplete="current-password"></label><div class="err" hidden></div>
@@ -755,17 +761,12 @@ async function promptReauth() {
         f.onsubmit = async e => {
           e.preventDefault(); er.hidden = true; const btn = f.querySelector('.btn.primary'); btn.disabled = true;
           try {
-            if (role === 'client') {
-              const r = await api('client/login', { method: 'POST', token: null, body: { username: session.user, password: f.p.value, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } });
-              await idb.put('meta', r.token, 'client_token');
-              await appendLog('client', 'CLIENT_SIGNED_IN_AGAIN', { ...buildLog(), network: netSnapshot() });
-              await applyDownload(r, 'sign-in-again');
-            } else {
+            {
               const r = await api(role + '/login', { method: 'POST', token: null, body: { username: session.user, password: f.p.value, device: await deviceInfo(role) } });
               setSession({ ...session, token: r.token, name: r.name || session.name });
             }
             reauthNeeded = null; close(); resolve(); toast('Signed in again ✔');
-            role === 'client' ? (syncNow(true), renderClient()) : role === 'admin' ? renderAdmin() : renderVerifier();
+            role === 'admin' ? renderAdmin() : renderVerifier();
           } catch (err) { showErr(er, err.network && !LOCAL ? 'Internet is required to sign in again.' : err.message); btn.disabled = false; }
         };
       } }));
@@ -848,45 +849,97 @@ function readColours(el) {
 }
 
 /* =========================================================
-   SIGN IN — one card for the three login types. Every login is a username + password created by the Verifier.
+   SIGN IN — the Randomizer sign-in comes first: step 1 the Controller of Examinations, step 2 the Chairman, each with
+   only their own password (one login per post). "Other users" opens the Admin and Verifier sign-ins (username +
+   password). Every login is created by the Verifier.
    ========================================================= */
-const ROLE_KEY = 'qpr_login_role';
-const ROLE_NAME = { admin: 'Admin', randomizer: 'Randomizer', verifier: 'Verifier' };
-function rememberedRole() { try { const r = localStorage.getItem(ROLE_KEY); return ROLE_NAME[r] ? r : (LOCAL ? 'verifier' : 'admin'); } catch { return 'admin'; } }
-function renderLanding() { return renderLogin(); }
+const ROLE_NAME = { admin: 'Admin', verifier: 'Verifier' };
+function renderLanding() { return renderLogin('randomizer'); }
 function renderAdminAuth(prefill = '') { return renderLogin('admin', prefill); }
-function renderClientAuth(prefill = '') { return renderLogin('randomizer', prefill); }
+function renderClientAuth() { return renderLogin('randomizer'); }
 function renderVerifierAuth(prefill = '') { return renderLogin('verifier', prefill); }
-async function renderLogin(role = rememberedRole(), prefill = '') {
-  if (!ROLE_NAME[role]) role = 'admin';
+async function renderLogin(role = 'randomizer', prefill = '') {
+  if (role === 'randomizer' || !ROLE_NAME[role]) return renderCommitteeLogin(1);
   if (typeof prefill !== 'string') prefill = '';
-  try { localStorage.setItem(ROLE_KEY, role); } catch {}   // a Randomization PC reopens on the Randomizer tab
   const note = {
     admin: '<p class="note">Admin logins are created by the Verifier.</p>',
-    randomizer: `<p class="note">The Randomizer page is opened with the <b>Verifier's</b> login. Then the <b>Controller of Examinations</b> and the <b>Chairman</b> each enter their own password.${LOCAL ? '' : ' Signing in downloads the latest exams; disconnect the internet afterwards to randomize.'}</p>`,
     verifier: `<p class="note">The Verifier creates the Admin logins and sets the Controller of Examinations and Chairman logins.${LOCAL ? ' On a new installation, only the Verifier can sign in.' : ''}</p>`
   }[role] + (LOCAL ? '' : '<p class="note" data-offline-only>No internet: signing in needs an internet connection.</p>');
   app.innerHTML = `<div class="auth card signin" data-role="${role}">
     <img class="seal" src="${SEAL}" alt="UPESSC seal">
-    <h3>Sign in</h3>
+    <h3>Sign in · other users</h3>
     <div class="seg" role="radiogroup" aria-label="Login type">${Object.entries(ROLE_NAME).map(([k, l]) => `<button type="button" role="radio" aria-checked="${k === role}" class="${k === role ? 'on' : ''}" data-act="role" data-r="${k}">${l}</button>`).join('')}</div>
     <div id="roleBody">${note}
       <form class="form" id="lf" novalidate>
-        <label class="fld"><span>${role === 'randomizer' ? 'Verifier username' : 'Username'}</span><input name="u" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(prefill)}"></label>
-        <label class="fld"><span>${role === 'randomizer' ? 'Verifier password' : 'Password'}</span><input name="p" type="password" autocomplete="current-password"></label>
+        <label class="fld"><span>Username</span><input name="u" autocomplete="username" autocapitalize="none" spellcheck="false" value="${esc(prefill)}"></label>
+        <label class="fld"><span>Password</span><input name="p" type="password" autocomplete="current-password"></label>
         <div class="err" hidden></div>
         <button class="btn primary block">Log in</button></form>
-      <p class="muted sm" style="margin-top:14px">${role === 'verifier' ? 'The Verifier password cannot be recovered from this screen; keep it safe.' : 'Forgot a password? The Verifier can reset it.'}</p></div></div>`;
+      <p class="muted sm" style="margin-top:14px">${role === 'verifier' ? 'The Verifier password cannot be recovered from this screen; keep it safe.' : 'Forgot a password? The Verifier can reset it.'}</p></div>
+    <div class="others"><button type="button" class="linkbtn" data-act="back">← Randomizer sign-in</button></div></div>`;
   syncNetUi();
   const f = $('#lf');
-  bind(app, { role: d => renderLogin(d.r, f.u.value.trim()) });
+  bind(app, { role: d => renderLogin(d.r, f.u.value.trim()), back: () => renderLogin('randomizer') });
   (prefill ? f.p : f.u).focus();
   f.onsubmit = async e => {
     e.preventDefault(); const er = f.querySelector('.err'), btn = f.querySelector('.btn.primary'); er.hidden = true;
     if (!f.u.value.trim() || !f.p.value) return showErr(er, 'Enter the username and password.');
     btn.disabled = true;
-    try { await ({ admin: submitAdminLogin, randomizer: submitClientLogin, verifier: submitVerifierLogin })[role](f, er, btn); }
+    try { await ({ admin: submitAdminLogin, verifier: submitVerifierLogin })[role](f, er, btn); }
     catch (err) { showErr(er, err.network ? (LOCAL ? 'The app could not start its local data store. Close and reopen the app.' : 'Internet is required to sign in. Connect to the internet and try again.') : err.message || String(err)); btn.disabled = false; }
+  };
+}
+/* The two posts as set by the Verifier (names shown on the card); from the server, or what this PC last saw */
+async function committeeInfo() {
+  try {
+    const r = await api('client/committee', { method: 'POST', token: null, body: {} });
+    await idb.put('meta', r.ready, 'committee_ready'); await idb.put('meta', r.committee || [], 'committee_info');
+    return { ready: r.ready, committee: r.committee || [] };
+  } catch { return { ready: await idb.get('meta', 'committee_ready'), committee: (await idb.get('meta', 'committee_info')) || [], offline: true }; }
+}
+const postInfo = (info, post) => (info.committee || []).find(x => x.post === post) || { post, label: POST_LABEL[post], name: '', designation: '' };
+/* Step 1: the COE's password → a short-lived step token. Step 2: that token + the Chairman's password → the session. */
+async function committeeCall(step, password, st) {
+  if (step === 1) return api('client/step', { method: 'POST', token: null, body: { password, installId: await installId(), device: await deviceInfo('randomizer') } });
+  return api('client/login', { method: 'POST', token: null, body: { stepToken: st.stepToken, password, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } });
+}
+async function renderCommitteeLogin(step = 1, st = {}) {
+  const info = await committeeInfo();
+  if (session) return;   // signed in meanwhile
+  const post = step === 1 ? 'coe' : 'chairman', p = postInfo(info, post);
+  app.innerHTML = `<div class="auth card signin" data-role="randomizer">
+    <img class="seal" src="${SEAL}" alt="UPESSC seal">
+    <h3>Randomizer sign-in</h3>
+    <div class="steps"><span class="${step === 1 ? 'on' : 'done'}">${step === 2 ? '✔ ' : ''}1 · Controller of Examinations</span><span class="${step === 2 ? 'on' : ''}">2 · Chairman</span></div>
+    ${info.ready === false ? `<div class="notice bad">The Controller of Examinations and Chairman logins are not set up yet. The Verifier sets them up: <b>Other users → Verifier → Logins</b>.</div>` : `
+    <div class="officer"><div class="eyebrow" style="justify-content:center">Step ${step} of 2 · ${esc(p.label)}</div>${p.name ? `<b>${esc(p.name)}</b>` : ''}${p.designation ? `<span class="muted sm">${esc(p.designation)}</span>` : ''}</div>
+    ${step === 2 && st.coe ? `<p class="note" style="text-align:center">✔ Step 1: ${esc(st.coe.name)} signed in at ${esc(fmtTime(st.coe.at))} IST</p>` : ''}
+    <form class="form" id="lf" novalidate>
+      <label class="fld"><span>Password of the ${esc(p.label)}</span><input name="p" type="password" autocomplete="off"></label>
+      <div class="err" hidden></div>
+      <button class="btn primary block">${step === 1 ? 'Continue · next: Chairman' : 'Enter Randomizer'}</button></form>
+    ${step === 2 ? '<p class="muted sm" style="margin-top:10px;text-align:center"><button type="button" class="linkbtn" data-act="restart">Start again from step 1</button></p>' : ''}`}
+    ${LOCAL ? '' : '<p class="note" data-offline-only>No internet: signing in needs an internet connection.</p>'}
+    <p class="note" style="margin-top:12px">The Randomizer opens after both have signed in.${LOCAL ? '' : ' Signing in downloads the latest exams; disconnect the internet afterwards to randomize.'} Forgot a password? The Verifier can reset it.</p>
+    <div class="others"><button type="button" class="btn ghost sm" data-act="others">Other users</button></div></div>`;
+  syncNetUi();
+  bind(app, { others: () => renderLogin('admin'), restart: () => renderCommitteeLogin(1) });
+  const f = $('#lf'); if (!f) return;
+  f.p.focus();
+  f.onsubmit = async e => {
+    e.preventDefault(); const er = f.querySelector('.err'), btn = f.querySelector('.btn.primary'); er.hidden = true;
+    if (!f.p.value) return showErr(er, 'Enter the password.');
+    btn.disabled = true;
+    try {
+      if (step === 1) { const r = await committeeCall(1, f.p.value); return renderCommitteeLogin(2, { stepToken: r.stepToken, coe: r.officer }); }
+      const t0 = Date.now(), r = await committeeCall(2, f.p.value, st), t1 = Date.now();
+      await finishClientLogin(r, t0, t1);
+    } catch (err) {
+      if (err.network) { refreshNet('login-failed'); showErr(er, LOCAL ? 'The app could not reach its local data store. Close and reopen the app.' : 'Internet is required to sign in. Connect to the internet and try again. After signing in, this PC can randomize offline.'); btn.disabled = false; return; }
+      await appendLog('client', 'RANDOMIZER_SIGN_IN_FAILED', { step, post: p.label, reason: err.message, ...buildLog() }, { actor: post });
+      if (step === 2 && err.status === 409) { toast(err.message, 5000); return renderCommitteeLogin(1); }
+      showErr(er, err.message); btn.disabled = false;
+    }
   };
 }
 /* The built-in Verifier must replace its default password at the first sign-in; nothing else works until then.
@@ -1084,7 +1137,7 @@ async function renderAdminSettings(v) {
     <div class="card"><div class="row"><div class="grow"><h3>QP-Draw certificate signatures</h3><p class="muted sm">Printed as signature lines at the end of every QP-Draw certificate. The Randomizer page picks up changes at its next sign-in or “Update exams”.</p>
       ${sig.length ? `<ol style="margin:6px 0 0 18px">${sig.map(x => `<li><b>${esc(x.name)}</b>${x.designation ? ' — ' + esc(x.designation) : ''}</li>`).join('')}</ol>` : '<span class="muted">None</span>'}</div>
       <div><button class="btn" data-act="sig">Edit</button></div></div></div>
-    <div class="card"><h3>Logins</h3><p class="muted sm">Admin logins, and the Controller of Examinations and Chairman logins used on the Randomizer page, are created and reset by the Verifier (Verifier login → Logins).</p></div>
+    <div class="card"><h3>Logins</h3><p class="muted sm">Admin logins, and the Controller of Examinations and Chairman logins used on the Randomizer page, are created and reset by the Verifier (Other users → Verifier → Logins).</p></div>
     <div class="card"><div class="row"><div class="grow"><h3>Your password</h3><p class="muted sm">Logged in as <b>${esc(session.name ? `${session.name} (${session.user})` : session.user)}</b>.</p></div><div><button class="btn" data-act="pw">Change password</button></div></div></div>`;
   bind(v, {
     sig: async () => {
@@ -1207,7 +1260,7 @@ async function exportResults() {
 }
 
 /* "Clear this PC": deletes every exam, roll, final-iteration draw and the audit log from this Randomization PC
-   (for test PCs, or after the server's exam data was reset). Needs the internet and the Verifier's password; the server
+   (for test PCs, or after the server's exam data was reset). Needs the internet and the COE's and Chairman's passwords; the server
    records it first. The PC then gets a new install ID and starts a new audit log with a PC_CLEARED entry. */
 async function clearThisPc() {
   if (!session || session.role !== 'client' || busy) return;
@@ -1219,7 +1272,7 @@ async function clearThisPc() {
     ${unsynced ? '<div class="notice warn">Some rolls on this PC have not been synced to the server. They will be lost.</div>' : ''}
     <p class="muted sm">Use this on test PCs, or after the exam data on the server was reset. The server keeps a record of the clearing; the PC gets a new install ID and downloads the current exams again.</p>
     <div class="row" style="margin:6px 0 4px"><button type="button" class="btn" data-backup>⬇ Download audit log backup (JSON)</button></div>
-    <form class="form" novalidate><label class="fld"><span>Password of ${esc(session.name || session.user)}</span><input name="p" type="password" autocomplete="current-password"></label>
+    <form class="form" novalidate><label class="fld"><span>Password of the Controller of Examinations</span><input name="p" type="password" autocomplete="off"></label><label class="fld"><span>Password of the Chairman</span><input name="p2" type="password" autocomplete="off"></label>
       <label class="fld"><span>Type CLEAR to confirm</span><input name="c" autocomplete="off"></label><div class="err" hidden></div>
       <div class="actions"><button type="button" class="btn ghost" data-cancel>Cancel</button><button class="btn danger">Clear this PC</button></div></form>`, {
     onDismiss: resolve, onMount: (m, close) => {
@@ -1229,11 +1282,11 @@ async function clearThisPc() {
       m.querySelector('[data-backup]').onclick = () => exportAudit('client', 'json');
       f.onsubmit = async e => {
         e.preventDefault(); er.hidden = true;
-        if (!f.p.value) return showErr(er, 'Enter the password.');
+        if (!f.p.value || !f.p2.value) return showErr(er, 'Enter both passwords.');
         if (f.c.value.trim() !== 'CLEAR') return showErr(er, 'Type CLEAR (capital letters) to confirm.');
         btn.disabled = true; busy = true;
         try {
-          const r = await api('client/login', { method: 'POST', token: null, body: { username: session.user, password: f.p.value, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } });
+          const st = { stepToken: (await committeeCall(1, f.p.value)).stepToken }, r = await committeeCall(2, f.p2.value, st);
           await idb.put('meta', r.token, 'client_token');
           const summary = { installId: await installId(), newInstallId: uid(), exams: exams.length, rolls: draws.length, finalIterations: choices.length, logEntries: head ? head.seq : 0, logHead: head ? head.hash : null, unsynced };
           await api('client/pc-cleared', { method: 'POST', token: r.token, body: { ...summary, device: await deviceInfo('randomizer') } });
@@ -1371,11 +1424,11 @@ function certBlocks(m) {
     ['Audit log check', m.chain ? (m.chain.ok ? `Hash chain intact (${esc(m.chain.detail)})` : `<span class="warn">PROBLEMS FOUND: ${esc(m.chain.detail)}</span>`) : '—'],
     ['Certificate generated from', esc(m.source)]]) });
   if (m.seal) { const op = m.seal.operator || {};
-    B.push({ html: `<div class="sec">BLOCKCHAIN SEAL (TAMPER-EVIDENT)</div><div class="seal">PREVIOUS BLOCK HASH:<code>${esc(m.seal.prevHash || '—')}</code>CURRENT BLOCK HASH (SHA-256 — SEALED):<code>${esc(m.seal.logHash)}</code>LOG ID: ${m.seal.logSeq}  |  SESSION: ${esc(op.signedInAt ? `${op.user || 'Verifier'}, opened ${cTs(Date.parse(op.signedInAt))}` : (op.user || '—'))}  |  SEALED AT: ${esc(cTs(m.seal.ts))}</div>` }); }
+    B.push({ html: `<div class="sec">BLOCKCHAIN SEAL (TAMPER-EVIDENT)</div><div class="seal">PREVIOUS BLOCK HASH:<code>${esc(m.seal.prevHash || '—')}</code>CURRENT BLOCK HASH (SHA-256 — SEALED):<code>${esc(m.seal.logHash)}</code>LOG ID: ${m.seal.logSeq}  |  SESSION: ${esc(op.signedInAt ? `${op.user === 'coe+chairman' ? 'COE & Chairman signed in' : (op.user || 'Verifier') + ', opened'} ${cTs(Date.parse(op.signedInAt))}` : (op.user || '—'))}  |  SEALED AT: ${esc(cTs(m.seal.ts))}</div>` }); }
   const rule = best ? `The final result for each subject is the question paper set that came up most often in the ${BEST_SPINS} draws; a tie is decided by one tie-breaker draw among the tied sets only.`
     : isClientMode(e) ? `The final result for each subject is the set drawn in the final attempt, the number of which (${m.T ? ord(m.T) : 'not drawn yet'}) was itself drawn at random once for this examination.`
     : `The final result for each subject is the set drawn in the 5th attempt.`;
-  B.push({ html: `<p class="txt">Certified that the above Question Paper Set${m.subs.length > 1 ? 's were' : ' was'} selected through the draw process stated above, on the Randomization PC named above. Each draw is one cryptographically secure random selection (Web Crypto <i>crypto.getRandomValues</i> with rejection sampling, so every set in the pool had an equal chance), made while the PC had no internet connection and within the shift's randomization window (IST). ${rule} The draws were made after the Randomizer page had been opened with the Verifier's login and the above-named Committee Officers had each signed in on that PC with their own password, at the UPESSC, Prayagraj, Uttar Pradesh. Every draw was locked and written to the PC's audit log at the moment it was made; each log entry carries the SHA-256 hash of the previous entry (a blockchain-style hash chain), so any alteration to the draw data breaks the chain and is detected when the log is verified. This certificate is system-generated from those records.</p>` });
+  B.push({ html: `<p class="txt">Certified that the above Question Paper Set${m.subs.length > 1 ? 's were' : ' was'} selected through the draw process stated above, on the Randomization PC named above. Each draw is one cryptographically secure random selection (Web Crypto <i>crypto.getRandomValues</i> with rejection sampling, so every set in the pool had an equal chance), made while the PC had no internet connection and within the shift's randomization window (IST). ${rule} The draws were made after the above-named Committee Officers had each signed in on that PC with their own password (the Controller of Examinations first, then the Chairman), at the UPESSC, Prayagraj, Uttar Pradesh. Every draw was locked and written to the PC's audit log at the moment it was made; each log entry carries the SHA-256 hash of the previous entry (a blockchain-style hash chain), so any alteration to the draw data breaks the chain and is detected when the log is verified. This certificate is system-generated from those records.</p>` });
   if (m.signatories.length) B.push({ html: `<div class="sig">${m.signatories.map(x => `<div>${esc(x.name)}<span>${esc(x.designation || '')}</span></div>`).join('')}</div>` });
   return B;
 }
@@ -1527,7 +1580,7 @@ async function renderLogins(v) {
       ${a && a.hasPassword ? `<div><b>${esc(a.name)}</b>${a.designation ? ', ' + esc(a.designation) : ''} · ${statusBadge(a.status)}${a.lastLogin ? ` <span class="muted sm">· last used ${fmtTs(a.lastLogin)}</span>` : ''}</div>` : '<span class="badge b-prog">Not set up</span> <span class="muted sm">Randomization cannot start until both posts are set up.</span>'}</div>
       <div class="row"><button class="btn ${a ? '' : 'primary'}" data-act="post" data-k="${k}">${a ? 'Change' : 'Set up'}</button>${a ? `<button class="btn sm ${a.status === 'active' ? 'danger' : ''}" data-act="toggle" data-u="${k}">${a.status === 'active' ? 'Disable' : 'Enable'}</button>` : ''}</div></div></div>`; };
   v.innerHTML = `<div class="toolbar">${pageHead('Verifier console', 'Logins')}</div>
-    <p class="muted sm">Everyone signs in with a username and password created here. The Randomizer page is opened with the Verifier's login; then the Controller of Examinations (step 1) and the Chairman (step 2) each enter their own password before any spin.${LOCAL ? ' These logins exist only on this computer.' : ''}</p>
+    <p class="muted sm">Everyone signs in with a username and password created here. The Randomizer page has no Verifier login: the Controller of Examinations (step 1) and then the Chairman (step 2) each enter their own password to open it.${LOCAL ? ' These logins exist only on this computer.' : ''}</p>
     ${postCard('coe', 1)}${postCard('chairman', 2)}
     <div class="card"><div class="row" style="align-items:center;margin-bottom:8px"><div class="grow"><h3>Admin logins</h3><p class="muted sm">Admins set up exams, shifts, subjects and colours, publish them, and see the results.</p></div><button class="btn primary" data-act="addAdmin">+ Add admin</button></div>
       ${admins.length ? `<table class="tbl"><thead><tr><th>Username</th><th>Name</th><th>Status</th><th>Created</th><th>Last sign-in</th><th></th></tr></thead><tbody>${admins.map(a => `<tr>
@@ -1646,81 +1699,80 @@ function stateBadge(s, prog) {
   return (w === 'open' ? '<span class="badge b-open">● Window open</span>' : w === 'upcoming' ? '<span class="badge b-up">Upcoming</span>' : '<span class="badge b-closed">Window closed</span>') + (prog.done ? ` <span class="badge b-prog">${prog.done}/${prog.total} draws</span>` : '');
 }
 
-/* Randomizer page: opened with the Verifier's login (username + password), then, step by step, the Controller of
-   Examinations (step 1) and the Chairman (step 2) each enter their own password. No spin is possible until both
-   have signed in. Their names and sign-in times go into every draw and onto the QP-Draw certificate.
+/* Randomizer page: opens after the Controller of Examinations (step 1) and the Chairman (step 2) have each entered their
+   own password; no Verifier login. Their names and sign-in times go into every draw and onto the QP-Draw certificate.
    They stay signed in with the page until "Log out". */
-async function submitClientLogin(f, er, btn) {
-    const id = f.u.value.trim().toLowerCase(), p = f.p.value;
-    const stop = m => { showErr(er, m); btn.disabled = false; };
-    let r; const t0 = Date.now();
-    try { r = await api('client/login', { method: 'POST', token: null, body: { username: id, password: p, installId: await installId(), clientClock: new Date().toISOString(), device: await deviceInfo('randomizer') } }); }
-    catch (err) {
-      if (err.network) { refreshNet('login-failed'); return stop(LOCAL ? 'The app could not reach its local data store. Close and reopen the app.' : 'Internet is required to sign in. Connect to the internet and try again. After signing in, this PC can randomize offline.'); }
-      await appendLog('client', 'RANDOMIZER_LOGIN_FAILED', { attempted: id, reason: err.message, ...buildLog() }, { actor: id || 'unknown' }); return stop(err.message);
-    }
-    if (r.mustChange && !(r.token = await forcePasswordChange(r.token, p, 'The Verifier login'))) return stop('The default Verifier password must be changed first.');
-    const t1 = Date.now();
-    await idb.del('meta', 'client_auths'); await idb.del('meta', 'client_auth');
-    await idb.put('meta', r.token, 'client_token');
-    reauthNeeded = null;
-    setSession({ role: 'client', user: r.user, name: r.name || null, loginAt: new Date(t1).toISOString(), committee: [] });
-    await checkClock('login'); await loadBuildInfo();
-    await appendLog('client', 'RANDOMIZER_PAGE_OPENED', { openedBy: r.user, verifierName: r.name || null, clockReading: new Date(t1).toISOString(), localClock: fmtTs(t1) + ' IST',
-      ...(LOCAL ? { mode: 'Windows app (offline, this computer only)' } : { serverClock: new Date(r.serverTime).toISOString(), clockDriftSeconds: Math.round(((t0 + t1) / 2 - r.serverTime) / 1000) }),
-      ...tzInfo(), network: netSnapshot(), installId: await installId(), staysSignedIn: !!DESK, ...buildLog() });
-    if (!LOCAL && Number.isFinite(r.serverTime)) await noteServerTime({ serverTime: r.serverTime, localMid: (t0 + t1) / 2, rttMs: t1 - t0 }, 'login');
-    await applyDownload(r, 'login');
-    const x = await verifyChain('client');
-    integrityIssue = x.ok ? null : x.issues[0];
-    if (!x.ok) await appendLog('client', 'INTEGRITY_CHECK_FAILED', { issues: x.issues });
-    cstate.view = 'exams'; renderHeader(); renderClient();
-    refreshNet('after-login');
-    syncNow(true);
-    if (r.committeeReady) promptCommittee();
+const officersOf = r => (r.officers || []).map(o => ({ post: o.post, label: o.label, name: o.name, designation: o.designation || '', signedInAt: new Date(o.at).toISOString() }));
+async function finishClientLogin(r, t0, t1) {
+  const committee = officersOf(r);
+  await idb.del('meta', 'client_auths'); await idb.del('meta', 'client_auth');
+  await idb.put('meta', r.token, 'client_token');
+  reauthNeeded = null;
+  setSession({ role: 'client', user: r.user, name: r.name || null, loginAt: new Date(t1).toISOString(), committee });
+  await checkClock('login'); await loadBuildInfo();
+  await appendLog('client', 'RANDOMIZER_PAGE_OPENED', { committee, clockReading: new Date(t1).toISOString(), localClock: fmtTs(t1) + ' IST',
+    ...(LOCAL ? { mode: 'Windows app (offline, this computer only)' } : { serverClock: new Date(r.serverTime).toISOString(), clockDriftSeconds: Math.round(((t0 + t1) / 2 - r.serverTime) / 1000) }),
+    ...tzInfo(), network: netSnapshot(), installId: await installId(), staysSignedIn: !!DESK, ...buildLog() });
+  await appendLog('client', 'COMMITTEE_SIGNED_IN', { committee, network: netSnapshot() });
+  if (!LOCAL && Number.isFinite(r.serverTime)) await noteServerTime({ serverTime: r.serverTime, localMid: (t0 + t1) / 2, rttMs: t1 - t0 }, 'login');
+  await applyDownload(r, 'login');
+  const x = await verifyChain('client');
+  integrityIssue = x.ok ? null : x.issues[0];
+  if (!x.ok) await appendLog('client', 'INTEGRITY_CHECK_FAILED', { issues: x.issues });
+  cstate.view = 'exams'; renderHeader(); renderClient();
+  refreshNet('after-login');
+  syncNow(true);
 }
 const POST_LABEL = { coe: 'Controller of Examinations', chairman: 'Chairman' };
 const hasCommittee = () => !!(session && session.role === 'client' && Array.isArray(session.committee) && ['coe', 'chairman'].every(p => session.committee.some(o => o.post === p)));
 const committeeNames = () => hasCommittee() ? session.committee.map(o => o.name).join(' & ') : '';
-/* One step: the post's name is shown, and that person enters only their password */
-function committeeStep(step, p) {
-  return new Promise(resolve => openModal(`<div class="eyebrow">Randomizer sign-in · step ${step} of 2</div><h3>${esc(p.label)}</h3>
-    <p style="margin:2px 0 10px"><b>${esc(p.name || '')}</b>${p.designation ? `<br><span class="muted sm">${esc(p.designation)}</span>` : ''}</p>
-    <form class="form" novalidate><label class="fld"><span>Password of the ${esc(p.label)}</span><input name="p" type="password" autocomplete="off"></label><div class="err" hidden></div>
-      <div class="actions"><button type="button" class="btn ghost" data-later>Later</button><button class="btn primary">${step === 1 ? 'Confirm · next: Chairman' : 'Confirm'}</button></div></form>`, {
-    onDismiss: () => resolve(null), onMount: (m, close) => {
-      const f = m.querySelector('form'), er = m.querySelector('.err'), btn = f.querySelector('.btn.primary');
-      f.p.focus();
-      m.querySelector('[data-later]').onclick = () => { close(); resolve(null); };
-      f.onsubmit = async ev => {
-        ev.preventDefault(); er.hidden = true;
-        if (!f.p.value) return showErr(er, 'Enter the password.');
-        btn.disabled = true;
-        try {
-          const token = await idb.get('meta', 'client_token');
-          const r = await api('client/officer', { method: 'POST', token, body: { post: p.post, password: f.p.value, installId: await installId(), device: await deviceInfo('randomizer') } });
-          close(); resolve({ post: r.officer.post, label: r.officer.label, name: r.officer.name, designation: r.officer.designation || '', signedInAt: new Date(r.officer.at).toISOString() });
-        } catch (err) {
-          if (!err.network && err.status !== 409) await appendLog('client', 'COMMITTEE_SIGN_IN_FAILED', { post: p.label, reason: err.message });
-          showErr(er, err.network ? (LOCAL ? 'The local data store is not responding.' : 'Internet is required.') : err.message); btn.disabled = false;
-        }
-      };
-    } }));
-}
-async function promptCommittee() {
-  if (!session || session.role !== 'client' || modalOpen()) return;
-  if (!LOCAL && !net.internet) return alertModal('Internet needed', '<p>The Controller of Examinations and the Chairman sign in with the server, so this needs the internet. Connect, let both sign in, then disconnect to randomize.</p>');
-  if (!(await idb.get('meta', 'committee_ready'))) return alertModal('Not set up yet', '<p>The Verifier must first set up the <b>Controller of Examinations</b> and <b>Chairman</b> logins (Verifier console → Logins). Then press “Update exams” here and sign in.</p>');
-  const info = (await idb.get('meta', 'committee_info')) || [], got = [];
-  for (const [step, post] of [[1, 'coe'], [2, 'chairman']]) {
-    const o = await committeeStep(step, info.find(x => x.post === post) || { post, label: POST_LABEL[post], name: '' });
-    if (!o) return;   // "Later": nothing changes; spins stay disabled until both have signed in
-    got.push(o);
+/* Both sign in again in a dialog (session ended on the server). Resolves to the server's answer, or null if cancelled. */
+async function committeeModal(reason) {
+  if (!LOCAL && !net.internet) { await alertModal('Internet needed', '<p>The Controller of Examinations and the Chairman sign in with the server, so this needs the internet.</p>'); return null; }
+  const info = await committeeInfo(), st = {};
+  for (const step of [1, 2]) {
+    const p = postInfo(info, step === 1 ? 'coe' : 'chairman');
+    const r = await new Promise(resolve => openModal(`<div class="eyebrow">Randomizer sign-in · step ${step} of 2</div><h3>${esc(p.label)}</h3>
+      ${reason && step === 1 ? `<p class="muted sm">${esc(reason)} Everything on this PC is kept.</p>` : ''}
+      <p style="margin:2px 0 10px"><b>${esc(p.name || '')}</b>${p.designation ? `<br><span class="muted sm">${esc(p.designation)}</span>` : ''}</p>
+      <form class="form" novalidate><label class="fld"><span>Password of the ${esc(p.label)}</span><input name="p" type="password" autocomplete="off"></label><div class="err" hidden></div>
+        <div class="actions"><button type="button" class="btn ghost" data-cancel>Cancel</button><button class="btn primary">${step === 1 ? 'Confirm · next: Chairman' : 'Confirm'}</button></div></form>`, {
+      onDismiss: () => resolve(null), onMount: (m, close) => {
+        const f = m.querySelector('form'), er = m.querySelector('.err'), btn = f.querySelector('.btn.primary');
+        f.p.focus();
+        m.querySelector('[data-cancel]').onclick = () => { close(); resolve(null); };
+        f.onsubmit = async ev => {
+          ev.preventDefault(); er.hidden = true;
+          if (!f.p.value) return showErr(er, 'Enter the password.');
+          btn.disabled = true;
+          try { const x = await committeeCall(step, f.p.value, st); close(); resolve(x); }
+          catch (err) {
+            if (!err.network) await appendLog('client', 'COMMITTEE_SIGN_IN_FAILED', { step, post: p.label, reason: err.message });
+            showErr(er, err.network ? (LOCAL ? 'The local data store is not responding.' : 'Internet is required.') : err.message); btn.disabled = false;
+          }
+        };
+      } }));
+    if (!r) return null;
+    if (step === 1) st.stepToken = r.stepToken; else return r;
   }
-  setSession({ ...session, committee: got });
-  await appendLog('client', 'COMMITTEE_SIGNED_IN', { openedBy: session.user, committee: got, network: netSnapshot() });
+  return null;
+}
+/* Signed-in Randomizer page whose session ended on the server: both sign in again; everything on this PC is kept */
+async function promptCommittee(reason) {
+  if (!session || session.role !== 'client' || modalOpen()) return false;
+  const t0 = Date.now(), r = await committeeModal(reason), t1 = Date.now();
+  if (!r) return false;
+  const committee = officersOf(r);
+  await idb.put('meta', r.token, 'client_token');
+  reauthNeeded = null;
+  setSession({ ...session, user: r.user, name: r.name || session.name, loginAt: new Date(t1).toISOString(), committee });
+  await appendLog('client', 'COMMITTEE_SIGNED_IN', { committee, again: true, network: netSnapshot() });
+  if (!LOCAL && Number.isFinite(r.serverTime)) await noteServerTime({ serverTime: r.serverTime, localMid: (t0 + t1) / 2, rttMs: t1 - t0 }, 'sign-in-again');
+  await applyDownload(r, 'sign-in-again');
   toast(`Signed in: ${committeeNames()} ✔`);
   if (clientIdle()) renderClient();
+  syncNow(true);
+  return true;
 }
 
 /* Exams, shifts and the logo from the server: at login, with "Update exams", and automatically when the internet comes back.
@@ -1829,7 +1881,6 @@ async function renderClient() {
   app.innerHTML = `<div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${cur === k ? 'on' : ''}" data-act="tab" data-k="${k}">${l}</button>`).join('')}<div class="sp"></div>
     ${LOCAL ? '' : `<span class="muted sm">${syncInfo}</span>`}
     <span class="muted sm verif">${hasCommittee() ? `Signed in: <b>${esc(committeeNames())}</b>` : '<b style="color:var(--bad)">COE &amp; Chairman not signed in</b>'}</span>
-    <button class="btn sm" data-act="committee" ${LOCAL || net.internet ? '' : 'disabled title="Needs the internet"'}>${hasCommittee() ? 'Sign in again' : 'COE &amp; Chairman sign-in'}</button>
     <button class="btn sm" data-act="update" ${LOCAL || net.internet ? '' : 'disabled'} title="${LOCAL || net.internet ? 'Get the latest published exams, shifts and colours' : 'Connect to the internet to update exams'}${up ? ' · last updated ' + fmtTs(up.at) + ' IST' : ''}">⇣ Update exams</button>
     ${LOCAL ? '' : `<button class="btn sm" data-act="sync" ${net.internet ? '' : 'disabled title="Connect to the internet to sync"'}>⟳ Sync now</button>`}
     <button class="btn sm" data-act="logout">Log out</button></div><div id="view"></div>`;
@@ -2048,7 +2099,7 @@ async function doDraw(examId, shiftId, subjectId, attempt) {
 
     // ---- random selection ----
     const rnd = secureRandomInt(n), colourIndex = poolIdx[rnd.value], colour = cleanColour(sb.colours[colourIndex]);
-    const committee = session.committee || [], operator = { user: session.user, name: session.name || null, signedInAt: session.loginAt || null };   // operator = the Verifier who opened the page
+    const committee = session.committee || [], operator = { user: session.user, name: session.name || null, signedInAt: session.loginAt || null };   // the Randomizer session (COE + Chairman sign-in)
     const details = { key, examId, examName: e.name, examCode: e.code, packageVersion: e.packageVersion, shiftId, shiftName: s.name, shiftDate: s.date, window: `${s.start}-${s.end}`,
       subjectId, subjectName: sb.name, subjectCode: sb.code || '', attempt, attemptLabel: label, pool: pool.map(c => c.name), poolSize: n, ...(isTie ? { tieBreak: true, tiedColours: poolIdx.map(i => sb.colours[i].name), tiedCount: st.max } : {}),
       colourIndex, colour, rng: 'crypto.getRandomValues Uint32 + rejection sampling', rawValue: rnd.raw, rngTries: rnd.tries, clockReading: new Date().toISOString(), clockIST: fmtTs(Date.now()), networkOnline: net.internet, network: netSnapshot(), clock: ckSnap,
@@ -2190,7 +2241,7 @@ function confetti(colours) {
   if (HAS_SERVER && !DESK && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
   if (session && session.role === 'admin' && session.token) return renderAdmin();
   if (session && session.role === 'verifier' && session.token) return renderVerifier();
-  if (session && session.role === 'client' && session.user && Array.isArray(session.committee)) {   // older sessions (before 3.0) sign in again
+  if (session && session.role === 'client' && session.user === 'coe+chairman' && Array.isArray(session.committee)) {   // sessions opened with the Verifier's login (before 3.1) sign in again
     await checkClock('app-start'); await loadBuildInfo();
     await appendLog('client', 'APP_STARTED', { signedIn: session.user, committee: session.committee, staysSignedIn: !!DESK, pcClock: new Date().toISOString(), pcIST: fmtTs(Date.now()), ...tzInfo(), ...buildLog() });
     const x = await verifyChain('client'); integrityIssue = x.ok ? null : x.issues[0]; renderBanners();

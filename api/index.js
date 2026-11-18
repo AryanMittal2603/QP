@@ -48,6 +48,11 @@ async function auth(req, role, path) {
   const a = await getAccount(p.sub);
   if (!a || a.role !== TOKEN_ACCOUNT_ROLE[p.role] || a.status !== 'active') fail(401, 'Your login is no longer active. Please contact the Verifier.');
   if (p.pv !== passwordVersion(a)) fail(401, 'The password of this login was changed. Please log in again.');
+  if (p.role === 'client') {   // Randomizer: the Chairman's login must still be active with the same password too
+    const c = await getAccount('chairman');
+    if (!c || c.role !== 'chairman' || c.status !== 'active') fail(401, 'The Chairman login is no longer active. Please contact the Verifier.');
+    if (p.pv2 !== passwordVersion(c)) fail(401, 'A committee password was changed. The Controller of Examinations and the Chairman must sign in again.');
+  }
   if (a.must_change && path !== 'auth/password') fail(403, 'Please change the default password first.');
   return p;
 }
@@ -55,9 +60,10 @@ const str = (v, max = 200) => typeof v === 'string' && v.trim() && v.length <= m
 
 /* ---------------- accounts: username + password, all created by the Verifier ----------------
    verifier  : one built-in login (upessc_verifier). Its default password must be changed at the first sign-in.
-               Creates Admin logins and sets the two committee posts. Also opens the Randomizer page.
+               Creates Admin logins and sets the two committee posts.
    admin     : sets up exams, publishes, sees results.
-   coe       : Controller of Examinations: step 1 of the Randomizer sign-in (password only).
+   coe       : Controller of Examinations: step 1 of the Randomizer sign-in (password only). The Randomizer page opens
+               after step 2, with no Verifier login.
    chairman  : Chairman: step 2 of the Randomizer sign-in (password only).
    Accounts are re-checked on every request, so a disabled login or a changed password takes effect at once. */
 const DEFAULT_VERIFIER = { username: 'upessc_verifier', password: 'upessc@2026' };
@@ -66,7 +72,7 @@ const POSTS = {
   chairman: { label: 'Chairman', name: 'Dr. Prashant Kumar', designation: 'Honorable Chairman, UPESSC, Prayagraj' } };
 const OLD_COE_DESIGNATION = 'Examination Controller, UPESSC, Prayagraj';   // before 3.0.2; saved copies of this default are updated
 const ROLE_LABEL = { verifier: 'Verifier', admin: 'Admin', coe: POSTS.coe.label, chairman: POSTS.chairman.label };
-const TOKEN_ACCOUNT_ROLE = { verifier: 'verifier', admin: 'admin', client: 'verifier' };   // the Randomizer page is opened with the Verifier's login
+const TOKEN_ACCOUNT_ROLE = { verifier: 'verifier', admin: 'admin', client: 'coe' };   // the Randomizer session belongs to the COE and the Chairman together (both re-checked)
 const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
 const getAccount = async username => (await sql`select * from accounts where username = ${String(username || '').toLowerCase()}`)[0] || null;
 const publicAccount = a => ({ username: a.username, role: a.role, name: a.name, designation: a.designation || '', status: a.status, mustChange: !!a.must_change, hasPassword: !!a.hash,
@@ -81,6 +87,21 @@ async function ensureVerifier() {
 const committeeReady = async () => (await sql`select count(*)::int n from accounts where role in ('coe', 'chairman') and status = 'active' and hash is not null`)[0].n === 2;
 const committeeInfo = async () => (await sql`select username, role, name, designation from accounts where role in ('coe', 'chairman') and status = 'active' and hash is not null`)
   .map(a => ({ post: a.role, label: POSTS[a.role].label, name: a.name, designation: a.designation || '' }));
+const officerOf = (a, at) => ({ post: a.role, label: POSTS[a.role].label, name: a.name, designation: a.designation || '', at });
+/* Randomizer sign-in step: the post's own password (one login per post) */
+async function officerCheck(post, password, info, event) {
+  if (process.env.QPR_LOCAL !== '1' && isDesktop(info) && verLess(info.device.appVersion, '3.0.0')) {
+    await adminLog(post, `${event}_FAILED`, { reason: 'old Windows app', ...logInfo(info) });
+    fail(403, 'This version of the Windows app no longer connects to the server. Install the new Windows app, which works on its own on one computer, or use the website.');
+  }
+  await ensureVerifier();
+  const a = await getAccount(post), label = POSTS[post].label;
+  if (!a || a.role !== post || !a.hash) fail(409, `The ${label} login is not set up yet. The Verifier sets it up (Other users → Verifier → Logins).`);
+  if (a.status !== 'active') { await adminLog(post, `${event}_FAILED`, { reason: 'login disabled', ...logInfo(info) }); fail(403, `The ${label} login has been disabled by the Verifier.`); }
+  if (typeof password !== 'string' || !checkPw(a, password)) { await adminLog(post, `${event}_FAILED`, { post: label, ...logInfo(info) }); fail(403, `Wrong password for the ${label}.`); }
+  await sql`update accounts set last_login = now() where username = ${post}`;
+  return a;
+}
 /* Username + password for one role; failures are logged and answered without saying which part was wrong */
 async function accountLogin(roles, username, password, info, event) {
   // Windows apps before 3.0 talked to this server; 3.0 and later keep everything on their own computer
@@ -328,31 +349,26 @@ const routes = {
     return { entries, verification: verifyEntries(entries) };
   },
 
-  /* ----- Randomizer page: opened with the Verifier's login, then the Controller of Examinations and the Chairman sign in ----- */
-  'POST client/login': async ({ body, req }) => {
-    const info = requestInfo(req, body), installId = str(body.installId, 64);
-    const a = await accountLogin(['verifier'], body.username, body.password, info, 'RANDOMIZER_PAGE_LOGIN');
-    const all = await publishedExams(), exams = examsFor(all, info);
-    if (exams.length < all.length) await adminLog(a.username, 'EXAMS_WITHHELD_OLD_APP', { appVersion: info.device.appVersion || null, withheld: all.filter(e => !exams.includes(e)).map(e => e.code), reason: 'Best of 5 needs app 2.2.0 or later', ...logInfo(info) });
-    await adminLog(a.username, 'RANDOMIZER_PAGE_LOGIN', { name: a.name, installId, examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null,
-      clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
-    return { token: accountToken(a, 'client', sessionHours('randomizer', info)), user: a.username, name: a.name, mustChange: !!a.must_change, exams, logo: await getSetting('logo'),
-      certificate: await certSettings(), committee: await committeeInfo(), committeeReady: await committeeReady(), removed: await removedExams(), serverTime: Date.now() };
+  /* ----- Randomizer page: no Verifier login. Step 1: the Controller of Examinations enters their password;
+     step 2: the Chairman enters theirs. The page opens only after both. ----- */
+  'POST client/committee': async () => ({ ready: await committeeReady(), committee: await committeeInfo() }),   // names shown on the sign-in card
+  'POST client/step': async ({ body, req }) => {
+    const info = requestInfo(req, body), a = await officerCheck('coe', body.password, info, 'RANDOMIZER_STEP1'), at = Date.now();
+    await adminLog('coe', 'RANDOMIZER_STEP1_OK', { name: a.name, installId: str(body.installId, 64), ...logInfo(info) });
+    return { officer: officerOf(a, at), stepToken: sign({ step: 'coe', pv: passwordVersion(a), at, exp: at + 10 * 60e3 }), serverTime: at };
   },
-  /* Step 1 (Controller of Examinations) and step 2 (Chairman): each enters only their own password */
-  'POST client/officer': async ({ body, req, user }) => {
-    const info = requestInfo(req, body), post = body.post;
-    if (!POSTS[post]) fail(400, 'Unknown post.');
-    const a = await getAccount(post);
-    if (!a || !a.hash) fail(409, `The ${POSTS[post].label} login is not set up yet. The Verifier sets it in the Verifier console.`);
-    if (a.status !== 'active') fail(403, `The ${POSTS[post].label} login has been disabled by the Verifier.`);
-    if (!checkPw(a, body.password)) {
-      await adminLog(user, 'COMMITTEE_SIGN_IN_FAILED', { post: POSTS[post].label, installId: str(body.installId, 64), ...logInfo(info) });
-      fail(403, `Wrong password for the ${POSTS[post].label}.`);
-    }
-    const at = Date.now();
-    await adminLog(user, 'COMMITTEE_SIGNED_IN', { post: POSTS[post].label, name: a.name, installId: str(body.installId, 64), ...logInfo(info) });
-    return { officer: { post, label: POSTS[post].label, name: a.name, designation: a.designation || '', at }, serverTime: at };
+  'POST client/login': async ({ body, req }) => {
+    const info = requestInfo(req, body), installId = str(body.installId, 64), st = verifyToken(typeof body.stepToken === 'string' ? body.stepToken : null), coe = await getAccount('coe');
+    if (!st || st.step !== 'coe' || !coe || coe.status !== 'active' || st.pv !== passwordVersion(coe)) fail(409, 'Step 1 has expired. The Controller of Examinations must enter their password again.');
+    const ch = await officerCheck('chairman', body.password, info, 'RANDOMIZER_STEP2'), at = Date.now();
+    const officers = [officerOf(coe, st.at), officerOf(ch, at)], name = `${coe.name} & ${ch.name}`;
+    const all = await publishedExams(), exams = examsFor(all, info);
+    if (exams.length < all.length) await adminLog('coe+chairman', 'EXAMS_WITHHELD_OLD_APP', { appVersion: info.device.appVersion || null, withheld: all.filter(e => !exams.includes(e)).map(e => e.code), reason: 'Best of 5 needs app 2.2.0 or later', ...logInfo(info) });
+    await adminLog('coe+chairman', 'RANDOMIZER_LOGIN', { committee: officers.map(o => ({ post: o.label, name: o.name, signedIn: istTime(o.at) })), installId,
+      examsDownloaded: exams.map(e => ({ code: e.code, version: e.packageVersion })), clientClock: body.clientClock || null, clockOffsetSeconds: info.clockOffsetSeconds, ...logInfo(info) });
+    return { token: sign({ sub: 'coe', role: 'client', name, pv: passwordVersion(coe), pv2: passwordVersion(ch), exp: at + sessionHours('randomizer', info) * 3600e3 }),
+      user: 'coe+chairman', name, officers, exams, logo: await getSetting('logo'), certificate: await certSettings(), committee: await committeeInfo(), committeeReady: true,
+      removed: await removedExams(), serverTime: at };
   },
 
   'GET admin/exams': async () => {
@@ -549,7 +565,7 @@ export default async function handler(req, res) {
     const fn = routes[`${req.method} ${path}`];
     if (!fn) fail(404, 'Not found.');
     const ctx = { body: req.body && typeof req.body === 'object' ? req.body : {}, query: req.query || {}, req };
-    const PUBLIC = new Set(['status', 'ping', 'speedtest', 'admin/login', 'verifier/login', 'client/login']);
+    const PUBLIC = new Set(['status', 'ping', 'speedtest', 'admin/login', 'verifier/login', 'client/committee', 'client/step', 'client/login']);
     const need = PUBLIC.has(path) ? null : path.startsWith('admin/') ? 'admin' : path.startsWith('verifier/') ? 'verifier' : path.startsWith('client/') ? 'client' : path.startsWith('auth/') ? 'any' : 'deny';
     if (need === 'deny') fail(404, 'Not found.');
     if (need) { ctx.tok = await auth(req, need, path); ctx.user = ctx.tok.sub; }
